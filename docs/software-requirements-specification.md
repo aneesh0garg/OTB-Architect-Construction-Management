@@ -337,6 +337,9 @@ The MVP provides four AI modes: **Project Brain** (cited Q&A), **capture intelli
 
 - **NFR-UX-001:** Web and mobile user interfaces shall meet WCAG 2.2 AA for supported experiences.
 - **NFR-UX-002:** The system shall support keyboard navigation, screen readers, contrast-compliant status indicators, and non-color status labels.
+- **NFR-UX-003:** Users shall be able to select light, dark, or system theme. Organization administrators may set an organization default but shall not override an individual's accessible preference.
+- **NFR-UX-004:** Product color, typography, spacing, elevation, motion, and component states shall use versioned semantic design tokens rather than hard-coded values in application components.
+- **NFR-UX-005:** All supported themes shall meet the same contrast, focus, status, and error-state accessibility requirements.
 - **NFR-I18N-001:** The data model shall support time zones, currencies, metric/imperial units, localized dates, and multilingual content without redesign.
 
 ### 7.7 Observability and operational quality

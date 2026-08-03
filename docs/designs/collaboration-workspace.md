@@ -71,6 +71,12 @@ AI is reachable from the mode rail, global search, project channel, and any indi
 5. Financial and contractual actions retain stronger permission, approval, and audit treatment than informal conversation.
 6. The field experience remains mobile-first and offline-capable; the workspace supports coordination, review, and reporting.
 
+## Theme and visual system
+
+The workspace shall support **light**, **dark**, and **system** themes. Theme selection is a user preference; organizations may provide a default only. No workflow state may be communicated by color alone.
+
+Implementation shall use semantic tokens (for example, `surface`, `surface-raised`, `text-primary`, `text-secondary`, `border`, `action-primary`, `status-warning`, and `focus-ring`) rather than component-level color literals. Tokens must support accessible contrast in every theme and can later enable organization branding without forking components.
+
 ## Next design deliverables
 
 1. Full screen inventory for every global and project module.
