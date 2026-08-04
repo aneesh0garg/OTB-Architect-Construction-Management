@@ -2568,9 +2568,13 @@ function Drawings({
   const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([]);
   const [annotationBody, setAnnotationBody] = useState('');
   const [openError, setOpenError] = useState<string>();
+  const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const drawings =
     record?.documents.filter((document) => document.document_type === 'drawing') ??
     workspaceData.activeProject.drawings;
+  const filteredDrawings = showCurrentOnly
+    ? drawings.filter((drawing) => ['issued', 'Current'].includes(drawing.status))
+    : drawings;
   const openDrawing = async (drawing: (typeof drawings)[number]) => {
     if (!record || !('id' in drawing)) {
       setOpenError('Sign in to open a controlled drawing original.');
@@ -2615,7 +2619,12 @@ function Drawings({
           <p>One controlled register for current, issued and superseded evidence.</p>
         </div>
         <div>
-          <button className="button-secondary">Filter</button>
+          <button
+            className="button-secondary"
+            onClick={() => setShowCurrentOnly((current) => !current)}
+          >
+            {showCurrentOnly ? 'Show all' : 'Current only'}
+          </button>
           <button className="button-primary" onClick={() => onNavigate('documents')}>
             Upload drawing
           </button>
@@ -2623,7 +2632,7 @@ function Drawings({
       </div>
       <section className="content-card drawing-table-card">
         <div className="table-toolbar">
-          <strong>{drawings.length} drawings</strong>
+          <strong>{filteredDrawings.length} drawings</strong>
           <span>Revision control is ready for connected records</span>
         </div>
         <div className="drawing-table" role="table">
@@ -2635,7 +2644,7 @@ function Drawings({
             <span>Status</span>
             <span />
           </div>
-          {drawings.map((drawing) => (
+          {filteredDrawings.map((drawing) => (
             <div
               className="drawing-row"
               role="row"
