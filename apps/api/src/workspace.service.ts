@@ -36,6 +36,11 @@ interface TaskRow extends QueryResultRow {
   assignee_id: string | null;
   created_by: string;
 }
+interface PersonalTaskRow extends TaskRow {
+  project_id: string;
+  project_code: string;
+  project_name: string;
+}
 interface DocumentRow extends QueryResultRow {
   id: string;
   document_number: string;
@@ -349,6 +354,19 @@ export class WorkspaceService {
       priority: created.priority,
     });
     return created;
+  }
+  async getMyTasks(actor: AuthenticatedActor) {
+    const tasks = await this.pool.query<PersonalTaskRow>(
+      `SELECT t.id, t.title, t.status, t.priority, t.due_date, t.assignee_id, t.created_by,
+          t.project_id, p.code AS project_code, p.name AS project_name
+       FROM tasks t
+       JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
+       JOIN project_members pm ON pm.project_id = t.project_id AND pm.user_id = $2
+       WHERE t.organization_id = $1 AND t.assignee_id = $2
+       ORDER BY t.due_date NULLS LAST, t.created_at DESC`,
+      [actor.organizationId, actor.userId],
+    );
+    return tasks.rows;
   }
   async transitionTaskStatus(
     actor: AuthenticatedActor,

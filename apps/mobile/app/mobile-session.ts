@@ -20,6 +20,15 @@ export interface MobileSession {
 interface WorkspaceResponse {
   projects: Array<{ id: string; name: string }>;
 }
+export interface MobileTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  project_code: string;
+  project_name: string;
+}
 
 function discovery() {
   if (!issuer) throw new Error('EXPO_PUBLIC_KEYCLOAK_ISSUER is not configured.');
@@ -103,6 +112,14 @@ export async function signIn() {
 
 export async function signOut() {
   await SecureStore.deleteItemAsync(sessionKey);
+}
+
+export async function loadMyTasks(session: MobileSession) {
+  const response = await fetch(`${requiredApiUrl()}/v1/workspace/my-tasks`, {
+    headers: { authorization: `Bearer ${session.accessToken}` },
+  });
+  if (!response.ok) throw new Error('Your assigned task list could not be loaded.');
+  return response.json() as Promise<MobileTask[]>;
 }
 
 export async function submitObservation(

@@ -190,13 +190,19 @@ assert.equal(
 const task = await api('POST', `${projectPath}/tasks`, {
   title: `Verify facade coordination ${runId}`,
   priority: 'high',
-  assigneeId: 'pilot-admin',
+  assigneeId: identity.userId,
 });
 assert.equal(task.title, `Verify facade coordination ${runId}`);
 const startedTask = await api('POST', `${projectPath}/tasks/${task.id}/status`, {
   status: 'in_progress',
 });
 assert.equal(startedTask.status, 'in_progress', 'Task did not transition to in progress.');
+const myTasks = await api('GET', '/v1/workspace/my-tasks');
+assert.equal(
+  myTasks.some((item) => item.id === task.id && item.project_id === project.id),
+  true,
+  'The assigned task is missing from the personal worklist.',
+);
 const contractorTaskTransition = await fetch(`${apiUrl}${projectPath}/tasks/${task.id}/status`, {
   method: 'POST',
   headers: {

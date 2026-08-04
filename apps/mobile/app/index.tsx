@@ -4,6 +4,8 @@ import * as SQLite from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import {
   createSiteVisitReport,
+  loadMyTasks,
+  type MobileTask,
   createObservationTask,
   createObservationWorkflow,
   type MobileSession,
@@ -239,6 +241,7 @@ export default function HomeScreen() {
   const [syncState, setSyncState] = useState<SyncState>('synced');
   const [activeTab, setActiveTab] = useState<MobileTab>('field');
   const [session, setSession] = useState<MobileSession>();
+  const [myTasks, setMyTasks] = useState<MobileTask[]>([]);
   const [accountError, setAccountError] = useState<string>();
   const [selectedReportObservationIds, setSelectedReportObservationIds] = useState<string[]>([]);
   const [commentObservationId, setCommentObservationId] = useState<string>();
@@ -290,6 +293,16 @@ export default function HomeScreen() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setMyTasks([]);
+      return;
+    }
+    loadMyTasks(session)
+      .then(setMyTasks)
+      .catch(() => setAccountError('Your assigned task list could not be loaded.'));
+  }, [session]);
 
   useEffect(() => {
     restoreSession()
@@ -770,6 +783,33 @@ export default function HomeScreen() {
           {linkedTaskObservations.map((observation) => (
             <ObservationCard observation={observation} key={observation.id} />
           ))}
+          {myTasks.length > 0 && (
+            <>
+              <View style={styles.listHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Assigned to me</Text>
+                  <Text style={styles.sectionMeta}>Across permitted projects</Text>
+                </View>
+              </View>
+              {myTasks.map((task) => (
+                <View style={styles.observationCard} key={task.id}>
+                  <View style={styles.observationTop}>
+                    <Text style={styles.observationId}>
+                      {task.project_code} · {task.project_name}
+                    </Text>
+                    <Text style={styles.recordSync}>{task.priority}</Text>
+                  </View>
+                  <Text style={styles.observationTitle}>{task.title}</Text>
+                  <View style={styles.observationFooter}>
+                    <Text style={styles.priorityText}>
+                      {task.due_date ? `Due ${task.due_date}` : 'No due date'}
+                    </Text>
+                    <Text style={styles.recordState}>{task.status.replaceAll('_', ' ')}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
           {linkedTaskObservations.length === 0 && (
             <Text style={styles.emptyState}>
               Sync an observation, then use “Create task” from Field to add it here.

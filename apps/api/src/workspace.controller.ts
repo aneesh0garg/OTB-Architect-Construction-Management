@@ -246,6 +246,9 @@ export class WorkspaceController {
   @Get('notifications') getNotifications(@Req() request: AuthenticatedRequest) {
     return this.workspace.getNotifications(request.actor!);
   }
+  @Get('my-tasks') getMyTasks(@Req() request: AuthenticatedRequest) {
+    return this.workspace.getMyTasks(request.actor!);
+  }
   @Get('notification-preferences') getNotificationPreferences(
     @Req() request: AuthenticatedRequest,
   ) {
