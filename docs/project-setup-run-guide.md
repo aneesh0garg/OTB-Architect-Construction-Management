@@ -195,6 +195,16 @@ can explicitly open the signed original in a separate tab.
 
 ## P1.2 field and execution API
 
+Observation discussions are project-scoped, auditable, and safe to retry from
+an offline client using a `clientCommentId`. Field users can add a comment
+locally; the mobile sync queue creates the observation first, then its pending
+comments.
+
+| Endpoint                                                            | Purpose                                                                          |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /v1/projects/:projectId/observations/:observationId/comments`  | Return the permitted observation discussion in chronological order.              |
+| `POST /v1/projects/:projectId/observations/:observationId/comments` | Create or retry a comment with `body` and optional idempotent `clientCommentId`. |
+
 The mobile field screen makes local observation and site-visit capture, plus
 their sync status, visible. The server accepts idempotent field captures
 through a client capture ID, so a device can retry safely after a connectivity

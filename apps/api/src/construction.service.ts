@@ -22,6 +22,12 @@ interface ObservationRow extends QueryResultRow {
   status: string;
   sync_state: string;
 }
+interface ObservationCommentRow extends QueryResultRow {
+  id: string;
+  body: string;
+  created_by: string;
+  created_at: Date;
+}
 interface WorkflowRow extends QueryResultRow {
   id: string;
   record_type: WorkflowType;
@@ -124,6 +130,47 @@ export class ConstructionService {
     });
     return observation;
   }
+  async getObservationComments(
+    actor: AuthenticatedActor,
+    projectId: string,
+    observationId: string,
+  ) {
+    await this.observationForActor(actor, projectId, observationId);
+    const comments = await this.pool.query<ObservationCommentRow>(
+      'SELECT id, body, created_by, created_at FROM observation_comments WHERE organization_id = $1 AND project_id = $2 AND observation_id = $3 ORDER BY created_at ASC',
+      [actor.organizationId, projectId, observationId],
+    );
+    return comments.rows;
+  }
+  async addObservationComment(
+    actor: AuthenticatedActor,
+    projectId: string,
+    observationId: string,
+    input: CreateObservationCommentInput,
+  ) {
+    await this.observationForActor(actor, projectId, observationId);
+    const result = await this.pool.query<ObservationCommentRow>(
+      `INSERT INTO observation_comments (
+        organization_id, project_id, observation_id, body, client_comment_id, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (organization_id, client_comment_id) DO UPDATE SET body = EXCLUDED.body
+      RETURNING id, body, created_by, created_at`,
+      [
+        actor.organizationId,
+        projectId,
+        observationId,
+        requiredText(input.body, 'Comment'),
+        input.clientCommentId ?? null,
+        actor.userId,
+      ],
+    );
+    const comment = row(result.rows, 'Comment could not be saved.');
+    await this.audit.record(actor, 'observation.comment_added', 'observation_comment', comment.id, {
+      projectId,
+      observationId,
+    });
+    return comment;
+  }
   async createWorkflowRecord(
     actor: AuthenticatedActor,
     projectId: string,
@@ -203,6 +250,18 @@ export class ConstructionService {
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
     await this.projectAccess.requireAccess(actor, projectId);
   }
+  private async observationForActor(
+    actor: AuthenticatedActor,
+    projectId: string,
+    observationId: string,
+  ) {
+    await this.authorizeProject(actor, projectId);
+    const observation = await this.pool.query<{ id: string }>(
+      'SELECT id FROM observations WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [observationId, projectId, actor.organizationId],
+    );
+    return row(observation.rows, 'Observation is unavailable.');
+  }
   private async assertSiteVisitReportSources(
     actor: AuthenticatedActor,
     projectId: string,
@@ -275,6 +334,10 @@ export interface CreateObservationInput {
   clientCaptureId?: string;
   assigneeId?: string;
   dueDate?: string;
+}
+export interface CreateObservationCommentInput {
+  body: string;
+  clientCommentId?: string;
 }
 export interface CreateWorkflowInput {
   recordType: WorkflowType;

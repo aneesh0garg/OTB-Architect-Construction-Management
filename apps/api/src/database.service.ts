@@ -203,6 +203,12 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS notification_preferences (organization_id TEXT NOT NULL, user_id TEXT NOT NULL, event_type TEXT NOT NULL DEFAULT '*', in_app_enabled BOOLEAN NOT NULL DEFAULT true, email_enabled BOOLEAN NOT NULL DEFAULT false, quiet_hours_start TIME, quiet_hours_end TIME, digest_frequency TEXT NOT NULL DEFAULT 'immediate', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (organization_id, user_id, event_type));
     `,
   },
+  {
+    id: '0015_observation_comments',
+    sql: `
+      CREATE TABLE IF NOT EXISTS observation_comments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, observation_id UUID NOT NULL REFERENCES observations(id) ON DELETE CASCADE, body TEXT NOT NULL, client_comment_id TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, client_comment_id));
+    `,
+  },
 ];
 
 @Injectable()

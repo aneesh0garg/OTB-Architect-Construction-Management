@@ -136,6 +136,25 @@ export async function submitObservation(
   return response.json() as Promise<{ id: string }>;
 }
 
+export async function submitObservationComment(
+  session: MobileSession,
+  input: { observationId: string; body: string; clientCommentId: string },
+) {
+  const response = await fetch(
+    `${requiredApiUrl()}/v1/projects/${session.projectId}/observations/${input.observationId}/comments`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ body: input.body, clientCommentId: input.clientCommentId }),
+    },
+  );
+  if (!response.ok) throw new Error('The observation comment could not be synced.');
+  return response.json() as Promise<{ id: string }>;
+}
+
 export async function submitFieldVisit(
   session: MobileSession,
   input: {

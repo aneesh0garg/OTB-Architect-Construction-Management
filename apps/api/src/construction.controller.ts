@@ -37,6 +37,10 @@ class ObservationDto {
   @IsOptional() @IsString() assigneeId?: string;
   @IsOptional() @IsISO8601() dueDate?: string;
 }
+class ObservationCommentDto {
+  @IsString() @MinLength(1) @MaxLength(4000) body!: string;
+  @IsOptional() @IsString() @MaxLength(160) clientCommentId?: string;
+}
 class WorkflowDto {
   @IsIn([
     'rfi',
@@ -78,6 +82,21 @@ export class ConstructionController {
     @Body() body: ObservationDto,
   ) {
     return this.construction.createObservation(request.actor!, projectId, body);
+  }
+  @Get('observations/:observationId/comments') getObservationComments(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('observationId') observationId: string,
+  ) {
+    return this.construction.getObservationComments(request.actor!, projectId, observationId);
+  }
+  @Post('observations/:observationId/comments') addObservationComment(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('observationId') observationId: string,
+    @Body() body: ObservationCommentDto,
+  ) {
+    return this.construction.addObservationComment(request.actor!, projectId, observationId, body);
   }
   @Post('workflows') createWorkflow(
     @Req() request: AuthenticatedRequest,

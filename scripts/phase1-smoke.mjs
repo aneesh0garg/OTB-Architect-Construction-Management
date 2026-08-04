@@ -332,6 +332,30 @@ const repeatedObservation = await api('POST', `/v1/projects/${project.id}/observ
   syncState: 'synced',
 });
 assert.equal(repeatedObservation.id, observation.id, 'Mobile capture retry was not idempotent.');
+const observationComment = await api(
+  'POST',
+  `/v1/projects/${project.id}/observations/${observation.id}/comments`,
+  { body: `Confirm façade waterproofing scope ${runId}`, clientCommentId: `comment-${runId}` },
+);
+const repeatedObservationComment = await api(
+  'POST',
+  `/v1/projects/${project.id}/observations/${observation.id}/comments`,
+  { body: `Confirm façade waterproofing scope ${runId}`, clientCommentId: `comment-${runId}` },
+);
+assert.equal(
+  repeatedObservationComment.id,
+  observationComment.id,
+  'Observation comment retry was not idempotent.',
+);
+const observationComments = await api(
+  'GET',
+  `/v1/projects/${project.id}/observations/${observation.id}/comments`,
+);
+assert.equal(
+  observationComments.some((comment) => comment.id === observationComment.id),
+  true,
+  'Observation discussion did not return the saved comment.',
+);
 const observationRfi = await api('POST', `/v1/projects/${project.id}/workflows`, {
   recordType: 'rfi',
   title: `Observation RFI ${runId}`,

@@ -11,6 +11,7 @@ import {
   signOut,
   submitFieldVisit,
   submitObservation,
+  submitObservationComment,
 } from './mobile-session';
 import {
   Pressable,
@@ -35,6 +36,14 @@ type Observation = {
   taskId?: string;
   rfiId?: string;
   siteInstructionId?: string;
+  comments: FieldComment[];
+};
+type FieldComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  sync: SyncState;
+  serverId?: string;
 };
 type FieldVisit = {
   id: string;
@@ -77,7 +86,9 @@ async function loadLocalObservations() {
   );
   return rows.flatMap((row) => {
     try {
-      return [JSON.parse(row.payload) as Observation];
+      const observation = JSON.parse(row.payload) as Partial<Observation>;
+      if (!observation.id || !observation.title) return [];
+      return [{ ...observation, comments: observation.comments ?? [] } as Observation];
     } catch {
       return [];
     }
@@ -126,6 +137,7 @@ const initialObservations: Observation[] = [
     priority: 'High',
     state: 'Open',
     sync: 'synced',
+    comments: [],
   },
   {
     id: 'SO-017',
@@ -134,6 +146,7 @@ const initialObservations: Observation[] = [
     priority: 'Medium',
     state: 'In review',
     sync: 'synced',
+    comments: [],
   },
   {
     id: 'SO-016',
@@ -142,6 +155,7 @@ const initialObservations: Observation[] = [
     priority: 'High',
     state: 'Closed',
     sync: 'synced',
+    comments: [],
   },
 ];
 
@@ -177,6 +191,8 @@ export default function HomeScreen() {
   const [session, setSession] = useState<MobileSession>();
   const [accountError, setAccountError] = useState<string>();
   const [selectedReportObservationIds, setSelectedReportObservationIds] = useState<string[]>([]);
+  const [commentObservationId, setCommentObservationId] = useState<string>();
+  const [commentBody, setCommentBody] = useState('');
   const openCount = useMemo(
     () => observations.filter((item) => item.state !== 'Closed').length,
     [observations],
@@ -188,6 +204,11 @@ export default function HomeScreen() {
   const queuedCount = useMemo(
     () =>
       observations.filter((item) => item.sync !== 'synced').length +
+      observations.reduce(
+        (count, item) =>
+          count + item.comments.filter((comment) => comment.sync !== 'synced').length,
+        0,
+      ) +
       visits.filter((visit) => visit.sync !== 'synced').length,
     [observations, visits],
   );
@@ -251,12 +272,36 @@ export default function HomeScreen() {
       priority: 'Medium',
       state: 'Open',
       sync: 'local',
+      comments: [],
     };
     setObservations((current) => [localRecord, ...current]);
     await persistObservation(localRecord);
     setSyncState('local');
     setTitle('');
     setCaptureOpen(false);
+  };
+  const addLocalComment = async (observation: Observation) => {
+    const body = commentBody.trim();
+    if (!body) return;
+    const updated: Observation = {
+      ...observation,
+      comments: [
+        ...observation.comments,
+        {
+          id: `CM-${Date.now().toString(36).toUpperCase()}`,
+          body,
+          createdAt: new Date().toISOString(),
+          sync: 'local',
+        },
+      ],
+    };
+    setObservations((current) =>
+      current.map((item) => (item.id === observation.id ? updated : item)),
+    );
+    await persistObservation(updated);
+    setSyncState('local');
+    setCommentBody('');
+    setCommentObservationId(undefined);
   };
   const captureFieldVisit = async () => {
     const location = visitLocation.trim();
@@ -400,17 +445,48 @@ export default function HomeScreen() {
         serverId: server.id,
         sync: 'synced' as const,
       }));
+      const observationsAfterCapture = observations.map(
+        (item) => syncedObservations.find((saved) => saved.id === item.id) ?? item,
+      );
+      const commentResults = await Promise.all(
+        observationsAfterCapture.flatMap((observation) =>
+          observation.serverId
+            ? observation.comments
+                .filter((comment) => comment.sync !== 'synced')
+                .map(async (comment) => ({
+                  observationId: observation.id,
+                  commentId: comment.id,
+                  server: await submitObservationComment(session, {
+                    observationId: observation.serverId!,
+                    body: comment.body,
+                    clientCommentId: comment.id,
+                  }),
+                }))
+            : [],
+        ),
+      );
+      const finalizedObservations = observationsAfterCapture.map((observation) => ({
+        ...observation,
+        comments: observation.comments.map((comment) => {
+          const synced = commentResults.find(
+            (result) => result.observationId === observation.id && result.commentId === comment.id,
+          );
+          return synced
+            ? { ...comment, serverId: synced.server.id, sync: 'synced' as const }
+            : comment;
+        }),
+      }));
       const syncedVisits = visitResults.map(({ item, server }) => ({
         ...item,
         serverId: server.id,
         sync: 'synced' as const,
       }));
       await Promise.all([
-        ...syncedObservations.map(persistObservation),
+        ...finalizedObservations.map(persistObservation),
         ...syncedVisits.map(persistFieldVisit),
       ]);
       setObservations((current) =>
-        current.map((item) => syncedObservations.find((saved) => saved.id === item.id) ?? item),
+        current.map((item) => finalizedObservations.find((saved) => saved.id === item.id) ?? item),
       );
       setVisits((current) =>
         current.map((visit) => syncedVisits.find((saved) => saved.id === visit.id) ?? visit),
@@ -555,6 +631,7 @@ export default function HomeScreen() {
                     onCreateRfi: () => createWorkflowFromObservation(observation, 'rfi'),
                     onCreateSiteInstruction: () =>
                       createWorkflowFromObservation(observation, 'site_instruction'),
+                    onAddComment: () => setCommentObservationId(observation.id),
                     selectedForReport: selectedReportObservationIds.includes(observation.serverId),
                     onToggleReport: () => toggleReportObservation(observation),
                   }
@@ -658,6 +735,44 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
+      {commentObservationId && (
+        <View style={styles.sheetBackdrop}>
+          <View style={styles.captureSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Add observation comment</Text>
+            <Text style={styles.sheetCopy}>
+              Comments are stored locally and added to the project discussion when this observation
+              syncs.
+            </Text>
+            <TextInput
+              value={commentBody}
+              onChangeText={setCommentBody}
+              autoFocus
+              multiline
+              placeholder="Add a site update or response"
+              placeholderTextColor="#758181"
+              style={[styles.input, styles.notesInput]}
+            />
+            <View style={styles.sheetActions}>
+              <Pressable
+                onPress={() => setCommentObservationId(undefined)}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const observation = observations.find((item) => item.id === commentObservationId);
+                  if (observation) void addLocalComment(observation);
+                }}
+                style={[styles.saveButton, !commentBody.trim() && styles.saveDisabled]}
+              >
+                <Text style={styles.saveText}>Save locally</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
       {visitCaptureOpen && (
         <View style={styles.sheetBackdrop}>
           <ScrollView contentContainerStyle={styles.captureSheet}>
@@ -749,6 +864,7 @@ function ObservationCard({
   onCreateTask,
   onCreateRfi,
   onCreateSiteInstruction,
+  onAddComment,
   selectedForReport = false,
   onToggleReport,
 }: {
@@ -756,6 +872,7 @@ function ObservationCard({
   onCreateTask?: () => void;
   onCreateRfi?: () => void;
   onCreateSiteInstruction?: () => void;
+  onAddComment?: () => void;
   selectedForReport?: boolean;
   onToggleReport?: () => void;
 }) {
@@ -788,6 +905,15 @@ function ObservationCard({
           <Text style={styles.recordState}>{observation.state}</Text>
         )}
       </View>
+      <Text style={styles.commentCount}>
+        {observation.comments.length} discussion{' '}
+        {observation.comments.length === 1 ? 'comment' : 'comments'}
+      </Text>
+      {onAddComment && (
+        <Pressable accessibilityRole="button" onPress={onAddComment} style={styles.reportAction}>
+          <Text style={styles.reportActionText}>Add comment</Text>
+        </Pressable>
+      )}
       {onCreateTask && !observation.taskId && (
         <Pressable accessibilityRole="button" onPress={onCreateTask} style={styles.taskAction}>
           <Text style={styles.taskActionText}>Create task</Text>
@@ -1000,6 +1126,7 @@ const styles = StyleSheet.create({
   },
   priorityText: { fontSize: 10, color: '#77837f' },
   recordState: { fontSize: 10, color: '#236b59', fontWeight: '700' },
+  commentCount: { marginTop: 9, color: '#75827f', fontSize: 10 },
   taskAction: {
     alignSelf: 'flex-start',
     marginTop: 11,
