@@ -154,6 +154,30 @@ reimbursable, or change event. Only organization administrators, principals,
 and finance administrators can create invoices, transition their status, or
 record payments.
 
+## P1.4 governed Project Brain
+
+Project Brain is disabled by default. An organization administrator or principal
+must opt in before project retrieval or drafting is available:
+
+```bash
+curl -X POST http://localhost:3001/v1/ai/settings \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"enabled":true}'
+```
+
+| Endpoint                                                     | Purpose                                                                                                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/projects/:projectId/brain/search?q=...`             | Permission-aware retrieval from filed communications, document revisions, workflow records, observations, and tasks, with source citations. |
+| `POST /v1/projects/:projectId/brain/drafts`                  | Create an evidence-backed, review-required RFI, site report, meeting-minutes, or risk-summary draft.                                        |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/approve` | Record explicit human approval. Approval does not itself issue a contractual project record.                                                |
+
+The current local implementation produces cited review briefs without sending
+customer data to an external model provider. It records setting changes,
+policy checks, retrievals, draft creation, and approvals in the AI audit table.
+Adding a model provider requires a separate provider configuration, data-
+processing review, prompt/output retention control, and evaluation gate.
+
 ## Quality checks
 
 ```bash

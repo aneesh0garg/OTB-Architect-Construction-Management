@@ -4,6 +4,8 @@ import { IdentityController } from './identity.controller.js';
 import { KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { ConstructionController } from './construction.controller.js';
 import { ConstructionService } from './construction.service.js';
+import { AiController } from './ai.controller.js';
+import { AiService } from './ai.service.js';
 import { FinanceController } from './finance.controller.js';
 import { FinanceService } from './finance.service.js';
 import { WorkspaceController } from './workspace.controller.js';
@@ -16,7 +18,8 @@ import { WorkspaceService } from './workspace.service.js';
     WorkspaceController,
     ConstructionController,
     FinanceController,
+    AiController,
   ],
-  providers: [KeycloakAuthGuard, WorkspaceService, ConstructionService, FinanceService],
+  providers: [KeycloakAuthGuard, WorkspaceService, ConstructionService, FinanceService, AiService],
 })
 export class AppModule {}
