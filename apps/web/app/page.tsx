@@ -60,6 +60,7 @@ import {
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
+import { MemberAvatar } from './components/member-avatar';
 
 const workspacePreferencesKey = 'orbita.workspace-preferences';
 type WorkspacePreferences = { theme?: Theme; view?: WorkspaceView; projectId?: string };
@@ -796,7 +797,7 @@ function MobileWorkspaceDirectory({
             <p className="mobile-directory-copy">One delivery team is associated with each project. Its members have project-specific roles and access.</p>
             <div className="mobile-directory-list">
               <button onClick={onOpenTeams} type="button"><span>#</span><strong>{projectCode} delivery team</strong><span>{projectMembers.length} members</span></button>
-              {projectMembers.map((member) => <a key={member.user_id} href={`/organization/members/${encodeURIComponent(member.user_id)}`}><span>◉</span><strong>{member.display_name ?? member.user_id}</strong><span>{member.role.replaceAll('_', ' ')}</span></a>)}
+              {projectMembers.map((member) => <div className="team-member" key={member.user_id}><MemberAvatar userId={member.user_id} name={member.display_name ?? member.user_id} /><strong><a href={`/organization/members/${encodeURIComponent(member.user_id)}`}>{member.display_name ?? member.user_id}</a></strong><span>{member.role.replaceAll('_', ' ')}</span></div>)}
               {!projectMembers.length && <p className="settings-empty">No members have been associated with this project yet.</p>}
             </div>
             <button className="button-secondary mobile-directory-action" onClick={onOpenTeams} type="button">Manage project team</button>
@@ -867,7 +868,7 @@ function ProjectPeopleDialog({
             <div className="people-list">
               {members.map((member) => (
                 <article key={member.user_id}>
-                  <span className="person-avatar">{(member.display_name ?? 'Project member').slice(0, 2).toUpperCase()}</span>
+                  <MemberAvatar className="person-avatar" userId={member.user_id} name={member.display_name ?? 'Project member'} />
                   <div>
                     <strong><a href={`/organization/members/${encodeURIComponent(member.user_id)}`}>{member.display_name ?? 'Unnamed collaborator'}</a></strong>
                     <small>{member.title ? `${member.title} · ` : ''}{member.role.replaceAll('_', ' ')}</small>
@@ -1129,7 +1130,8 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               <div className="simple-record-list">
               {(capacity?.people ?? []).map((person) => (
                 <article key={person.user_id}>
-                  <strong>
+                  <strong className="member-name-with-avatar">
+                    <MemberAvatar userId={person.user_id} name={person.display_name} />
                     <a href={`/organization/members/${encodeURIComponent(person.user_id)}`}>{person.display_name}</a> · {organizationRoleLabel(person.organization_role)} · {person.utilization}% allocated
                   </strong>
                   <span>
@@ -1876,7 +1878,7 @@ function Overview({
 }) {
   const project = workspaceData.activeProject;
   const queueTasks = (record?.tasks ?? []).filter(
-    (task) => !['completed', 'cancelled'].includes(task.status),
+    (task) => task.status !== 'done',
   );
   return (
     <div className="workspace-content overview-view">

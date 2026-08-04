@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { type FormEvent, type MouseEvent, useEffect, useState } from 'react';
+import { MemberAvatar } from '../../../components/member-avatar';
 import {
   beginLocalLogin,
   createDocumentAnnotation,
@@ -194,7 +195,7 @@ export function DocumentRecordWorkspace({ projectId, documentId }: DocumentRecor
       </section>
       <section className="content-card record-page-card task-discussion" aria-label={isDrawing ? 'Drawing markups' : 'Document discussion'}>
         <div className="card-header"><div><p className="eyebrow">{isDrawing ? 'MARKUPS' : 'DISCUSSION'}</p><h2>{isDrawing ? 'Drawing review' : 'Record conversation'}</h2></div><span>{comments.length} comments</span></div>
-        {comments.length ? <div className="comment-list">{comments.map((comment, index) => <article key={comment.id}>{isDrawing && comment.x_percent !== null && <span className="markup-list-index">{index + 1}</span>}<strong>{comment.created_by_display_name}</strong><time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleString()}</time><p>{comment.body}</p>{isDrawing && comment.x_percent !== null && <small>Pin: {Math.round(comment.x_percent)}% across · {Math.round(comment.y_percent ?? 0)}% down</small>}</article>)}</div> : <p className="settings-empty">No discussion yet. Record a decision, question, or review context.</p>}
+        {comments.length ? <div className="comment-list">{comments.map((comment, index) => <article key={comment.id}>{isDrawing && comment.x_percent !== null && <span className="markup-list-index">{index + 1}</span>}<strong className="member-name-with-avatar"><MemberAvatar userId={comment.created_by} name={comment.created_by_display_name} /><Link href={`/organization/members/${encodeURIComponent(comment.created_by)}`}>{comment.created_by_display_name}</Link></strong><time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleString()}</time><p>{comment.body}</p>{isDrawing && comment.x_percent !== null && <small>Pin: {Math.round(comment.x_percent)}% across · {Math.round(comment.y_percent ?? 0)}% down</small>}</article>)}</div> : <p className="settings-empty">No discussion yet. Record a decision, question, or review context.</p>}
         <form className="task-comment-form" onSubmit={addComment}>
           {isDrawing && <div className="pin-position-controls"><label>Horizontal <input aria-label="Markup horizontal position" type="range" min="0" max="100" value={pinX} onChange={(event) => setPinX(Number(event.target.value))} /><span>{pinX}%</span></label><label>Vertical <input aria-label="Markup vertical position" type="range" min="0" max="100" value={pinY} onChange={(event) => setPinY(Number(event.target.value))} /><span>{pinY}%</span></label></div>}
           <label>{isDrawing ? 'Add markup' : 'Add a comment'}<textarea value={commentBody} onChange={(event) => setCommentBody(event.target.value)} maxLength={4000} placeholder={isDrawing ? 'Describe the drawing review item…' : 'Share review context, a decision, or a follow-up…'} required /></label><button className="button-primary" disabled={working} type="submit">{isDrawing ? 'Post markup' : 'Post comment'}</button>

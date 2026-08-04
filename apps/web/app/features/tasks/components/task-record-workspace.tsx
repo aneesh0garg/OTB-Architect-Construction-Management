@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { type FormEvent, useEffect, useState } from 'react';
+import { taskWorkflow, type TaskStatus } from '../../../task-workflow';
+import { MemberAvatar } from '../../../components/member-avatar';
 import {
   beginLocalLogin,
   createTaskComment,
@@ -25,6 +27,7 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   const [working, setWorking] = useState(false);
   const [editingField, setEditingField] = useState<'title' | 'priority' | 'dueDate' | 'assignee'>();
   const [fieldValue, setFieldValue] = useState('');
+  const [nextStatus, setNextStatus] = useState<TaskStatus>('in_progress');
 
   const refresh = async () => {
     const next = await loadProjectRecord(projectId);
@@ -49,7 +52,9 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   }, [projectId, taskId]);
 
   const task = record?.tasks.find((item) => item.id === taskId);
-  const setStatus = async (status: 'open' | 'in_progress' | 'blocked' | 'completed') => {
+  const currentWorkflow = task ? taskWorkflow[task.status as TaskStatus] ?? taskWorkflow.open : taskWorkflow.open;
+  useEffect(() => setNextStatus(currentWorkflow.next), [currentWorkflow.next]);
+  const setStatus = async (status: TaskStatus) => {
     if (!task) return;
     setWorking(true);
     setMessage(undefined);
@@ -103,7 +108,11 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
 
   if (signInRequired) return <main className="record-page"><section className="content-card record-page-card auth-required"><p className="eyebrow">PRIVATE PROJECT RECORD</p><h1>Sign in to view this task</h1><p>Your access is checked before Orbita loads project work.</p><button className="button-primary" onClick={() => void beginLocalLogin()}>Sign in</button></section></main>;
   if (!task) return <main className="record-page"><p className="settings-empty">{message ?? 'Loading task…'}</p></main>;
-  const canTransition = !['completed', 'cancelled'].includes(task.status);
+  const updateStatus = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (nextStatus === task.status) return;
+    await setStatus(nextStatus);
+  };
   const linkedDocument = task.source_record_type === 'document_revision'
     ? record?.documents.find((document) => document.id === task.source_record_id)
     : undefined;
@@ -124,19 +133,20 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
         <div className="record-grid">
           <div className="task-detail-field"><span>Title</span>{editingField === 'title' ? <form className="inline-field-editor" onSubmit={saveField}><input aria-label="Task title" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} minLength={2} required autoFocus /><button aria-label="Save title" className="inline-save" disabled={working} type="submit">✓</button><button aria-label="Cancel editing title" className="inline-cancel" disabled={working} type="button" onClick={() => setEditingField(undefined)}>×</button></form> : <div className="task-field-value"><strong>{task.title}</strong><button className="field-edit-button" aria-label="Edit task title" disabled={working} onClick={() => beginFieldEdit('title')}>✎</button></div>}</div>
           <div className="task-detail-field"><span>Priority</span>{editingField === 'priority' ? <form className="inline-field-editor" onSubmit={saveField}><select aria-label="Task priority" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} autoFocus><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select><button aria-label="Save priority" className="inline-save" disabled={working} type="submit">✓</button><button aria-label="Cancel editing priority" className="inline-cancel" disabled={working} type="button" onClick={() => setEditingField(undefined)}>×</button></form> : <div className="task-field-value"><strong>{task.priority}</strong><button className="field-edit-button" aria-label="Edit task priority" disabled={working} onClick={() => beginFieldEdit('priority')}>✎</button></div>}</div>
-        <div className="task-detail-field"><span>Assignee</span>{editingField === 'assignee' ? <form className="inline-field-editor" onSubmit={saveField}><select aria-label="Task assignee" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} autoFocus><option value="">Unassigned</option>{record!.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select><button aria-label="Save assignee" className="inline-save" disabled={working} type="submit">✓</button><button aria-label="Cancel editing assignee" className="inline-cancel" disabled={working} type="button" onClick={() => setEditingField(undefined)}>×</button></form> : <div className="task-field-value"><strong>{task.assignee_id ? <Link href={`/organization/members/${encodeURIComponent(task.assignee_id)}`}>{task.assignee_name ?? record!.members.find((member) => member.user_id === task.assignee_id)?.display_name ?? task.assignee_id}</Link> : 'Unassigned'}</strong><button className="field-edit-button" aria-label="Edit task assignee" disabled={working} onClick={() => beginFieldEdit('assignee')}>✎</button></div>}</div>
+        <div className="task-detail-field"><span>Assignee</span>{editingField === 'assignee' ? <form className="inline-field-editor" onSubmit={saveField}><select aria-label="Task assignee" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} autoFocus><option value="">Unassigned</option>{record!.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select><button aria-label="Save assignee" className="inline-save" disabled={working} type="submit">✓</button><button aria-label="Cancel editing assignee" className="inline-cancel" disabled={working} type="button" onClick={() => setEditingField(undefined)}>×</button></form> : <div className="task-field-value"><strong className="member-name-with-avatar">{task.assignee_id ? <><MemberAvatar userId={task.assignee_id} name={task.assignee_name ?? record!.members.find((member) => member.user_id === task.assignee_id)?.display_name ?? task.assignee_id} /><Link href={`/organization/members/${encodeURIComponent(task.assignee_id)}`}>{task.assignee_name ?? record!.members.find((member) => member.user_id === task.assignee_id)?.display_name ?? task.assignee_id}</Link></> : 'Unassigned'}</strong><button className="field-edit-button" aria-label="Edit task assignee" disabled={working} onClick={() => beginFieldEdit('assignee')}>✎</button></div>}</div>
           <div className="task-detail-field"><span>Due</span>{editingField === 'dueDate' ? <form className="inline-field-editor" onSubmit={saveField}><input aria-label="Task due date" type="date" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} autoFocus /><button aria-label="Save due date" className="inline-save" disabled={working} type="submit">✓</button><button aria-label="Cancel editing due date" className="inline-cancel" disabled={working} type="button" onClick={() => setEditingField(undefined)}>×</button></form> : <div className="task-field-value"><strong>{task.due_date ?? 'Not scheduled'}</strong><button className="field-edit-button" aria-label="Edit task due date" disabled={working} onClick={() => beginFieldEdit('dueDate')}>✎</button></div>}</div>
           <div><span>Linked document</span>{linkedDocument ? <strong><Link href={`/projects/${projectId}/documents/${linkedDocument.id}`}>{linkedDocument.document_number} · {linkedDocument.title}</Link></strong> : <strong>None</strong>}</div>
           <div><span>Project</span><strong>{record?.project.code}</strong></div>
         </div>
-        <div className="detail-action-row">
-          {canTransition ? <>
-            {task.status === 'open' && <button className="button-secondary" disabled={working} onClick={() => void setStatus('in_progress')}>Start work</button>}
-            {task.status !== 'blocked' && <button className="button-secondary" disabled={working} onClick={() => void setStatus('blocked')}>Mark blocked</button>}
-            {task.status === 'blocked' && <button className="button-secondary" disabled={working} onClick={() => void setStatus('in_progress')}>Resume work</button>}
-            <button className="button-primary" disabled={working} onClick={() => void setStatus('completed')}>Complete task</button>
-          </> : <button className="button-secondary" disabled={working} onClick={() => void setStatus('open')}>Reopen task</button>}
-        </div>
+        <form className="detail-action-row task-status-control" onSubmit={(event) => void updateStatus(event)}>
+          <label>Status
+            <select aria-label="Task status" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as TaskStatus)} disabled={working}>
+              <option value={task.status}>{currentWorkflow.label}</option>
+              <option value={currentWorkflow.next}>{taskWorkflow[currentWorkflow.next].label}</option>
+            </select>
+          </label>
+          <button className="button-primary" disabled={working || nextStatus === task.status} type="submit">{working ? 'Updating…' : currentWorkflow.action}</button>
+        </form>
       </section>
       <section className="content-card record-page-card task-discussion" aria-label="Task discussion">
         <div className="card-header"><div><p className="eyebrow">DISCUSSION</p><h2>Project conversation</h2></div><span>{comments.length} comments</span></div>

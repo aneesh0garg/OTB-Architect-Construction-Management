@@ -756,7 +756,7 @@ export const createProjectTask = (
 export const transitionProjectTask = (
   projectId: string,
   taskId: string,
-  status: 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled',
+  status: 'open' | 'in_progress' | 'in_acceptance' | 'done',
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
 export const updateProjectTask = (
   projectId: string,

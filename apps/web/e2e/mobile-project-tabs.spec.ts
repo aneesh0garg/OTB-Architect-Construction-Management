@@ -203,8 +203,8 @@ test('renders a full name instead of an ID in document comments', async ({ page 
   await expect(page.getByText('member-1', { exact: true })).toHaveCount(0);
 });
 
-test('keeps a completed task accessible and lets a user reopen it', async ({ page }) => {
-  let status = 'completed';
+test('keeps a done task accessible and lets a user reopen it', async ({ page }) => {
+  let status = 'done';
   await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
   await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
   await page.route('**/v1/workspace/projects/project-1/record', (route) => route.fulfill({ json: { project: { id: 'project-1', code: 'TEST', name: 'Reopen test', status: 'active', location: null, stage: 'construction' }, tasks: [{ id: 'task-1', task_number: 'TEST-T-0001', title: 'Reopenable task', status, priority: 'normal', due_date: null, assignee_id: null, assignee_name: null, source_record_type: null, source_record_id: null }], documents: [], communications: [], members: [], transmittals: [] } }));
@@ -213,7 +213,7 @@ test('keeps a completed task accessible and lets a user reopen it', async ({ pag
   await page.goto('/projects/project-1/tasks/task-1');
   await expect(page.getByRole('heading', { name: 'Reopenable task' })).toBeVisible();
   await page.getByRole('button', { name: 'Reopen task' }).click();
-  await expect(page.getByRole('button', { name: 'Complete task' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start progress' })).toBeVisible();
 });
 
 test('gives an actionable error when task creation cannot reach the workspace API', async ({ page }) => {

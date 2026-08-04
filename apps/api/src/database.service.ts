@@ -307,6 +307,14 @@ const migrations: Migration[] = [
       CREATE UNIQUE INDEX IF NOT EXISTS people_member_id_uniq ON people (member_id);
     `,
   },
+  {
+    id: '0025_task_workflow_states',
+    sql: `
+      UPDATE tasks SET status = 'done' WHERE status IN ('completed', 'in_done');
+      UPDATE tasks SET status = 'in_progress' WHERE status = 'blocked';
+      UPDATE tasks SET status = 'open' WHERE status = 'cancelled';
+    `,
+  },
 ];
 
 @Injectable()

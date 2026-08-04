@@ -1343,6 +1343,28 @@ small {
   font-size: 0.72rem;
   font-weight: 750;
 }
+.member-avatar {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 750;
+  object-fit: cover;
+}
+.member-name-with-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.member-name-with-avatar .member-avatar {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+}
 
 .lifecycle-controls {
   display: flex;
@@ -1520,8 +1542,8 @@ small {
 }
 .task-row {
   display: grid;
-  grid-template-columns: 21px 1fr 30px;
-  gap: 9px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
   align-items: center;
   padding: 11px 0;
   border-top: 1px solid var(--border);
@@ -1537,7 +1559,11 @@ small {
   display: block;
 }
 .task-row strong {
-  font-size: 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.task-row a {
+  overflow-wrap: anywhere;
 }
 .task-row div span {
   margin-top: 3px;
@@ -1545,15 +1571,16 @@ small {
   font-size: 11px;
 }
 .task-owner {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
+  max-width: min(42%, 190px);
+  padding: 5px 9px;
+  border-radius: 999px;
   background: var(--blue-soft);
   color: #346287;
-  font-size: 9px;
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 .activity-row {
   display: grid;
@@ -2243,6 +2270,21 @@ small {
     background: var(--raised);
     color: var(--text);
     text-align: left;
+  }
+  .mobile-directory-list .team-member {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 9px;
+    min-height: 54px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--raised);
+  }
+  .mobile-directory-list .team-member > span:last-child {
+    color: var(--muted);
+    font-size: 0.72rem;
   }
   .mobile-directory-list button:disabled {
     opacity: 0.65;

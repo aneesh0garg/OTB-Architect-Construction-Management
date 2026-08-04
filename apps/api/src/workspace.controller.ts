@@ -28,6 +28,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { taskStatusValues } from '@orbita/contracts';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { projectStages, WorkspaceService } from './workspace.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
@@ -63,7 +64,7 @@ class CreateTaskDto {
   @IsOptional() @IsString() @MaxLength(160) sourceRecordId?: string;
 }
 class TaskStatusDto {
-  @IsIn(['open', 'in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
+  @IsIn(taskStatusValues) status!: string;
 }
 class UpdateTaskDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(240) title?: string;

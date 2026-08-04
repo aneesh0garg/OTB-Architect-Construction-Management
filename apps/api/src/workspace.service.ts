@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
-import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
+import { taskWorkflow, type AuthenticatedActor, type PlatformRole, type TaskStatus } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
 import { NotificationService } from './notification.service.js';
@@ -452,16 +452,10 @@ export class WorkspaceService {
       throw new BadRequestException(
         'Only the task assignee, task creator, or a project manager can change this task.',
       );
-    const allowed: Record<string, string[]> = {
-      open: ['in_progress', 'blocked', 'completed', 'cancelled'],
-      in_progress: ['blocked', 'completed', 'cancelled'],
-      blocked: ['in_progress', 'completed', 'cancelled'],
-      completed: ['open'],
-      cancelled: ['open'],
-    };
-    if (!allowed[current.status]?.includes(status))
+    const transition = taskWorkflow[current.status as TaskStatus];
+    if (!transition || transition.next !== status)
       throw new BadRequestException(
-        `Task status cannot change from ${current.status} to ${status}.`,
+        `Task status must move from ${transition?.label ?? current.status} to ${transition?.next ? taskWorkflow[transition.next].label : 'its configured next state'}.`,
       );
     const result = await this.pool.query<TaskRow>(
       `UPDATE tasks SET status = $1 WHERE id = $2 AND project_id = $3
