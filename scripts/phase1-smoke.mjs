@@ -130,6 +130,28 @@ const phase = await api('POST', `/v1/projects/${project.id}/finance/phases`, {
   plannedFee: 250000,
   targetHours: 120,
 });
+await api('POST', `/v1/projects/${project.id}/finance/budgets`, {
+  costCode: 'CIV-100',
+  name: 'Civil works baseline',
+  amount: 250000,
+});
+await api('POST', `/v1/projects/${project.id}/finance/commitments`, {
+  vendorName: 'Smoke Civil Contractor',
+  description: 'Civil works commitment',
+  originalAmount: 175000,
+  approvedAmount: 175000,
+  status: 'approved',
+});
+const changeEvent = await api('POST', `/v1/projects/${project.id}/finance/change-events`, {
+  code: `CE-${runId}`,
+  description: 'Facade coordination change',
+  amount: 25000,
+});
+await api('POST', `/v1/projects/${project.id}/finance/change-events/${changeEvent.id}/status`, {
+  status: 'approved',
+});
+const cost = await api('GET', `/v1/projects/${project.id}/finance/cost`);
+assert.equal(cost.health.forecastAtCompletion, 200000, 'Cost forecast is not reconciled.');
 const time = await api('POST', `/v1/projects/${project.id}/finance/time`, {
   phaseId: phase.id,
   entryDate: '2026-08-04',
@@ -204,6 +226,7 @@ for (const action of [
   'workflow.transitioned',
   'finance.invoice_status_changed',
   'finance.payment_recorded',
+  'cost.change_status_changed',
   'project.status_changed',
 ]) {
   assert.equal(

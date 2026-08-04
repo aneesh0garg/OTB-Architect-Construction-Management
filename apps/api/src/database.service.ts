@@ -51,6 +51,14 @@ const migrations: Migration[] = [
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ;
     `,
   },
+  {
+    id: '0004_project_cost_controls',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_budgets (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, cost_code TEXT NOT NULL, name TEXT NOT NULL, amount NUMERIC(14,2) NOT NULL, baseline_version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, cost_code, baseline_version));
+      CREATE TABLE IF NOT EXISTS cost_commitments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, vendor_name TEXT NOT NULL, description TEXT NOT NULL, original_amount NUMERIC(14,2) NOT NULL, approved_amount NUMERIC(14,2) NOT NULL, status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS cost_change_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, code TEXT NOT NULL, description TEXT NOT NULL, amount NUMERIC(14,2) NOT NULL, status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, code));
+    `,
+  },
 ];
 
 @Injectable()

@@ -71,12 +71,67 @@ class PaymentDto {
 class TimeStatusDto {
   @IsIn(['submitted', 'approved', 'locked']) status!: string;
 }
+class BudgetDto {
+  @IsString() @MinLength(1) @MaxLength(80) costCode!: string;
+  @IsString() @MinLength(2) @MaxLength(160) name!: string;
+  @IsNumber() @Min(0) amount!: number;
+}
+class CommitmentDto {
+  @IsString() @MinLength(2) @MaxLength(160) vendorName!: string;
+  @IsString() @MinLength(2) @MaxLength(240) description!: string;
+  @IsNumber() @Min(0) originalAmount!: number;
+  @IsOptional() @IsNumber() @Min(0) approvedAmount?: number;
+  @IsOptional() @IsIn(['draft', 'approved', 'active', 'closed']) status?: string;
+}
+class ChangeEventDto {
+  @IsString() @MinLength(1) @MaxLength(80) code!: string;
+  @IsString() @MinLength(2) @MaxLength(240) description!: string;
+  @IsNumber() amount!: number;
+}
+class ChangeEventStatusDto {
+  @IsIn(['submitted', 'approved', 'rejected']) status!: string;
+}
 @Controller('v1/projects/:projectId/finance')
 @UseGuards(KeycloakAuthGuard)
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}
   @Get() getControl(@Req() request: AuthenticatedRequest, @Param('projectId') projectId: string) {
     return this.finance.getControl(request.actor!, projectId);
+  }
+  @Get('cost') getCostControl(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.finance.getCostControl(request.actor!, projectId);
+  }
+  @Post('budgets') createBudget(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: BudgetDto,
+  ) {
+    return this.finance.createBudget(request.actor!, projectId, body);
+  }
+  @Post('commitments') createCommitment(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: CommitmentDto,
+  ) {
+    return this.finance.createCommitment(request.actor!, projectId, body);
+  }
+  @Post('change-events') createChangeEvent(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: ChangeEventDto,
+  ) {
+    return this.finance.createChangeEvent(request.actor!, projectId, body);
+  }
+  @Post('change-events/:changeId/status') transitionChangeEvent(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('changeId') changeId: string,
+    @Body() body: ChangeEventStatusDto,
+  ) {
+    return this.finance.transitionChangeEvent(request.actor!, projectId, changeId, body.status);
   }
   @Post('phases') createPhase(
     @Req() request: AuthenticatedRequest,

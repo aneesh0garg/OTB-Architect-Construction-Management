@@ -40,6 +40,28 @@ interface PaymentRow extends QueryResultRow {
   paid_date: string;
   reference: string | null;
 }
+interface BudgetRow extends QueryResultRow {
+  id: string;
+  cost_code: string;
+  name: string;
+  amount: string;
+  baseline_version: number;
+}
+interface CommitmentRow extends QueryResultRow {
+  id: string;
+  vendor_name: string;
+  description: string;
+  original_amount: string;
+  approved_amount: string;
+  status: string;
+}
+interface ChangeEventRow extends QueryResultRow {
+  id: string;
+  code: string;
+  description: string;
+  amount: string;
+  status: string;
+}
 
 @Injectable()
 export class FinanceService {
@@ -97,6 +119,135 @@ export class FinanceService {
         hoursBurn: targetHours ? Math.round((loggedHours / targetHours) * 100) : 0,
       },
     };
+  }
+  async getCostControl(actor: AuthenticatedActor, projectId: string) {
+    await this.authorizeProject(actor, projectId);
+    const [budgets, commitments, changes] = await Promise.all([
+      this.pool.query<BudgetRow>(
+        'SELECT id, cost_code, name, amount, baseline_version FROM project_budgets WHERE project_id = $1 ORDER BY cost_code',
+        [projectId],
+      ),
+      this.pool.query<CommitmentRow>(
+        'SELECT id, vendor_name, description, original_amount, approved_amount, status FROM cost_commitments WHERE project_id = $1 ORDER BY created_at DESC',
+        [projectId],
+      ),
+      this.pool.query<ChangeEventRow>(
+        'SELECT id, code, description, amount, status FROM cost_change_events WHERE project_id = $1 ORDER BY created_at DESC',
+        [projectId],
+      ),
+    ]);
+    const budget = budgets.rows.reduce((sum, item) => sum + Number(item.amount), 0);
+    const committed = commitments.rows
+      .filter((item) => ['approved', 'active'].includes(item.status))
+      .reduce((sum, item) => sum + Number(item.approved_amount), 0);
+    const approvedChanges = changes.rows
+      .filter((item) => item.status === 'approved')
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const forecastAtCompletion = committed + approvedChanges;
+    return {
+      budgets: budgets.rows,
+      commitments: commitments.rows,
+      changeEvents: changes.rows,
+      health: {
+        budget,
+        committed,
+        approvedChanges,
+        forecastAtCompletion,
+        uncommittedBudget: budget - committed,
+        forecastVariance: forecastAtCompletion - budget,
+      },
+    };
+  }
+  async createBudget(actor: AuthenticatedActor, projectId: string, input: CreateBudgetInput) {
+    await this.requireManager(actor, projectId);
+    const result = await this.pool.query<BudgetRow>(
+      'INSERT INTO project_budgets (organization_id, project_id, cost_code, name, amount) VALUES ($1,$2,$3,$4,$5) RETURNING id, cost_code, name, amount, baseline_version',
+      [
+        actor.organizationId,
+        projectId,
+        requiredText(input.costCode, 'Cost code'),
+        requiredText(input.name, 'Budget name'),
+        input.amount,
+      ],
+    );
+    const budget = row(result.rows, 'Budget could not be created.');
+    await this.audit.record(actor, 'cost.budget_created', 'project_budget', budget.id, {
+      projectId,
+      amount: budget.amount,
+      costCode: budget.cost_code,
+    });
+    return budget;
+  }
+  async createCommitment(
+    actor: AuthenticatedActor,
+    projectId: string,
+    input: CreateCommitmentInput,
+  ) {
+    await this.requireManager(actor, projectId);
+    const result = await this.pool.query<CommitmentRow>(
+      'INSERT INTO cost_commitments (organization_id, project_id, vendor_name, description, original_amount, approved_amount, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, vendor_name, description, original_amount, approved_amount, status',
+      [
+        actor.organizationId,
+        projectId,
+        requiredText(input.vendorName, 'Vendor name'),
+        requiredText(input.description, 'Commitment description'),
+        input.originalAmount,
+        input.approvedAmount ?? input.originalAmount,
+        input.status ?? 'draft',
+      ],
+    );
+    const commitment = row(result.rows, 'Commitment could not be created.');
+    await this.audit.record(actor, 'cost.commitment_created', 'cost_commitment', commitment.id, {
+      projectId,
+      vendorName: commitment.vendor_name,
+      approvedAmount: commitment.approved_amount,
+      status: commitment.status,
+    });
+    return commitment;
+  }
+  async createChangeEvent(
+    actor: AuthenticatedActor,
+    projectId: string,
+    input: CreateChangeEventInput,
+  ) {
+    await this.requireManager(actor, projectId);
+    const result = await this.pool.query<ChangeEventRow>(
+      'INSERT INTO cost_change_events (organization_id, project_id, code, description, amount) VALUES ($1,$2,$3,$4,$5) RETURNING id, code, description, amount, status',
+      [
+        actor.organizationId,
+        projectId,
+        requiredText(input.code, 'Change code'),
+        requiredText(input.description, 'Change description'),
+        input.amount,
+      ],
+    );
+    const change = row(result.rows, 'Change event could not be created.');
+    await this.audit.record(actor, 'cost.change_created', 'cost_change_event', change.id, {
+      projectId,
+      code: change.code,
+      amount: change.amount,
+    });
+    return change;
+  }
+  async transitionChangeEvent(
+    actor: AuthenticatedActor,
+    projectId: string,
+    changeId: string,
+    status: string,
+  ) {
+    await this.requireManager(actor, projectId);
+    const result = await this.pool.query<ChangeEventRow>(
+      'UPDATE cost_change_events SET status = $1 WHERE id = $2 AND project_id = $3 AND organization_id = $4 AND status <> $5 RETURNING id, code, description, amount, status',
+      [status, changeId, projectId, actor.organizationId, 'rejected'],
+    );
+    const change = row(result.rows, 'Change event is unavailable or final.');
+    await this.audit.record(actor, 'cost.change_status_changed', 'cost_change_event', change.id, {
+      projectId,
+      code: change.code,
+      status: change.status,
+      amount: change.amount,
+    });
+    return change;
   }
   async createPhase(actor: AuthenticatedActor, projectId: string, input: CreatePhaseInput) {
     await this.requireManager(actor, projectId);
@@ -332,6 +483,23 @@ export interface CreatePhaseInput {
   name: string;
   plannedFee: number;
   targetHours: number;
+}
+export interface CreateBudgetInput {
+  costCode: string;
+  name: string;
+  amount: number;
+}
+export interface CreateCommitmentInput {
+  vendorName: string;
+  description: string;
+  originalAmount: number;
+  approvedAmount?: number;
+  status?: string;
+}
+export interface CreateChangeEventInput {
+  code: string;
+  description: string;
+  amount: number;
 }
 export interface CreateAllocationInput {
   phaseId?: string;

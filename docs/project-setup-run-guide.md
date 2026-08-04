@@ -163,20 +163,30 @@ The commercial module is a provider-neutral project ledger. It is ready to map
 approved invoice, payment, client, and project references to Zoho Books without
 making the application ledger dependent on a connector.
 
-| Endpoint                                                            | Purpose                                                                   |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `POST /v1/projects/:projectId/finance/phases`                       | Create a fee and target-hours project phase.                              |
-| `POST /v1/projects/:projectId/finance/allocations`                  | Allocate a staff member to a phase and date range.                        |
-| `POST /v1/projects/:projectId/finance/time`                         | Record project time; managers can submit, approve, and lock it.           |
-| `POST /v1/projects/:projectId/finance/invoices`                     | Create a GST-ready invoice from explicit source lines.                    |
-| `POST /v1/projects/:projectId/finance/invoices/:invoiceId/payments` | Track payment receipt and automatically update paid/partially-paid state. |
-| `GET /v1/projects/:projectId/finance`                               | Read phases, allocations, time, invoices, payments, and fee/hours health. |
+| Endpoint                                                              | Purpose                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `POST /v1/projects/:projectId/finance/phases`                         | Create a fee and target-hours project phase.                              |
+| `POST /v1/projects/:projectId/finance/allocations`                    | Allocate a staff member to a phase and date range.                        |
+| `POST /v1/projects/:projectId/finance/time`                           | Record project time; managers can submit, approve, and lock it.           |
+| `POST /v1/projects/:projectId/finance/invoices`                       | Create a GST-ready invoice from explicit source lines.                    |
+| `POST /v1/projects/:projectId/finance/invoices/:invoiceId/payments`   | Track payment receipt and automatically update paid/partially-paid state. |
+| `GET /v1/projects/:projectId/finance`                                 | Read phases, allocations, time, invoices, payments, and fee/hours health. |
+| `GET /v1/projects/:projectId/finance/cost`                            | Read owner cost budgets, commitments, change events, and forecast health. |
+| `POST /v1/projects/:projectId/finance/budgets`                        | Establish a cost-code budget baseline.                                    |
+| `POST /v1/projects/:projectId/finance/commitments`                    | Record a vendor commitment and its approved amount.                       |
+| `POST /v1/projects/:projectId/finance/change-events`                  | Register a potential cost change.                                         |
+| `POST /v1/projects/:projectId/finance/change-events/:changeId/status` | Submit, approve, or reject a cost change.                                 |
 
 Invoices carry subtotal, GST rate and GST amount independently, and source-line
 metadata preserves the link back to a fixed-fee milestone, approved time,
 reimbursable, or change event. Only organization administrators, principals,
 and finance administrators can create invoices, transition their status, or
 record payments.
+
+The owner-cost register is separate from the professional-services ledger:
+baseline budgets, approved commitments, and approved change events produce an
+explicit forecast-at-completion and variance. This keeps Phase 1 useful for
+project cost control without becoming a payroll or general-contractor ERP.
 
 ## P1.4 governed Project Brain
 
