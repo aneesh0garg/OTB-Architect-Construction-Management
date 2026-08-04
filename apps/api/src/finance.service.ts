@@ -310,13 +310,20 @@ export class FinanceService {
     input: CreateAllocationInput,
   ) {
     await this.requireManager(actor, projectId);
+    const staffId = requiredText(input.staffId, 'Staff member');
+    const member = await this.pool.query(
+      'SELECT user_id FROM project_members WHERE project_id = $1 AND user_id = $2',
+      [projectId, staffId],
+    );
+    if (!member.rows[0])
+      throw new BadRequestException('Assign the organization member to this project before creating a staffing allocation.');
     const result = await this.pool.query<AllocationRow>(
       'INSERT INTO staff_allocations (organization_id, project_id, phase_id, staff_id, starts_on, ends_on, planned_hours, billable) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, staff_id, planned_hours, billable',
       [
         actor.organizationId,
         projectId,
         input.phaseId ?? null,
-        requiredText(input.staffId, 'Staff member'),
+        staffId,
         input.startsOn,
         input.endsOn,
         input.plannedHours,

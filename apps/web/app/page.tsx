@@ -772,6 +772,9 @@ const collaboratorRoles: Array<{ value: ProjectCollaboratorRole; label: string }
   { value: 'owner', label: 'Owner' },
   { value: 'vendor', label: 'Vendor' },
 ];
+const organizationRoles = [
+  ['principal', 'Principal'], ['project_manager', 'Project manager'], ['project_member', 'Project team member'], ['field_supervisor', 'Construction administrator'], ['finance_admin', 'Finance / operations'], ['contractor', 'Contractor'], ['consultant', 'Consultant'], ['owner', 'Owner'], ['vendor', 'Vendor'],
+] as const;
 
 function ProjectPeopleDialog({
   record,
@@ -846,7 +849,7 @@ function ProjectPeopleDialog({
                 Person
                 <select value={userId} onChange={(event) => setUserId(event.target.value)} required>
                   <option value="">Choose a person</option>
-                  {people.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}{person.title ? ` · ${person.title}` : ''}</option>)}
+                  {people.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}{person.title ? ` · ${person.title}` : ''} · {person.organization_role.replaceAll('_', ' ')}</option>)}
                 </select>
               </label>
               <label>
@@ -967,6 +970,7 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
   const [userId, setUserId] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [weeklyHours, setWeeklyHours] = useState('40');
+  const [organizationRole, setOrganizationRole] = useState('project_member');
   const [teamId, setTeamId] = useState('');
   const [memberId, setMemberId] = useState('');
   const [message, setMessage] = useState<string>();
@@ -1001,10 +1005,12 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
         userId: userId.trim(),
         displayName: displayName.trim(),
         weeklyCapacityHours: Number(weeklyHours),
+        organizationRole,
       });
       setUserId('');
       setDisplayName('');
       setWeeklyHours('40');
+      setOrganizationRole('project_member');
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Person could not be saved.');
@@ -1051,6 +1057,7 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
           <p className="settings-empty">Sign in to manage people, capacity groups, and staffing.</p>
         ) : (
           <>
+            <p className="people-dialog-copy">First add an organization member and set their organization role. Then assign that member to a project, where their project responsibility is chosen separately.</p>
             <form className="inline-form staffing-form" onSubmit={savePerson}>
               <label>
                 User ID
@@ -1078,6 +1085,12 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
                   onChange={(event) => setWeeklyHours(event.target.value)}
                   required
                 />
+              </label>
+              <label>
+                Organization role
+                <select aria-label="Organization role" value={organizationRole} onChange={(event) => setOrganizationRole(event.target.value)}>
+                  {organizationRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
               </label>
               <button className="button-primary" disabled={saving} type="submit">
                 Save person
@@ -1125,7 +1138,7 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
               {(capacity?.people ?? []).map((person) => (
                 <article key={person.user_id}>
                   <strong>
-                    {person.display_name} · {person.utilization}% allocated
+                    {person.display_name} · {person.organization_role.replaceAll('_', ' ')} · {person.utilization}% allocated
                   </strong>
                   <span>
                     {person.allocatedHours}h allocated · {person.availableHours}h available of{' '}

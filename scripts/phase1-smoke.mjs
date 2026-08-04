@@ -97,6 +97,7 @@ const person = await api('POST', '/v1/resources/people', {
   displayName: `Smoke resource ${runId}`,
   title: 'Project director',
   weeklyCapacityHours: 40,
+  organizationRole: 'project_manager',
 });
 const team = await api('POST', '/v1/workspace/teams', { name: `Smoke team ${runId}` });
 await api('POST', '/v1/resources/team-members', {
@@ -640,6 +641,10 @@ const phase = await api('POST', `/v1/projects/${project.id}/finance/phases`, {
   name: 'Construction administration',
   plannedFee: 250000,
   targetHours: 120,
+});
+await api('POST', `/v1/workspace/projects/${project.id}/collaborators`, {
+  userId: person.user_id,
+  role: 'project_member',
 });
 await api('POST', `/v1/projects/${project.id}/finance/allocations`, {
   phaseId: phase.id,

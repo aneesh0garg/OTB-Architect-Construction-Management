@@ -245,6 +245,13 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS task_comments_task_idx ON task_comments (task_id, created_at);
     `,
   },
+  {
+    id: '0021_organization_member_roles',
+    sql: `
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS organization_role TEXT NOT NULL DEFAULT 'project_member';
+      CREATE INDEX IF NOT EXISTS people_organization_role_idx ON people (organization_id, organization_role);
+    `,
+  },
 ];
 
 @Injectable()

@@ -10,6 +10,7 @@ interface PersonRow extends QueryResultRow {
   title: string | null;
   weekly_capacity_hours: number;
   active: boolean;
+  organization_role: string;
 }
 interface CapacityRow extends PersonRow {
   allocated_hours: number;
@@ -35,7 +36,7 @@ export class ResourceService {
 
   async people(actor: AuthenticatedActor) {
     const result = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name',
+      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name',
       [actor.organizationId],
     );
     return result.rows;
@@ -95,10 +96,10 @@ export class ResourceService {
   async upsertPerson(actor: AuthenticatedActor, input: UpsertPersonInput) {
     this.requireManager(actor);
     const result = await this.database.query<PersonRow>(
-      `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (organization_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, title = EXCLUDED.title, weekly_capacity_hours = EXCLUDED.weekly_capacity_hours, active = EXCLUDED.active
-       RETURNING user_id, display_name, title, weekly_capacity_hours, active`,
+      `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active, organization_role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (organization_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, title = EXCLUDED.title, weekly_capacity_hours = EXCLUDED.weekly_capacity_hours, active = EXCLUDED.active, organization_role = EXCLUDED.organization_role
+       RETURNING user_id, display_name, title, weekly_capacity_hours, active, organization_role`,
       [
         actor.organizationId,
         text(input.userId, 'User ID'),
@@ -106,6 +107,7 @@ export class ResourceService {
         input.title?.trim() || null,
         input.weeklyCapacityHours ?? 40,
         input.active ?? true,
+        input.organizationRole,
       ],
     );
     const person = row(result.rows, 'Person could not be saved.');
@@ -113,6 +115,7 @@ export class ResourceService {
       userId: person.user_id,
       weeklyCapacityHours: person.weekly_capacity_hours,
       active: person.active,
+      organizationRole: person.organization_role,
     });
     return person;
   }
@@ -165,6 +168,7 @@ export interface UpsertPersonInput {
   title?: string;
   weeklyCapacityHours?: number;
   active?: boolean;
+  organizationRole: string;
 }
 export interface AddToTeamInput {
   teamId: string;

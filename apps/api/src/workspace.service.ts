@@ -289,6 +289,12 @@ export class WorkspaceService {
       ].includes(role)
     )
       throw new BadRequestException('Choose an external collaborator role.');
+    const person = await this.pool.query<{ user_id: string; active: boolean }>(
+      'SELECT user_id, active FROM people WHERE organization_id = $1 AND user_id = $2',
+      [actor.organizationId, this.requiredText(input.userId, 'Collaborator user ID')],
+    );
+    if (!person.rows[0]?.active)
+      throw new BadRequestException('Add an active organization member before assigning them to a project.');
     const member = await this.pool.query<MemberRow>(
       'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role RETURNING user_id, role',
       [project.id, this.requiredText(input.userId, 'Collaborator user ID'), role],

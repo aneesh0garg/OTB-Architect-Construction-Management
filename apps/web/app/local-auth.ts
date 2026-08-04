@@ -27,6 +27,7 @@ export type ResourcePerson = {
   title: string | null;
   weekly_capacity_hours: number;
   active: boolean;
+  organization_role: string;
 };
 export type ResourceTeam = {
   id: string;
@@ -582,6 +583,7 @@ export const saveResourcePerson = (input: {
   displayName: string;
   title?: string;
   weeklyCapacityHours?: number;
+  organizationRole: string;
 }) => apiPost('/v1/resources/people', input);
 export const assignResourceTeamMember = (input: {
   teamId: string;

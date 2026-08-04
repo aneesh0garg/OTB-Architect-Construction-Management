@@ -99,6 +99,8 @@ The goal is not to replicate all of Procore or Autodesk Forma in the MVP. The go
 - **FR-AUTH-003:** Each record shall have a visibility classification: `internal`, `project-team`, `external-selected`, or `public-link` (disabled by default).
 - **FR-AUTH-004:** Users shall only search, export, receive notifications about, or query AI over records they are authorized to view.
 - **FR-AUTH-005:** Permission and sharing changes shall be captured in the audit log.
+- **FR-AUTH-006:** Organization membership shall be established before project assignment. An organization role describes the member's firm-level function; a separate project role describes their responsibility and access on each assigned project.
+- **FR-AUTH-007:** Staffing allocations shall only be created for active organization members who are assigned to the target project.
 
 ## 5. Functional requirements
 

@@ -8,6 +8,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsIn,
 } from 'class-validator';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { ResourceService } from './resource.service.js';
@@ -18,6 +19,7 @@ class PersonDto {
   @IsOptional() @IsString() @MaxLength(120) title?: string;
   @IsOptional() @IsNumber() @Min(0) @Max(80) weeklyCapacityHours?: number;
   @IsOptional() @IsBoolean() active?: boolean;
+  @IsIn(['principal', 'project_manager', 'project_member', 'field_supervisor', 'finance_admin', 'contractor', 'consultant', 'owner', 'vendor']) organizationRole!: string;
 }
 class TeamMemberDto {
   @IsString() @MinLength(1) @MaxLength(160) teamId!: string;
