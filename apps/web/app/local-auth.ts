@@ -247,6 +247,7 @@ export type TaskComment = {
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
+let localLoginRestoreInFlight: Promise<Viewer | undefined> | undefined;
 const configuredIssuer =
   process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER ?? 'http://localhost:8180/realms/orbita';
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -381,7 +382,14 @@ export async function beginLocalLogin() {
   window.location.assign(`${issuerUrl()}/protocol/openid-connect/auth?${query.toString()}`);
 }
 
-export async function restoreLocalLogin(): Promise<Viewer | undefined> {
+export function restoreLocalLogin(): Promise<Viewer | undefined> {
+  localLoginRestoreInFlight ??= restoreLocalLoginOnce().finally(() => {
+    localLoginRestoreInFlight = undefined;
+  });
+  return localLoginRestoreInFlight;
+}
+
+async function restoreLocalLoginOnce(): Promise<Viewer | undefined> {
   const query = new URLSearchParams(window.location.search);
   const code = query.get('code');
   if (code) {

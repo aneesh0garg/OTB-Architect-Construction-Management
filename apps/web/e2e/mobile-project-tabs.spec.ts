@@ -22,6 +22,29 @@ test('retains PKCE sign-in when a mobile browser has no crypto.subtle on a LAN H
   expect(pageErrors).toEqual([]);
 });
 
+test('exchanges a task deep-link Keycloak callback only once during React development rendering', async ({ page }) => {
+  let tokenRequests = 0;
+  await page.addInitScript(() => sessionStorage.setItem('orbita.pkce-verifier', 'test-verifier'));
+  await page.route('**/protocol/openid-connect/token', async (route) => {
+    tokenRequests += 1;
+    await route.fulfill({ json: { access_token: 'test-access-token' } });
+  });
+  await page.route('**/v1/me', async (route) => {
+    await route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } });
+  });
+  await page.route('**/v1/workspace/projects/project-1/record', async (route) => {
+    await route.fulfill({ json: { project: { id: 'project-1', code: 'TEST', name: 'Callback test', status: 'active', location: null, stage: 'construction' }, tasks: [{ id: 'task-1', title: 'Callback task', status: 'open', priority: 'normal', due_date: null, assignee_id: null, source_record_type: null, source_record_id: null }], documents: [], communications: [], members: [], transmittals: [] } });
+  });
+  await page.route('**/v1/workspace/projects/project-1/tasks/task-1/comments', async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.goto('/projects/project-1/tasks/task-1?code=deep-link-code&session_state=deep-link-session');
+  await expect(page.getByRole('heading', { name: 'Callback task' })).toBeVisible();
+  await expect.poll(() => tokenRequests).toBe(1);
+  await page.waitForTimeout(150);
+  expect(tokenRequests).toBe(1);
+});
+
 test.describe('mobile project navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
