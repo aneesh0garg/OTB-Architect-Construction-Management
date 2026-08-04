@@ -22,6 +22,22 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   });
 
+  test('creates a workspace team and project', async ({ page }) => {
+    const suffix = Date.now();
+    const teamName = `UI team ${suffix}`;
+    await page.getByLabel('Create team').click();
+    await page.getByLabel('Team name').fill(teamName);
+    await page.getByRole('button', { name: 'Create team' }).click();
+    await expect(page.getByText(`# ${teamName}`, { exact: true })).toBeVisible();
+
+    const projectName = `UI project ${suffix}`;
+    await page.getByLabel('Create project').click();
+    await page.getByLabel('Project name').fill(projectName);
+    await page.getByLabel('Project code').fill(`UI${suffix}`.slice(0, 24));
+    await page.getByRole('button', { name: 'Create project' }).click();
+    await expect(page.getByRole('heading', { name: projectName })).toBeVisible();
+  });
+
   test('opens a task detail workspace and persists its discussion', async ({ page }) => {
     await page.getByTestId('project-tab-tasks').click();
     const title = `UI task discussion ${Date.now()}`;
