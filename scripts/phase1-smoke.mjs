@@ -269,6 +269,74 @@ assert.equal(
   documentBytes.toString('utf8'),
   'Signed original download did not match.',
 );
+const uploadFixtures = [
+  {
+    extension: 'pdf',
+    contentType: 'application/pdf',
+    bytes: Buffer.from('%PDF-1.4\\n% Orbita smoke PDF\\n'),
+  },
+  {
+    extension: 'jpg',
+    contentType: 'image/jpeg',
+    bytes: Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9k=',
+      'base64',
+    ),
+  },
+  {
+    extension: 'png',
+    contentType: 'image/png',
+    bytes: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLacQAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  },
+];
+const documentTypes = ['drawing', 'specification', 'report', 'contract', 'photo', 'other'];
+for (const [index, documentType] of documentTypes.entries()) {
+  const fixture = uploadFixtures[index % uploadFixtures.length];
+  const documentNumber = `FMT-${runId}-${index}`;
+  const uploadRevision = async (revision) => {
+    const prepared = await api('POST', `${projectPath}/documents/uploads`, {
+      fileName: `${documentNumber}-${revision}.${fixture.extension}`,
+      contentType: fixture.contentType,
+      size: fixture.bytes.length,
+    });
+    const stored = await fetch(prepared.uploadUrl, {
+      method: 'PUT',
+      headers: { 'content-type': fixture.contentType },
+      body: fixture.bytes,
+    });
+    assert.equal(stored.ok, true, `${fixture.extension} signed upload failed.`);
+    await api('POST', `${projectPath}/documents/uploads/${prepared.uploadId}/complete`);
+    const created = await api('POST', `${projectPath}/documents`, {
+      documentNumber,
+      documentType,
+      title: `${documentType} ${revision} ${runId}`,
+      revision,
+      uploadId: prepared.uploadId,
+    });
+    const original = await api('GET', `${projectPath}/documents/${created.id}/download`);
+    const downloaded = Buffer.from(await (await fetch(original.downloadUrl)).arrayBuffer());
+    assert.deepEqual(downloaded, fixture.bytes, `${documentType} original download did not match.`);
+    return created;
+  };
+  const revisionA = await uploadRevision('A');
+  await api('POST', `${projectPath}/documents/${revisionA.id}/issue`);
+  const revisionB = await uploadRevision('B');
+  await api('POST', `${projectPath}/documents/${revisionB.id}/issue`);
+  const updatedRecord = await api('GET', `${projectPath}/record`);
+  assert.equal(
+    updatedRecord.documents.find((item) => item.id === revisionA.id)?.status,
+    'superseded',
+    `${documentType} revision A was not superseded.`,
+  );
+  assert.equal(
+    updatedRecord.documents.find((item) => item.id === revisionB.id)?.status,
+    'issued',
+    `${documentType} revision B was not issued.`,
+  );
+}
 await api('POST', `${projectPath}/documents`, {
   documentNumber: `A-${runId}`,
   documentType: 'drawing',

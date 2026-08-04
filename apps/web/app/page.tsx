@@ -1801,6 +1801,11 @@ function Documents({
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
+  const [preview, setPreview] = useState<{
+    title: string;
+    url: string;
+    expiresAt: string;
+  }>();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!record || !file) return;
@@ -1841,6 +1846,20 @@ function Documents({
       setMessage(error instanceof Error ? error.message : 'Document revision could not be issued.');
     } finally {
       setIssuingId(undefined);
+    }
+  };
+  const openDocument = async (document: ProjectRecord['documents'][number]) => {
+    if (!record) return;
+    setMessage(undefined);
+    try {
+      const download = await prepareDocumentDownload(record.project.id, document.id);
+      setPreview({
+        title: document.title,
+        url: download.downloadUrl,
+        expiresAt: download.expiresAt,
+      });
+    } catch {
+      setMessage('This revision has no downloadable original, or your access has changed.');
     }
   };
   return (
@@ -1931,6 +1950,14 @@ function Documents({
                     {issuingId === document.id ? 'Issuing…' : 'Issue revision'}
                   </button>
                 )}
+                {signedIn && (
+                  <button
+                    className="button-secondary record-action"
+                    onClick={() => void openDocument(document)}
+                  >
+                    Open original
+                  </button>
+                )}
                 {document.document_type === 'drawing' && (
                   <button
                     className="button-secondary record-action"
@@ -1946,7 +1973,46 @@ function Documents({
           )}
         </div>
       </section>
+      {preview && <DocumentPreview preview={preview} onClose={() => setPreview(undefined)} />}
     </div>
+  );
+}
+
+function DocumentPreview({
+  preview,
+  onClose,
+}: {
+  preview: { title: string; url: string; expiresAt: string };
+  onClose: () => void;
+}) {
+  const pathname = new URL(preview.url).pathname.toLowerCase();
+  const isImage = /\.(jpe?g|png)$/.test(pathname);
+  return (
+    <section
+      className="drawing-viewer document-viewer"
+      aria-label={`Document viewer for ${preview.title}`}
+    >
+      <header>
+        <div>
+          <p className="eyebrow">CONTROLLED ORIGINAL</p>
+          <h3>{preview.title}</h3>
+        </div>
+        <div>
+          <small>Access link expires {new Date(preview.expiresAt).toLocaleTimeString()}</small>
+          <a href={preview.url} target="_blank" rel="noreferrer">
+            Open original ↗
+          </a>
+          <button onClick={onClose} aria-label="Close document viewer">
+            ×
+          </button>
+        </div>
+      </header>
+      {isImage ? (
+        <img src={preview.url} alt={preview.title} />
+      ) : (
+        <iframe title={preview.title} src={preview.url} />
+      )}
+    </section>
   );
 }
 

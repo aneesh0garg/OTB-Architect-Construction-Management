@@ -49,7 +49,18 @@ export class KeycloakAuthGuard implements CanActivate {
 
   private trustedIssuers(): string[] {
     const configured = process.env.KEYCLOAK_ISSUERS ?? process.env.KEYCLOAK_ISSUER;
-    return configured?.split(',').map((issuer) => issuer.trim()).filter(Boolean) ?? [];
+    const configuredIssuers =
+      configured
+        ?.split(',')
+        .map((issuer) => issuer.trim())
+        .filter(Boolean) ?? [];
+    const lanHost = process.env.ORBITA_LAN_HOST?.trim();
+    return [
+      ...new Set([
+        ...configuredIssuers,
+        ...(lanHost ? [`http://${lanHost}:8180/realms/orbita`] : []),
+      ]),
+    ];
   }
 
   private tokenIssuer(token: string, trustedIssuers: string[]): string {

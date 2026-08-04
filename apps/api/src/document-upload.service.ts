@@ -48,7 +48,7 @@ export class DocumentUploadService {
   // The API can retain a loopback storage connection, while browsers on a LAN
   // device need a URL that resolves to the development machine.
   private readonly browserClient = createStorageClient(
-    process.env.S3_PUBLIC_ENDPOINT ?? this.endpoint,
+    process.env.S3_PUBLIC_ENDPOINT ?? this.lanStorageEndpoint() ?? this.endpoint,
   );
   private bucketReady: Promise<void> | undefined;
 
@@ -175,7 +175,11 @@ export class DocumentUploadService {
     await this.audit.record(actor, 'document.download_prepared', 'document_revision', document.id, {
       projectId,
     });
-    return { documentId: document.id, downloadUrl, expiresInSeconds: 300 };
+    return {
+      documentId: document.id,
+      downloadUrl,
+      expiresAt: new Date(Date.now() + 300_000).toISOString(),
+    };
   }
 
   private async find(
@@ -210,6 +214,10 @@ export class DocumentUploadService {
   }
   private bucket() {
     return process.env.S3_BUCKET ?? 'orbita';
+  }
+  private lanStorageEndpoint() {
+    const host = process.env.ORBITA_LAN_HOST?.trim();
+    return host ? `http://${host}:9000` : undefined;
   }
 }
 

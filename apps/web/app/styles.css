@@ -1359,6 +1359,13 @@ small {
   border: 0;
   background: white;
 }
+.document-viewer img {
+  display: block;
+  width: 100%;
+  max-height: min(68vh, 760px);
+  object-fit: contain;
+  background: var(--surface);
+}
 .status-pill.superseded {
   color: var(--muted);
   background: var(--raised-strong);
