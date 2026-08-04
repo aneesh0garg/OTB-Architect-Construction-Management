@@ -1863,7 +1863,9 @@ function Documents({
   const [transmittalPurpose, setTransmittalPurpose] = useState('Construction issue');
   const [transmittalRecipients, setTransmittalRecipients] = useState('');
   const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string>();
   const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
+  const selectedDocument = documents.find((document) => document.id === selectedDocumentId);
   const revision = selectedPrior ? nextRevision(selectedPrior.revision) : 'A';
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -2217,6 +2219,12 @@ function Documents({
                     Review &amp; markup
                   </button>
                 )}
+                <button
+                  className="button-secondary record-action"
+                  onClick={() => setSelectedDocumentId(document.id)}
+                >
+                  View details
+                </button>
               </article>
             ))
           ) : (
@@ -2228,6 +2236,47 @@ function Documents({
         <div ref={previewRef} tabIndex={-1}>
           <DocumentPreview preview={preview} onClose={() => setPreview(undefined)} />
         </div>
+      )}
+      {selectedDocument && (
+        <section
+          className="content-card detail-workspace"
+          aria-label={`Document details for ${selectedDocument.document_number}`}
+        >
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">DOCUMENT DETAIL</p>
+              <h2>
+                {selectedDocument.document_number} · Rev {selectedDocument.revision}
+              </h2>
+            </div>
+            <button onClick={() => setSelectedDocumentId(undefined)}>Close</button>
+          </div>
+          <p>{selectedDocument.title}</p>
+          <div className="record-grid">
+            <div>
+              <span>Status</span>
+              <strong>{selectedDocument.status.replaceAll('_', ' ')}</strong>
+            </div>
+            <div>
+              <span>Type</span>
+              <strong>{selectedDocument.document_type}</strong>
+            </div>
+            <div>
+              <span>Issued</span>
+              <strong>{selectedDocument.issue_date ?? 'Not issued'}</strong>
+            </div>
+            <div>
+              <span>Original</span>
+              <strong>{selectedDocument.has_original ? 'Retained' : 'Metadata only'}</strong>
+            </div>
+          </div>
+          <p className="settings-empty">
+            Linked transmittals:{' '}
+            {record?.transmittals.filter((item) => item.document_ids.includes(selectedDocument.id))
+              .length ?? 0}
+            . Review actions and discussion are available from this controlled record.
+          </p>
+        </section>
       )}
     </div>
   );
