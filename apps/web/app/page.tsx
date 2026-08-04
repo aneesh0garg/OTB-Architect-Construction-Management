@@ -24,6 +24,8 @@ import {
   createDocumentAnnotation,
   createProjectTask,
   createProjectBudget,
+  createProjectCommitment,
+  createProjectChangeEvent,
   createProjectInvoice,
   createPipelineOpportunity,
   createPipelineProposal,
@@ -2112,6 +2114,12 @@ function CostContracts({
   const [budgetCode, setBudgetCode] = useState('');
   const [budgetName, setBudgetName] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [vendorName, setVendorName] = useState('');
+  const [commitmentDescription, setCommitmentDescription] = useState('');
+  const [commitmentAmount, setCommitmentAmount] = useState('');
+  const [changeCode, setChangeCode] = useState('');
+  const [changeDescription, setChangeDescription] = useState('');
+  const [changeAmount, setChangeAmount] = useState('');
   const [clientName, setClientName] = useState('');
   const [invoiceDescription, setInvoiceDescription] = useState('');
   const [invoiceAmount, setInvoiceAmount] = useState('');
@@ -2163,6 +2171,48 @@ function CostContracts({
       setMessage('Invoice created as a draft for internal review.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Invoice could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const addCommitment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createProjectCommitment(record.project.id, {
+        vendorName: vendorName.trim(),
+        description: commitmentDescription.trim(),
+        originalAmount: Number(commitmentAmount),
+      });
+      setVendorName('');
+      setCommitmentDescription('');
+      setCommitmentAmount('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Commitment could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const addChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createProjectChangeEvent(record.project.id, {
+        code: changeCode.trim(),
+        description: changeDescription.trim(),
+        amount: Number(changeAmount),
+      });
+      setChangeCode('');
+      setChangeDescription('');
+      setChangeAmount('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Change event could not be created.');
     } finally {
       setSaving(false);
     }
@@ -2265,6 +2315,73 @@ function CostContracts({
             </label>
             <button className="button-primary" disabled={saving} type="submit">
               Add budget
+            </button>
+          </form>
+        )}
+        {signedIn && record && (
+          <form className="inline-form budget-form" onSubmit={addCommitment}>
+            <label>
+              Vendor
+              <input
+                value={vendorName}
+                onChange={(event) => setVendorName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Description
+              <input
+                value={commitmentDescription}
+                onChange={(event) => setCommitmentDescription(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Amount
+              <input
+                min="0"
+                step="0.01"
+                type="number"
+                value={commitmentAmount}
+                onChange={(event) => setCommitmentAmount(event.target.value)}
+                required
+              />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              Add commitment
+            </button>
+          </form>
+        )}
+        {signedIn && record && (
+          <form className="inline-form budget-form" onSubmit={addChange}>
+            <label>
+              Change code
+              <input
+                value={changeCode}
+                onChange={(event) => setChangeCode(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Description
+              <input
+                value={changeDescription}
+                onChange={(event) => setChangeDescription(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Amount
+              <input
+                step="0.01"
+                type="number"
+                value={changeAmount}
+                onChange={(event) => setChangeAmount(event.target.value)}
+                required
+              />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              Add change
             </button>
           </form>
         )}

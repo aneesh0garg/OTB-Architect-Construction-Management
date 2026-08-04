@@ -411,6 +411,14 @@ export const createProjectBudget = (
   projectId: string,
   input: { costCode: string; name: string; amount: number },
 ) => apiPost(`/v1/projects/${projectId}/finance/budgets`, input);
+export const createProjectCommitment = (
+  projectId: string,
+  input: { vendorName: string; description: string; originalAmount: number },
+) => apiPost(`/v1/projects/${projectId}/finance/commitments`, input);
+export const createProjectChangeEvent = (
+  projectId: string,
+  input: { code: string; description: string; amount: number },
+) => apiPost(`/v1/projects/${projectId}/finance/change-events`, input);
 export const createProjectInvoice = (
   projectId: string,
   input: { clientName: string; dueDate?: string; gstRate?: number; lines: unknown[] },
