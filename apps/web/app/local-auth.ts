@@ -90,6 +90,23 @@ export type DocumentDownload = {
   downloadUrl: string;
   expiresAt: string;
 };
+export type NotificationPreference = {
+  event_type: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  digest_frequency: 'immediate' | 'daily' | 'weekly' | 'none';
+  updated_at: string;
+};
+export type NotificationPreferenceInput = {
+  eventType: string;
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  digestFrequency: NotificationPreference['digest_frequency'];
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -181,6 +198,18 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to change notification settings.');
+  const response = await fetch(`${apiUrl}${path}`, {
+    method: 'PUT',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error('Notification settings could not be saved.');
+  return response.json() as Promise<T>;
+}
+
 export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
 export const loadFinanceControl = (projectId: string) =>
@@ -191,3 +220,7 @@ export const loadExecutionRegister = (projectId: string) =>
   apiGet<ExecutionRegister>(`/v1/projects/${projectId}/execution-register`);
 export const prepareDocumentDownload = (projectId: string, documentId: string) =>
   apiGet<DocumentDownload>(`/v1/workspace/projects/${projectId}/documents/${documentId}/download`);
+export const loadNotificationPreferences = () =>
+  apiGet<NotificationPreference[]>('/v1/workspace/notification-preferences');
+export const saveNotificationPreference = (input: NotificationPreferenceInput) =>
+  apiPut<NotificationPreference>('/v1/workspace/notification-preferences', input);

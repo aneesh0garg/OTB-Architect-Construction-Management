@@ -38,4 +38,15 @@ test.describe('mobile project navigation', () => {
     await expect(communications).toBeDisabled();
     await expect(costAndContracts).toBeDisabled();
   });
+
+  test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {
+    await page.getByTestId('notification-settings-trigger').click();
+
+    const dialog = page.getByRole('dialog', { name: 'Notification settings' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Sign in to set your delivery preferences.');
+
+    await page.getByRole('button', { name: 'Close notification settings' }).click();
+    await expect(dialog).toBeHidden();
+  });
 });

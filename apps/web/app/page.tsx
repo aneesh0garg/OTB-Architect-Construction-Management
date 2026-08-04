@@ -9,12 +9,15 @@ import {
   loadFinanceControl,
   loadConnectedWorkspace,
   loadProjectRecord,
+  loadNotificationPreferences,
   restoreLocalLogin,
+  saveNotificationPreference,
   signOutLocal,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
   type FinanceControl,
+  type NotificationPreference,
   type ProjectRecord,
   type Viewer,
 } from './local-auth';
@@ -42,6 +45,10 @@ export default function Home() {
   const [financeControl, setFinanceControl] = useState<FinanceControl>();
   const [costControl, setCostControl] = useState<CostControl>();
   const [executionRegister, setExecutionRegister] = useState<ExecutionRegister>();
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreference[]>(
+    [],
+  );
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -55,6 +62,7 @@ export default function Home() {
           setViewer(identity);
           const workspace = await loadConnectedWorkspace();
           setConnectedWorkspace(workspace);
+          setNotificationPreferences(await loadNotificationPreferences());
           if (workspace.projects[0]) {
             await loadProjectViews(workspace.projects[0].id);
           }
@@ -239,6 +247,14 @@ export default function Home() {
               ◔
             </button>
             <button
+              className="icon-button"
+              aria-label="Notification settings"
+              data-testid="notification-settings-trigger"
+              onClick={() => setNotificationSettingsOpen(true)}
+            >
+              ⚙
+            </button>
+            <button
               className="auth-button"
               onClick={() =>
                 viewer
@@ -332,7 +348,226 @@ export default function Home() {
           {view === 'field' && <FieldMobile execution={executionRegister} />}
         </div>
       </section>
+      {notificationSettingsOpen && (
+        <NotificationSettings
+          preferences={notificationPreferences}
+          signedIn={Boolean(viewer)}
+          onClose={() => setNotificationSettingsOpen(false)}
+          onSaved={(preference) =>
+            setNotificationPreferences((current) => [
+              ...current.filter((item) => item.event_type !== preference.event_type),
+              preference,
+            ])
+          }
+        />
+      )}
     </main>
+  );
+}
+
+const notificationEvents = [
+  ['*', 'All project activity'],
+  ['workflow.issued', 'Issued workflows'],
+  ['invoice.issued', 'Issued invoices'],
+  ['payment.recorded', 'Recorded payments'],
+] as const;
+
+function NotificationSettings({
+  preferences,
+  signedIn,
+  onClose,
+  onSaved,
+}: {
+  preferences: NotificationPreference[];
+  signedIn: boolean;
+  onClose: () => void;
+  onSaved: (preference: NotificationPreference) => void;
+}) {
+  const [eventType, setEventType] = useState<(typeof notificationEvents)[number][0]>('*');
+  const selected = preferences.find((preference) => preference.event_type === eventType);
+  const [inAppEnabled, setInAppEnabled] = useState(selected?.in_app_enabled ?? true);
+  const [emailEnabled, setEmailEnabled] = useState(selected?.email_enabled ?? false);
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(Boolean(selected?.quiet_hours_start));
+  const [quietHoursStart, setQuietHoursStart] = useState(
+    selected?.quiet_hours_start?.slice(0, 5) ?? '18:00',
+  );
+  const [quietHoursEnd, setQuietHoursEnd] = useState(
+    selected?.quiet_hours_end?.slice(0, 5) ?? '08:00',
+  );
+  const [digestFrequency, setDigestFrequency] = useState<
+    NotificationPreference['digest_frequency']
+  >(selected?.digest_frequency ?? 'immediate');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string>();
+
+  function selectEvent(nextEventType: (typeof notificationEvents)[number][0]) {
+    setEventType(nextEventType);
+    const next = preferences.find((preference) => preference.event_type === nextEventType);
+    setInAppEnabled(next?.in_app_enabled ?? true);
+    setEmailEnabled(next?.email_enabled ?? false);
+    setQuietHoursEnabled(Boolean(next?.quiet_hours_start));
+    setQuietHoursStart(next?.quiet_hours_start?.slice(0, 5) ?? '18:00');
+    setQuietHoursEnd(next?.quiet_hours_end?.slice(0, 5) ?? '08:00');
+    setDigestFrequency(next?.digest_frequency ?? 'immediate');
+    setMessage(undefined);
+  }
+
+  async function save() {
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const preference = await saveNotificationPreference({
+        eventType,
+        inAppEnabled,
+        emailEnabled,
+        digestFrequency,
+        ...(quietHoursEnabled ? { quietHoursStart, quietHoursEnd } : {}),
+      });
+      onSaved(preference);
+      setMessage('Saved.');
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Notification settings could not be saved.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="settings-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="notification-settings"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-settings-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <p className="eyebrow">YOUR WORKSPACE</p>
+            <h2 id="notification-settings-title">Notification settings</h2>
+          </div>
+          <button
+            className="icon-button"
+            aria-label="Close notification settings"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+        {!signedIn ? (
+          <p className="settings-empty">Sign in to set your delivery preferences.</p>
+        ) : (
+          <div className="settings-form">
+            <label>
+              Apply to
+              <select
+                aria-label="Notification event"
+                value={eventType}
+                onChange={(event) => selectEvent(event.target.value as typeof eventType)}
+              >
+                {notificationEvents.map(([value, label]) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-toggle">
+              <span>
+                <strong>In-app notifications</strong>
+                <small>Show activity in your Orbita feed.</small>
+              </span>
+              <input
+                aria-label="Enable in-app notifications"
+                type="checkbox"
+                checked={inAppEnabled}
+                onChange={(event) => setInAppEnabled(event.target.checked)}
+              />
+            </label>
+            <label className="settings-toggle">
+              <span>
+                <strong>Email notifications</strong>
+                <small>Requires an approved organization sender.</small>
+              </span>
+              <input
+                aria-label="Enable email notifications"
+                type="checkbox"
+                checked={emailEnabled}
+                onChange={(event) => setEmailEnabled(event.target.checked)}
+              />
+            </label>
+            <label className="settings-toggle">
+              <span>
+                <strong>Quiet hours</strong>
+                <small>Saved now; scheduled delivery is coming next.</small>
+              </span>
+              <input
+                aria-label="Enable quiet hours"
+                type="checkbox"
+                checked={quietHoursEnabled}
+                onChange={(event) => setQuietHoursEnabled(event.target.checked)}
+              />
+            </label>
+            {quietHoursEnabled && (
+              <div className="quiet-hours">
+                <label>
+                  From
+                  <input
+                    type="time"
+                    value={quietHoursStart}
+                    onChange={(event) => setQuietHoursStart(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Until
+                  <input
+                    type="time"
+                    value={quietHoursEnd}
+                    onChange={(event) => setQuietHoursEnd(event.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+            <label>
+              Email digest
+              <select
+                value={digestFrequency}
+                onChange={(event) =>
+                  setDigestFrequency(
+                    event.target.value as NotificationPreference['digest_frequency'],
+                  )
+                }
+              >
+                <option value="immediate">Immediate</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="none">No email digest</option>
+              </select>
+            </label>
+            {message && (
+              <p className="settings-message" role="status">
+                {message}
+              </p>
+            )}
+            <footer>
+              <button className="button-secondary" onClick={onClose}>
+                Cancel
+              </button>
+              <button
+                className="button-primary"
+                onClick={save}
+                disabled={saving}
+                data-testid="save-notification-preferences"
+              >
+                {saving ? 'Saving…' : 'Save preferences'}
+              </button>
+            </footer>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 

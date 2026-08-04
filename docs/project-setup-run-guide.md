@@ -429,6 +429,13 @@ project tabs (Overview, Drawings, and Field work) at a phone viewport. It also
 asserts that future modules remain visibly disabled, rather than appearing as
 unresponsive controls.
 
+The top-bar settings control opens a responsive **Notification settings**
+sheet. Signed-in users can set a default or event-specific delivery preference
+for issued workflows, invoices, and payments. The sheet persists in-app/email
+choices, digest preference, and optional quiet-hours values; only in-app
+delivery is active locally today. Email delivery and scheduled quiet-hour or
+digest dispatch require the production delivery worker and sender identity.
+
 Install the mobile browser engines once, then run the suite:
 
 ```bash

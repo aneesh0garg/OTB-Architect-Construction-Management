@@ -425,6 +425,101 @@ small {
   color: var(--primary);
   font-weight: 700;
 }
+.settings-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(10 19 29 / 45%);
+}
+.notification-settings {
+  width: min(100%, 440px);
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+.notification-settings > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.notification-settings h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.settings-form,
+.settings-empty {
+  display: grid;
+  gap: 15px;
+  padding: 20px 22px 22px;
+}
+.settings-form > label,
+.quiet-hours label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.settings-form select,
+.quiet-hours input {
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+}
+.settings-toggle {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+}
+.settings-toggle span {
+  display: grid;
+  gap: 3px;
+  color: var(--text);
+}
+.settings-toggle small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.settings-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+.quiet-hours {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: -7px;
+}
+.settings-form footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 4px;
+}
+.settings-message {
+  margin: -4px 0 0;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.settings-empty {
+  margin: 0;
+  color: var(--muted);
+}
 .project-header {
   padding: 28px 32px 22px;
   display: flex;
@@ -1156,6 +1251,13 @@ small {
   .search-button kbd,
   .top-actions select {
     display: none;
+  }
+  .notification-settings {
+    max-height: calc(100vh - 24px);
+  }
+  .settings-backdrop {
+    align-items: end;
+    padding: 12px;
   }
   .search-button {
     min-width: auto;
