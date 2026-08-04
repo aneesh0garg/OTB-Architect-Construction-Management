@@ -54,6 +54,12 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByTestId('project-view-documents')).toBeVisible();
   });
 
+  test('filters the drawing register on a phone viewport', async ({ page }) => {
+    await page.getByTestId('project-tab-drawings').click();
+    await page.getByRole('button', { name: 'Current only' }).click();
+    await expect(page.getByRole('button', { name: 'Show all' })).toBeVisible();
+  });
+
   test('allows a demo work-queue item to be checked on a phone viewport', async ({ page }) => {
     const checkbox = page.getByRole('checkbox', {
       name: 'Mark Review staircase shop drawing complete',
