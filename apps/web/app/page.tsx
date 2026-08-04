@@ -1782,13 +1782,30 @@ function Overview({
 
 const documentNumberCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const documentStatusOrder: Record<string, number> = { issued: 0, draft: 1, superseded: 2 };
-const sortControlledDocuments = (documents: ProjectRecord['documents']) =>
+type DocumentSort = 'number' | 'status' | 'type' | 'revision';
+const sortControlledDocuments = (
+  documents: ProjectRecord['documents'],
+  sort: DocumentSort = 'number',
+) =>
   [...documents].sort((left, right) => {
+    if (sort === 'status') {
+      const statusComparison =
+        (documentStatusOrder[left.status] ?? 3) - (documentStatusOrder[right.status] ?? 3);
+      if (statusComparison !== 0) return statusComparison;
+    }
+    if (sort === 'type') {
+      const typeComparison = documentNumberCollator.compare(
+        left.document_type,
+        right.document_type,
+      );
+      if (typeComparison !== 0) return typeComparison;
+    }
     const numberComparison = documentNumberCollator.compare(
       left.document_number,
       right.document_number,
     );
     if (numberComparison !== 0) return numberComparison;
+    if (sort === 'revision') return documentNumberCollator.compare(right.revision, left.revision);
     const statusComparison =
       (documentStatusOrder[left.status] ?? 3) - (documentStatusOrder[right.status] ?? 3);
     if (statusComparison !== 0) return statusComparison;
@@ -1824,6 +1841,7 @@ function Documents({
   const [documentQuery, setDocumentQuery] = useState('');
   const [documentStatus, setDocumentStatus] = useState('all');
   const [documentTypeFilter, setDocumentTypeFilter] = useState('all');
+  const [documentSort, setDocumentSort] = useState<DocumentSort>('number');
   const filteredDocuments = documents.filter((document) => {
     const matchesQuery = `${document.document_number} ${document.title}`
       .toLowerCase()
@@ -2051,11 +2069,21 @@ function Documents({
             <option value="photo">Photos</option>
             <option value="other">Other</option>
           </select>
+          <select
+            aria-label="Sort documents"
+            value={documentSort}
+            onChange={(event) => setDocumentSort(event.target.value as DocumentSort)}
+          >
+            <option value="number">Sort: document number</option>
+            <option value="status">Sort: status</option>
+            <option value="type">Sort: type</option>
+            <option value="revision">Sort: revision</option>
+          </select>
           <span>{filteredDocuments.length} shown</span>
         </div>
         <div className="simple-record-list">
           {filteredDocuments.length ? (
-            filteredDocuments.map((document) => (
+            sortControlledDocuments(filteredDocuments, documentSort).map((document) => (
               <article key={document.id}>
                 <strong>
                   {document.document_number} · Rev {document.revision}
@@ -2824,8 +2852,9 @@ function Drawings({
   const [annotationBody, setAnnotationBody] = useState('');
   const [openError, setOpenError] = useState<string>();
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
+  const [drawingSort, setDrawingSort] = useState<DocumentSort>('number');
   const drawings = record
-    ? sortControlledDocuments(record.documents).filter(
+    ? sortControlledDocuments(record.documents, drawingSort).filter(
         (document) => document.document_type === 'drawing',
       )
     : workspaceData.activeProject.drawings;
@@ -2883,6 +2912,15 @@ function Drawings({
           >
             {showCurrentOnly ? 'Show all' : 'Current only'}
           </button>
+          <select
+            aria-label="Sort drawings"
+            value={drawingSort}
+            onChange={(event) => setDrawingSort(event.target.value as DocumentSort)}
+          >
+            <option value="number">Sort: drawing number</option>
+            <option value="status">Sort: status</option>
+            <option value="revision">Sort: revision</option>
+          </select>
           <button className="button-primary" onClick={() => onNavigate('documents')}>
             Upload drawing
           </button>
