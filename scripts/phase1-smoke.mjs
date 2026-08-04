@@ -275,7 +275,7 @@ await api('POST', `${projectPath}/documents`, {
   floor: 'Level 2',
   zone: 'Facade east',
 });
-await api('POST', `${projectPath}/documents`, {
+const issuedDrawing = await api('POST', `${projectPath}/documents`, {
   documentNumber: `A-${runId}`,
   documentType: 'drawing',
   title: `Smoke facade drawing ${runId}`,
@@ -283,6 +283,17 @@ await api('POST', `${projectPath}/documents`, {
   status: 'issued',
   issueDate: '2026-08-05',
 });
+const transmittal = await api('POST', `${projectPath}/transmittals`, {
+  purpose: 'Construction issue',
+  issueNote: 'Issued facade drawing for coordination.',
+  recipients: ['contractor@example.test'],
+  documentIds: [issuedDrawing.id],
+});
+assert.equal(
+  transmittal.document_ids[0],
+  issuedDrawing.id,
+  'Transmittal did not retain its document.',
+);
 const communication = await api('POST', `${projectPath}/communications`, {
   channel: 'email',
   direction: 'inbound',

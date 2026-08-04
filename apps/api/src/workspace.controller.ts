@@ -64,6 +64,12 @@ class CreateDocumentDto {
   @IsOptional() @IsString() @MaxLength(120) zone?: string;
   @IsOptional() @IsString() @MaxLength(160) uploadId?: string;
 }
+class CreateTransmittalDto {
+  @IsString() @MinLength(2) @MaxLength(240) purpose!: string;
+  @IsOptional() @IsString() @MaxLength(2000) issueNote?: string;
+  @IsArray() @ArrayMinSize(1) @IsString({ each: true }) recipients!: string[];
+  @IsArray() @ArrayMinSize(1) @IsString({ each: true }) documentIds!: string[];
+}
 class CreateDocumentUploadDto {
   @IsString() @MinLength(1) @MaxLength(160) fileName!: string;
   @IsString() @MinLength(3) @MaxLength(120) contentType!: string;
@@ -173,6 +179,13 @@ export class WorkspaceController {
     @Body() body: CreateDocumentDto,
   ) {
     return this.workspace.addDocumentRevision(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/transmittals') createTransmittal(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: CreateTransmittalDto,
+  ) {
+    return this.workspace.createTransmittal(request.actor!, projectId, body);
   }
   @Post('projects/:projectId/documents/uploads') createDocumentUpload(
     @Req() request: AuthenticatedRequest,

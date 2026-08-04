@@ -49,6 +49,15 @@ interface DocumentRow extends QueryResultRow {
   zone: string | null;
   content_sha256: string | null;
 }
+interface TransmittalRow extends QueryResultRow {
+  id: string;
+  transmittal_number: number;
+  purpose: string;
+  issue_note: string | null;
+  recipients: string[];
+  document_ids: string[];
+  created_at: Date;
+}
 interface CommunicationRow extends QueryResultRow {
   id: string;
   channel: string;
@@ -418,6 +427,45 @@ export class WorkspaceService {
     });
     return created;
   }
+  async createTransmittal(
+    actor: AuthenticatedActor,
+    projectId: string,
+    input: CreateTransmittalInput,
+  ) {
+    this.requireRole(actor, [
+      'organization_admin',
+      'principal',
+      'project_manager',
+      'project_member',
+    ]);
+    const project = await this.projectForActor(actor, projectId);
+    const documentIds = [...new Set(input.documentIds)];
+    const documents = await this.pool.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM document_revisions WHERE id = ANY($1::uuid[]) AND project_id = $2 AND organization_id = $3 AND status = 'issued'",
+      [documentIds, project.id, actor.organizationId],
+    );
+    if (Number(documents.rows[0]?.count) !== documentIds.length)
+      throw new BadRequestException('A transmittal can contain only issued project documents.');
+    const result = await this.pool.query<TransmittalRow>(
+      'INSERT INTO document_transmittals (organization_id, project_id, purpose, issue_note, recipients, document_ids, created_by) VALUES ($1,$2,$3,$4,$5,$6::uuid[],$7) RETURNING id, transmittal_number, purpose, issue_note, recipients, document_ids, created_at',
+      [
+        actor.organizationId,
+        project.id,
+        this.requiredText(input.purpose, 'Purpose'),
+        input.issueNote?.trim() || null,
+        input.recipients,
+        documentIds,
+        actor.userId,
+      ],
+    );
+    const created = this.resultRow(result.rows, 'Transmittal could not be created.');
+    await this.audit(actor, 'document.transmittal_created', 'document_transmittal', created.id, {
+      projectId: project.id,
+      documentCount: documentIds.length,
+      recipientCount: input.recipients.length,
+    });
+    return created;
+  }
   async fileCommunication(
     actor: AuthenticatedActor,
     projectId: string,
@@ -591,6 +639,12 @@ export interface CreateDocumentInput {
   floor?: string;
   zone?: string;
   uploadId?: string;
+}
+export interface CreateTransmittalInput {
+  purpose: string;
+  issueNote?: string;
+  recipients: string[];
+  documentIds: string[];
 }
 export interface FileCommunicationInput {
   channel: string;
