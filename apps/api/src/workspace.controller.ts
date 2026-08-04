@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   IsArray,
   IsIn,
@@ -96,6 +96,13 @@ export class WorkspaceController {
     @Body() body: AddCollaboratorDto,
   ) {
     return this.workspace.addCollaborator(request.actor!, projectId, body);
+  }
+  @Delete('projects/:projectId/collaborators/:userId') removeCollaborator(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.workspace.removeCollaborator(request.actor!, projectId, userId);
   }
   @Post('projects/:projectId/status') transitionProjectStatus(
     @Req() request: AuthenticatedRequest,

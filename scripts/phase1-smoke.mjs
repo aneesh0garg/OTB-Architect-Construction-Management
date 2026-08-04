@@ -158,6 +158,11 @@ const sharedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
   headers: { authorization: `Bearer ${contractorToken.access_token}` },
 });
 assert.equal(sharedRecord.ok, true, 'Shared contractor could not read the project.');
+await api('DELETE', `${projectPath}/collaborators/${contractorId}`);
+const revokedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
+  headers: { authorization: `Bearer ${contractorToken.access_token}` },
+});
+assert.equal(revokedRecord.ok, false, 'Removed contractor retained project access.');
 const activeProject = await api('POST', `${projectPath}/status`, { status: 'active' });
 assert.equal(activeProject.status, 'active', 'Project did not transition to active.');
 
@@ -429,6 +434,11 @@ assert.equal(
   organizationAudit.some((event) => event.action === 'contact.project_linked'),
   true,
   'Contact project relationship was not recorded in organization audit.',
+);
+assert.equal(
+  organizationAudit.some((event) => event.action === 'project.collaborator_removed'),
+  true,
+  'Collaborator removal was not recorded in organization audit.',
 );
 const closedProject = await api('POST', `${projectPath}/status`, { status: 'closed' });
 assert.equal(closedProject.status, 'closed', 'Project did not transition to closed.');

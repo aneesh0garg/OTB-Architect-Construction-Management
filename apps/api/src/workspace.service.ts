@@ -195,6 +195,20 @@ export class WorkspaceService {
     await this.audit(actor, 'project.collaborator_added', 'project', project.id, added);
     return added;
   }
+  async removeCollaborator(actor: AuthenticatedActor, projectId: string, userId: string) {
+    this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
+    const project = await this.projectForActor(actor, projectId);
+    const removed = await this.pool.query<MemberRow>(
+      `DELETE FROM project_members
+       WHERE project_id = $1 AND user_id = $2
+         AND role IN ('contractor', 'consultant', 'owner', 'vendor', 'project_member', 'field_supervisor')
+       RETURNING user_id, role`,
+      [project.id, this.requiredText(userId, 'Collaborator user ID')],
+    );
+    const collaborator = this.resultRow(removed.rows, 'Collaborator is unavailable for removal.');
+    await this.audit(actor, 'project.collaborator_removed', 'project', project.id, collaborator);
+    return collaborator;
+  }
   async getProjectRecord(actor: AuthenticatedActor, projectId: string) {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications] = await Promise.all([
