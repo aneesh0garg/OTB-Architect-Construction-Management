@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test';
 
+test('retains PKCE sign-in when a mobile browser has no crypto.subtle on a LAN HTTP origin', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.crypto, 'subtle', { configurable: true, value: undefined });
+  });
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+  await page.goto('/');
+
+  const authorizationRequest = page.waitForRequest((request) =>
+    request.url().includes('/protocol/openid-connect/auth?'),
+  );
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  const request = await authorizationRequest;
+  const query = new URL(request.url()).searchParams;
+
+  expect(query.get('code_challenge_method')).toBe('S256');
+  expect(query.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  expect(pageErrors).toEqual([]);
+});
+
 test.describe('mobile project navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
