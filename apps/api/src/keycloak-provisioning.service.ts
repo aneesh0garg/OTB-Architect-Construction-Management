@@ -8,6 +8,7 @@ export class KeycloakProvisioningService {
     email: string;
     displayName: string;
     organizationId: string;
+    organizationRole: string;
   }) {
     const accessToken = await this.accessToken();
     const existing = await this.request<KeycloakUser[]>(
@@ -15,12 +16,21 @@ export class KeycloakProvisioningService {
       accessToken,
     );
     const userId = existing[0]?.id ?? (await this.createUser(input, accessToken));
+    await this.assignRealmRole(userId, input.organizationRole, accessToken);
     await this.request<void>(
       `/users/${encodeURIComponent(userId)}/execute-actions-email?client_id=orbita-web&lifespan=604800`,
       accessToken,
       { method: 'PUT', body: JSON.stringify(['VERIFY_EMAIL', 'UPDATE_PASSWORD']) },
     );
     return { userId, isNewIdentity: existing.length === 0 };
+  }
+
+  private async assignRealmRole(userId: string, role: string, accessToken: string) {
+    await this.request<void>(
+      `/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+      accessToken,
+      { method: 'POST', body: JSON.stringify([{ name: role }]) },
+    );
   }
 
   private async createUser(input: { email: string; displayName: string; organizationId: string }, accessToken: string) {

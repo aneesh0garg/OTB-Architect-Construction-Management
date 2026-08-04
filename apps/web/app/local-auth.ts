@@ -429,7 +429,7 @@ async function restoreLocalLoginOnce(): Promise<Viewer | undefined> {
   });
   if (!response.ok) {
     sessionStorage.removeItem(tokenKey);
-    throw new Error('Your local session has expired.');
+    throw new Error('Your sign-in is valid, but this account is not authorized for the current workspace.');
   }
   return response.json() as Promise<Viewer>;
 }

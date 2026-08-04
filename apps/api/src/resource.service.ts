@@ -146,7 +146,7 @@ export class ResourceService {
       'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND lower(email) = lower($2)',
       [actor.organizationId, email],
     );
-    const identity = await this.keycloak.invite({ email, displayName: text(input.displayName, 'Display name'), organizationId: actor.organizationId });
+    const identity = await this.keycloak.invite({ email, displayName: text(input.displayName, 'Display name'), organizationId: actor.organizationId, organizationRole: input.organizationRole });
     const result = await this.database.query<PersonRow>(
       `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status)
        VALUES ($1,$2,$3,$4,$5,true,$6,$7,'pending')
