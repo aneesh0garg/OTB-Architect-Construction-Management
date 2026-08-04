@@ -775,6 +775,7 @@ const collaboratorRoles: Array<{ value: ProjectCollaboratorRole; label: string }
 const organizationRoles = [
   ['principal', 'Principal'], ['project_manager', 'Project manager'], ['project_member', 'Project team member'], ['field_supervisor', 'Construction administrator'], ['finance_admin', 'Finance / operations'], ['contractor', 'Contractor'], ['consultant', 'Consultant'], ['owner', 'Owner'], ['vendor', 'Vendor'],
 ] as const;
+const organizationRoleLabel = (role?: string) => (role ?? 'project_member').replaceAll('_', ' ');
 
 function ProjectPeopleDialog({
   record,
@@ -1080,7 +1081,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 Organization member
                 <select aria-label="Organization member" value={projectMemberId} onChange={(event) => setProjectMemberId(event.target.value)} required>
                   <option value="">Choose an active member</option>
-                  {people.filter((person) => person.active).map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name} · {person.organization_role.replaceAll('_', ' ')}</option>)}
+                  {people.filter((person) => person.active).map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name} · {organizationRoleLabel(person.organization_role)}</option>)}
                 </select>
               </label>
               <label>
@@ -1133,7 +1134,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               {(capacity?.people ?? []).map((person) => (
                 <article key={person.user_id}>
                   <strong>
-                    {person.display_name} · {person.organization_role.replaceAll('_', ' ')} · {person.utilization}% allocated
+                    {person.display_name} · {organizationRoleLabel(person.organization_role)} · {person.utilization}% allocated
                   </strong>
                   <span>
                     {person.allocatedHours}h allocated · {person.availableHours}h available of{' '}

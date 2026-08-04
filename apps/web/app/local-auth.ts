@@ -27,7 +27,7 @@ export type ResourcePerson = {
   title: string | null;
   weekly_capacity_hours: number;
   active: boolean;
-  organization_role: string;
+  organization_role?: string;
 };
 export type ResourceTeam = {
   id: string;
