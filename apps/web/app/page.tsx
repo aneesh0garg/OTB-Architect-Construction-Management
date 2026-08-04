@@ -1821,12 +1821,24 @@ function Documents({
     );
   });
   const [file, setFile] = useState<File>();
-  const [documentNumber, setDocumentNumber] = useState('');
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState<
     'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
   >('drawing');
   const [revision, setRevision] = useState('A');
+  const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
+  const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
+  const prefix = {
+    drawing: 'DRW',
+    specification: 'SPC',
+    report: 'RPT',
+    contract: 'CON',
+    photo: 'PHO',
+    other: 'DOC',
+  }[documentType];
+  const documentNumber =
+    selectedPrior?.document_number ??
+    `${prefix}-${String(documents.filter((document) => document.document_type === documentType).length + 1).padStart(4, '0')}`;
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
@@ -1848,15 +1860,15 @@ function Documents({
     setMessage(undefined);
     try {
       await uploadProjectDocument(record.project.id, file, {
-        documentNumber: documentNumber.trim(),
+        documentNumber,
         documentType,
         title: title.trim(),
         revision: revision.trim(),
       });
       setFile(undefined);
-      setDocumentNumber('');
       setTitle('');
       setRevision('A');
+      setSupersedesDocumentId('');
       await onChanged();
       setMessage('Document revision uploaded and added to the controlled record.');
     } catch (error) {
@@ -1943,12 +1955,7 @@ function Documents({
             </label>
             <label>
               Document number
-              <input
-                value={documentNumber}
-                onChange={(event) => setDocumentNumber(event.target.value)}
-                minLength={2}
-                required
-              />
+              <input value={documentNumber} readOnly aria-label="Generated document number" />
             </label>
             <label>
               Title
@@ -1981,6 +1988,22 @@ function Documents({
                 minLength={1}
                 required
               />
+            </label>
+            <label>
+              Supersede existing revision (optional)
+              <select
+                value={supersedesDocumentId}
+                onChange={(event) => setSupersedesDocumentId(event.target.value)}
+              >
+                <option value="">Create a new document number</option>
+                {documents
+                  .filter((document) => document.document_type === documentType)
+                  .map((document) => (
+                    <option key={document.id} value={document.id}>
+                      {document.document_number} · Rev {document.revision} · {document.status}
+                    </option>
+                  ))}
+              </select>
             </label>
             <button className="button-primary" disabled={saving} type="submit">
               {saving ? 'Uploading…' : 'Upload revision'}
