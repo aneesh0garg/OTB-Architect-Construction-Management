@@ -163,6 +163,25 @@ export type ExecutionRegister = {
     sync_state: string;
   }[];
 };
+export type ObservationDetail = {
+  id: string;
+  observation_number: string;
+  title: string;
+  description: string;
+  category: string | null;
+  location: string | null;
+  floor: string | null;
+  zone: string | null;
+  trade: string | null;
+  priority: string;
+  status: string;
+  evidence: unknown[];
+  sync_state: string;
+  assignee_id: string | null;
+  due_date: string | null;
+  created_at: string;
+};
+export type ObservationComment = { id: string; body: string; created_by: string; created_at: string };
 export type DocumentDownload = {
   downloadUrl: string;
   expiresAt: string;
@@ -467,6 +486,12 @@ export const createFieldObservation = (
   projectId: string,
   input: { title: string; location?: string; priority?: string },
 ) => apiPost(`/v1/projects/${projectId}/observations`, input);
+export const loadObservationComments = (projectId: string, observationId: string) =>
+  apiGet<ObservationComment[]>(`/v1/projects/${projectId}/observations/${observationId}/comments`);
+export const createObservationComment = (projectId: string, observationId: string, body: string) =>
+  apiPost<ObservationComment>(`/v1/projects/${projectId}/observations/${observationId}/comments`, {
+    body,
+  });
 export const createWorkspaceTeam = (name: string) => apiPost('/v1/workspace/teams', { name });
 export const createWorkspaceProject = (input: {
   code: string;
@@ -631,6 +656,8 @@ export const loadCostControl = (projectId: string) =>
   apiGet<CostControl>(`/v1/projects/${projectId}/finance/cost`);
 export const loadExecutionRegister = (projectId: string) =>
   apiGet<ExecutionRegister>(`/v1/projects/${projectId}/execution-register`);
+export const loadObservationDetail = (projectId: string, observationId: string) =>
+  apiGet<ObservationDetail>(`/v1/projects/${projectId}/observations/${observationId}`);
 export const prepareDocumentDownload = (projectId: string, documentId: string) =>
   apiGet<DocumentDownload>(`/v1/workspace/projects/${projectId}/documents/${documentId}/download`);
 export const loadNotificationPreferences = () =>

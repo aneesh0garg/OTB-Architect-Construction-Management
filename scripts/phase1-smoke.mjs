@@ -473,6 +473,12 @@ const repeatedObservation = await api('POST', `/v1/projects/${project.id}/observ
   syncState: 'synced',
 });
 assert.equal(repeatedObservation.id, observation.id, 'Mobile capture retry was not idempotent.');
+const observationDetail = await api(
+  'GET',
+  `/v1/projects/${project.id}/observations/${observation.id}`,
+);
+assert.equal(observationDetail.title, observation.title, 'Observation detail is unavailable.');
+assert.equal(observationDetail.evidence.length, 1, 'Observation evidence is unavailable.');
 const observationComment = await api(
   'POST',
   `/v1/projects/${project.id}/observations/${observation.id}/comments`,

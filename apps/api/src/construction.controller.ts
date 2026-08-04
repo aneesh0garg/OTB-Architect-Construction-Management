@@ -83,6 +83,13 @@ export class ConstructionController {
   ) {
     return this.construction.createObservation(request.actor!, projectId, body);
   }
+  @Get('observations/:observationId') getObservation(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('observationId') observationId: string,
+  ) {
+    return this.construction.getObservation(request.actor!, projectId, observationId);
+  }
   @Get('observations/:observationId/comments') getObservationComments(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,

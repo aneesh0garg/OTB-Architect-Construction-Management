@@ -22,6 +22,18 @@ interface ObservationRow extends QueryResultRow {
   status: string;
   sync_state: string;
 }
+interface ObservationDetailRow extends ObservationRow {
+  description: string;
+  category: string | null;
+  location: string | null;
+  floor: string | null;
+  zone: string | null;
+  trade: string | null;
+  evidence: unknown[];
+  assignee_id: string | null;
+  due_date: string | null;
+  created_at: Date;
+}
 interface ObservationCommentRow extends QueryResultRow {
   id: string;
   body: string;
@@ -141,6 +153,14 @@ export class ConstructionService {
       [actor.organizationId, projectId, observationId],
     );
     return comments.rows;
+  }
+  async getObservation(actor: AuthenticatedActor, projectId: string, observationId: string) {
+    await this.authorizeProject(actor, projectId);
+    const result = await this.pool.query<ObservationDetailRow>(
+      'SELECT id, observation_number, title, description, category, location, floor, zone, trade, priority, status, evidence, sync_state, assignee_id, due_date, created_at FROM observations WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [observationId, projectId, actor.organizationId],
+    );
+    return row(result.rows, 'Observation is unavailable.');
   }
   async addObservationComment(
     actor: AuthenticatedActor,

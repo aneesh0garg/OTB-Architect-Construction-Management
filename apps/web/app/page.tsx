@@ -3112,6 +3112,16 @@ function FieldMobile({
                 <span>{item.priority}</span>
                 <b>{'state' in item ? item.state : item.status}</b>
               </footer>
+              {'observation_number' in item && record && (
+                <button
+                  className="button-secondary record-action"
+                  onClick={() =>
+                    window.location.assign(`/projects/${record.project.id}/observations/${item.id}`)
+                  }
+                >
+                  Open observation
+                </button>
+              )}
             </article>
           ))}
         </div>
