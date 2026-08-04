@@ -530,7 +530,6 @@ export default function Home() {
             <Documents
               record={projectRecord}
               signedIn={Boolean(viewer)}
-              onNavigate={setView}
               onChanged={() =>
                 projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
               }
@@ -2170,12 +2169,10 @@ const newClientRequestId = () => {
 function Documents({
   record,
   signedIn,
-  onNavigate,
   onChanged,
 }: {
   record: ProjectRecord | undefined;
   signedIn: boolean;
-  onNavigate: (view: WorkspaceView) => void;
   onChanged: () => Promise<void>;
 }) {
   const documents = record ? sortControlledDocuments(record.documents) : [];
@@ -2344,27 +2341,13 @@ function Documents({
                     {issuingId === document.id ? 'Issuing…' : 'Issue revision'}
                   </button>
                 )}
-                {signedIn && document.has_original && (
-                  <button
-                    className="button-secondary record-action"
-                    onClick={() => openDocumentRecord(document.id)}
-                  >
-                    Open original
-                  </button>
-                )}
-                {document.document_type === 'drawing' && (
-                  <button
-                    className="button-secondary record-action"
-                    onClick={() => onNavigate('drawings')}
-                  >
-                    Review &amp; markup
-                  </button>
-                )}
                 <button
-                  className="button-secondary record-action"
+                  className="document-record-arrow"
+                  aria-label={`Open ${document.document_number} details`}
+                  title="Open document details"
                   onClick={() => openDocumentRecord(document.id)}
                 >
-                  View details
+                  →
                 </button>
               </article>
             ))

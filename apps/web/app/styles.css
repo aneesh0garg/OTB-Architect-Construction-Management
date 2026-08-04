@@ -1419,6 +1419,40 @@ small {
   font-size: 12px;
   font-weight: 650;
 }
+.card-header .record-toolbar-actions .button-primary,
+.card-header .record-toolbar-actions .button-secondary {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.card-header .record-toolbar-actions .button-primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.document-record-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+}
+.document-record-arrow:hover,
+.document-record-arrow:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
 .task-list {
   display: grid;
 }
