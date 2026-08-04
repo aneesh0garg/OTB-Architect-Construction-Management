@@ -1,34 +1,395 @@
 'use client';
+
 import { useEffect, useState } from 'react';
+import { type WorkspaceView, workspaceData } from './workspace-data';
 
 type Theme = 'light' | 'dark' | 'system';
+
+const projectNav: { label: string; icon: string; view?: WorkspaceView }[] = [
+  { label: 'Overview', icon: '⌂', view: 'overview' },
+  { label: 'Drawings', icon: '▧', view: 'drawings' },
+  { label: 'Field work', icon: '⌖', view: 'field' },
+  { label: 'Documents', icon: '▤' },
+  { label: 'Tasks', icon: '✓' },
+  { label: 'Communications', icon: '◌' },
+  { label: 'Cost & contracts', icon: '₹' },
+];
+
 export default function Home() {
   const [theme, setTheme] = useState<Theme>('system');
+  const [view, setView] = useState<WorkspaceView>('overview');
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const project = workspaceData.activeProject;
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
   return (
-    <main>
-      <header>
-        <strong>ORBITA</strong>
-        <select
-          value={theme}
-          onChange={(event) => setTheme(event.target.value as Theme)}
-          aria-label="Theme"
-        >
-          <option value="system">System theme</option>
-          <option value="light">Light theme</option>
-          <option value="dark">Dark theme</option>
-        </select>
-      </header>
-      <section>
-        <p>Foundation is running.</p>
-        <h1>India-first AECO workspace</h1>
-        <p>
-          Web, native mobile, API, role baseline, and configurable themes share one TypeScript
-          foundation.
-        </p>
+    <main className="workspace-shell">
+      <aside className="app-rail" aria-label="Primary navigation">
+        <div className="brand-mark" aria-label="Orbita">
+          O
+        </div>
+        <button className="rail-button active" aria-label="Workspace">
+          ▦
+        </button>
+        <button className="rail-button" aria-label="Projects">
+          ◫
+        </button>
+        <button className="rail-button" aria-label="AI workspace">
+          ✦
+        </button>
+        <button className="rail-button" aria-label="Notifications">
+          ◔<span className="rail-dot" />
+        </button>
+        <div className="rail-spacer" />
+        <button className="avatar avatar-small" aria-label="Your profile">
+          {workspaceData.organization.user.initials}
+        </button>
+      </aside>
+
+      <aside className="workspace-sidebar">
+        <div className="firm-switcher">
+          <div className="firm-logo">N</div>
+          <div>
+            <strong>{workspaceData.organization.name}</strong>
+            <span>{workspaceData.organization.plan}</span>
+          </div>
+          <button aria-label="Switch organization">⌄</button>
+        </div>
+        <nav className="sidebar-section" aria-label="Firm navigation">
+          <a className="sidebar-link active" href="#workspace">
+            <span>⌂</span> Home
+          </a>
+          <a className="sidebar-link" href="#portfolio">
+            <span>◫</span> Portfolio
+          </a>
+          <a className="sidebar-link" href="#teams">
+            <span>◉</span> My teams
+          </a>
+        </nav>
+        <div className="sidebar-heading">
+          <span>PROJECTS</span>
+          <button aria-label="Create project">+</button>
+        </div>
+        <nav className="project-list" aria-label="Projects">
+          {workspaceData.projects.map((item) => (
+            <button
+              className={item.code === project.code ? 'project-link selected' : 'project-link'}
+              key={item.code}
+              onClick={() => item.code === project.code && setProjectMenuOpen(!projectMenuOpen)}
+            >
+              <span className="project-dot" />
+              <span>
+                <strong>{item.name}</strong>
+                <small>
+                  {item.code} · {item.status}
+                </small>
+              </span>
+              {item.code === project.code && <span className="project-chevron">⌄</span>}
+            </button>
+          ))}
+        </nav>
+        {projectMenuOpen && (
+          <div className="project-menu-note">
+            Project picker is ready for connected project records.
+          </div>
+        )}
+        <div className="sidebar-heading sidebar-heading-team">
+          <span>TEAMS</span>
+          <button aria-label="Create team">+</button>
+        </div>
+        <div className="team-list">
+          {workspaceData.organization.teams.map((team) => (
+            <span key={team}># {team}</span>
+          ))}
+        </div>
+        <div className="sidebar-footer">
+          <button className="upgrade-card">
+            <span>✦</span>
+            <strong>Ask Orbita AI</strong>
+            <small>Search project evidence with citations</small>
+          </button>
+          <button className="user-card">
+            <span className="avatar">{workspaceData.organization.user.initials}</span>
+            <span>
+              <strong>{workspaceData.organization.user.name}</strong>
+              <small>{workspaceData.organization.user.role}</small>
+            </span>
+            <span>⋮</span>
+          </button>
+        </div>
+      </aside>
+
+      <section className="project-workspace">
+        <header className="topbar">
+          <div className="crumbs">
+            <span>Projects</span>
+            <b>/</b>
+            <strong>{project.name}</strong>
+            <span className="project-status">Active</span>
+          </div>
+          <div className="top-actions">
+            <button className="search-button">
+              ⌕ <span>Search this project</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            <button className="icon-button" aria-label="Project activity">
+              ◔
+            </button>
+            <select
+              value={theme}
+              onChange={(event) => setTheme(event.target.value as Theme)}
+              aria-label="Theme"
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </header>
+        <div className="project-header">
+          <div>
+            <p className="eyebrow">
+              {project.code} · {project.location}
+            </p>
+            <h1>{project.name}</h1>
+            <p className="stage-label">{project.stage}</p>
+          </div>
+          <div className="project-header-actions">
+            <div className="member-stack">
+              {project.members.map((member) => (
+                <span key={member}>{member}</span>
+              ))}
+            </div>
+            <button className="button-secondary">Share</button>
+            <button className="button-primary">+ New</button>
+          </div>
+        </div>
+        <nav className="project-tabs" aria-label="Project sections">
+          {projectNav.map((item) => (
+            <button
+              key={item.label}
+              disabled={!item.view}
+              onClick={() => item.view && setView(item.view)}
+              className={view === item.view ? 'project-tab active' : 'project-tab'}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+              {!item.view && <small>Later</small>}
+            </button>
+          ))}
+        </nav>
+        {view === 'overview' && <Overview />}
+        {view === 'drawings' && <Drawings />}
+        {view === 'field' && <FieldMobile />}
       </section>
     </main>
+  );
+}
+
+function Overview() {
+  const project = workspaceData.activeProject;
+  return (
+    <div className="workspace-content overview-view">
+      <section className="snapshot-grid">
+        {project.snapshot.map((item) => (
+          <article className="snapshot-card" key={item.label}>
+            <span className={`signal ${item.tone}`} />
+            <p>{item.label}</p>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </article>
+        ))}
+      </section>
+      <div className="content-grid">
+        <section className="content-card attention-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">WORK QUEUE</p>
+              <h2>Needs attention</h2>
+            </div>
+            <button>View all →</button>
+          </div>
+          <div className="task-list">
+            {project.tasks.map((task) => (
+              <article className="task-row" key={task.title}>
+                <span className="task-check" />
+                <div>
+                  <strong>{task.title}</strong>
+                  <span>
+                    {task.state} · Due {task.due}
+                  </span>
+                </div>
+                <span className="task-owner">{task.owner}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="content-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">RECENT RECORD</p>
+              <h2>Project activity</h2>
+            </div>
+            <button>Open feed →</button>
+          </div>
+          <div className="activity-list">
+            {project.activity.map((event) => (
+              <article className="activity-row" key={event.target}>
+                <span className="activity-icon">●</span>
+                <p>
+                  <strong>{event.actor}</strong> {event.action} <b>{event.target}</b>
+                  <small>{event.time}</small>
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+      <section className="content-card project-record">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">PROJECT RECORD</p>
+            <h2>Issued evidence &amp; current information</h2>
+          </div>
+          <button>Open documents →</button>
+        </div>
+        <div className="record-grid">
+          <div>
+            <span>Current drawing package</span>
+            <strong>Architecture · Rev G</strong>
+            <small>Issued 12 Mar 2026</small>
+          </div>
+          <div>
+            <span>Next site visit</span>
+            <strong>Friday, 15 March</strong>
+            <small>09:30 · Riverside site</small>
+          </div>
+          <div>
+            <span>Open correspondence</span>
+            <strong>7 filed conversations</strong>
+            <small>2 awaiting response</small>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Drawings() {
+  const drawings = workspaceData.activeProject.drawings;
+  return (
+    <div className="workspace-content drawings-view">
+      <div className="drawings-hero">
+        <div>
+          <p className="eyebrow">CURRENT PROJECT RECORD</p>
+          <h2>Drawings</h2>
+          <p>One controlled register for current, issued and superseded evidence.</p>
+        </div>
+        <div>
+          <button className="button-secondary">Filter</button>
+          <button className="button-primary">Upload drawing</button>
+        </div>
+      </div>
+      <section className="content-card drawing-table-card">
+        <div className="table-toolbar">
+          <strong>{drawings.length} drawings</strong>
+          <span>Revision control is ready for connected records</span>
+        </div>
+        <div className="drawing-table" role="table">
+          <div className="drawing-row drawing-head" role="row">
+            <span>Number</span>
+            <span>Title</span>
+            <span>Revision</span>
+            <span>Issued</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {drawings.map((drawing) => (
+            <div className="drawing-row" role="row" key={drawing.number}>
+              <strong>{drawing.number}</strong>
+              <span>{drawing.title}</span>
+              <span>{drawing.revision}</span>
+              <span>{drawing.issued}</span>
+              <span
+                className={`status-pill ${drawing.status === 'Current' ? 'current' : 'superseded'}`}
+              >
+                {drawing.status}
+              </span>
+              <button aria-label={`Open ${drawing.number}`}>→</button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FieldMobile() {
+  const items = workspaceData.activeProject.field;
+  return (
+    <div className="field-page">
+      <div className="field-explainer">
+        <p className="eyebrow">MOBILE-ONLY WORKFLOW</p>
+        <h2>Field work is designed for the job site.</h2>
+        <p>
+          Capture observations, photos, location and assignees offline; synchronize when a
+          connection returns.
+        </p>
+        <span>Use the Orbita mobile app to create or resolve field records.</span>
+      </div>
+      <section className="phone-frame" aria-label="Field work mobile preview">
+        <div className="phone-status">
+          <span>9:41</span>
+          <span>● ● ●</span>
+        </div>
+        <div className="phone-header">
+          <button>‹</button>
+          <div>
+            <strong>Riverside Residences</strong>
+            <small>Field work</small>
+          </div>
+          <button>⌕</button>
+        </div>
+        <div className="phone-filter">
+          <strong>Open observations</strong>
+          <span>12</span>
+        </div>
+        <div className="phone-list">
+          {items.map((item) => (
+            <article key={item.id}>
+              <div>
+                <span className={`priority-dot ${item.priority.toLowerCase()}`} />
+                <small>
+                  {item.id} · {item.area}
+                </small>
+              </div>
+              <strong>{item.title}</strong>
+              <footer>
+                <span>{item.priority}</span>
+                <b>{item.state}</b>
+              </footer>
+            </article>
+          ))}
+        </div>
+        <button className="capture-button">＋ Capture observation</button>
+        <div className="phone-nav">
+          <span>
+            ⌂<small>Home</small>
+          </span>
+          <span className="selected">
+            ⌖<small>Field</small>
+          </span>
+          <span>
+            ☷<small>Tasks</small>
+          </span>
+          <span>
+            ◉<small>More</small>
+          </span>
+        </div>
+      </section>
+    </div>
   );
 }
