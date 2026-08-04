@@ -35,6 +35,8 @@ import {
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
+  transitionWorkspaceProjectStage,
+  transitionWorkspaceProjectStatus,
   recordProjectPayment,
   uploadProjectDocument,
   type ConnectedWorkspace,
@@ -86,6 +88,7 @@ export default function Home() {
   const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [staffingOpen, setStaffingOpen] = useState(false);
+  const [lifecycleMessage, setLifecycleMessage] = useState<string>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -127,6 +130,20 @@ export default function Home() {
     const workspace = await loadConnectedWorkspace();
     setConnectedWorkspace(workspace);
     return workspace;
+  }
+  async function updateLifecycle(kind: 'status' | 'stage', value: string) {
+    if (!projectRecord) return;
+    try {
+      if (kind === 'status')
+        await transitionWorkspaceProjectStatus(projectRecord.project.id, value);
+      else await transitionWorkspaceProjectStage(projectRecord.project.id, value);
+      await loadProjectViews(projectRecord.project.id);
+      setLifecycleMessage('Project lifecycle updated.');
+    } catch (error) {
+      setLifecycleMessage(
+        error instanceof Error ? error.message : 'Project lifecycle could not be updated.',
+      );
+    }
   }
 
   const initials = viewer
@@ -376,6 +393,41 @@ export default function Home() {
             </p>
             <h1>{project.name}</h1>
             <p className="stage-label">{project.stage}</p>
+            {viewer && projectRecord && (
+              <div className="lifecycle-controls">
+                <label>
+                  Status
+                  <select
+                    value={projectRecord.project.status}
+                    onChange={(event) => updateLifecycle('status', event.target.value)}
+                  >
+                    <option value="active">Active</option>
+                    <option value="on_hold">On hold</option>
+                    <option value="closed">Closed</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+                <label>
+                  Stage
+                  <select
+                    value={projectRecord.project.stage}
+                    onChange={(event) => updateLifecycle('stage', event.target.value)}
+                  >
+                    <option value="pursuit">Pursuit</option>
+                    <option value="concept">Concept</option>
+                    <option value="schematic_design">Schematic design</option>
+                    <option value="design_development">Design development</option>
+                    <option value="construction_documents">Construction documents</option>
+                    <option value="tender">Tender</option>
+                    <option value="construction_administration">Construction administration</option>
+                    <option value="handover">Handover</option>
+                    <option value="warranty_defects">Warranty / defects</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+              </div>
+            )}
+            {lifecycleMessage && <small className="lifecycle-message">{lifecycleMessage}</small>}
           </div>
           <div className="project-header-actions">
             <div className="member-stack">

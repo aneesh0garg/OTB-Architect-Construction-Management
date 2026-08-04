@@ -323,6 +323,10 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
 export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
+export const transitionWorkspaceProjectStatus = (projectId: string, status: string) =>
+  apiPost(`/v1/workspace/projects/${projectId}/status`, { status });
+export const transitionWorkspaceProjectStage = (projectId: string, stage: string) =>
+  apiPost(`/v1/workspace/projects/${projectId}/stage`, { stage });
 export const createWorkspaceTeam = (name: string) => apiPost('/v1/workspace/teams', { name });
 export const createWorkspaceProject = (input: {
   code: string;
