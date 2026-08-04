@@ -4,11 +4,19 @@ import { IdentityController } from './identity.controller.js';
 import { KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { ConstructionController } from './construction.controller.js';
 import { ConstructionService } from './construction.service.js';
+import { FinanceController } from './finance.controller.js';
+import { FinanceService } from './finance.service.js';
 import { WorkspaceController } from './workspace.controller.js';
 import { WorkspaceService } from './workspace.service.js';
 
 @Module({
-  controllers: [HealthController, IdentityController, WorkspaceController, ConstructionController],
-  providers: [KeycloakAuthGuard, WorkspaceService, ConstructionService],
+  controllers: [
+    HealthController,
+    IdentityController,
+    WorkspaceController,
+    ConstructionController,
+    FinanceController,
+  ],
+  providers: [KeycloakAuthGuard, WorkspaceService, ConstructionService, FinanceService],
 })
 export class AppModule {}
