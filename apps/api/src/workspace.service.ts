@@ -33,6 +33,7 @@ interface TaskRow extends QueryResultRow {
   priority: string;
   due_date: string | null;
   assignee_id: string | null;
+  created_by: string;
 }
 interface DocumentRow extends QueryResultRow {
   id: string;
@@ -259,7 +260,7 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications, members] = await Promise.all([
       this.pool.query<TaskRow>(
-        'SELECT id, title, status, priority, due_date, assignee_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        'SELECT id, title, status, priority, due_date, assignee_id, created_by FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
       ),
       this.pool.query<DocumentRow>(
@@ -287,7 +288,7 @@ export class WorkspaceService {
   async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
     const task = await this.pool.query<TaskRow>(
-      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date, assignee_id',
+      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date, assignee_id, created_by',
       [
         actor.organizationId,
         project.id,
@@ -314,6 +315,43 @@ export class WorkspaceService {
       priority: created.priority,
     });
     return created;
+  }
+  async transitionTaskStatus(
+    actor: AuthenticatedActor,
+    projectId: string,
+    taskId: string,
+    status: string,
+  ) {
+    const project = await this.projectForActor(actor, projectId);
+    const task = await this.pool.query<TaskRow>(
+      `SELECT id, title, status, priority, due_date, assignee_id, created_by
+       FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
+      [taskId, project.id, actor.organizationId],
+    );
+    const current = this.resultRow(task.rows, 'Task is unavailable.');
+    const allowed: Record<string, string[]> = {
+      open: ['in_progress', 'blocked', 'completed', 'cancelled'],
+      in_progress: ['blocked', 'completed', 'cancelled'],
+      blocked: ['in_progress', 'completed', 'cancelled'],
+      completed: [],
+      cancelled: [],
+    };
+    if (!allowed[current.status]?.includes(status))
+      throw new BadRequestException(
+        `Task status cannot change from ${current.status} to ${status}.`,
+      );
+    const result = await this.pool.query<TaskRow>(
+      `UPDATE tasks SET status = $1 WHERE id = $2 AND project_id = $3
+       RETURNING id, title, status, priority, due_date, assignee_id, created_by`,
+      [status, current.id, project.id],
+    );
+    const updated = this.resultRow(result.rows, 'Task is unavailable.');
+    await this.audit(actor, 'task.status_changed', 'task', updated.id, {
+      projectId: project.id,
+      fromStatus: current.status,
+      toStatus: updated.status,
+    });
+    return updated;
   }
   async addDocumentRevision(
     actor: AuthenticatedActor,

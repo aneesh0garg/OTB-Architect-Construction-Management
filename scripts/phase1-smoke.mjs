@@ -198,6 +198,10 @@ const task = await api('POST', `${projectPath}/tasks`, {
   assigneeId: 'pilot-admin',
 });
 assert.equal(task.title, `Verify facade coordination ${runId}`);
+const startedTask = await api('POST', `${projectPath}/tasks/${task.id}/status`, {
+  status: 'in_progress',
+});
+assert.equal(startedTask.status, 'in_progress', 'Task did not transition to in progress.');
 const documentBytes = Buffer.from(`Orbita controlled document ${runId}`, 'utf8');
 const preparedUpload = await api('POST', `${projectPath}/documents/uploads`, {
   fileName: `smoke-${runId}.pdf`,
@@ -444,6 +448,7 @@ for (const action of [
   'project.status_changed',
   'project.stage_changed',
   'project.collaborator_removed',
+  'task.status_changed',
   'project.search_performed',
   'export.project_csv_created',
   'export.commercial_csv_created',

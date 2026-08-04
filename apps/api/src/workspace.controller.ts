@@ -44,6 +44,9 @@ class CreateTaskDto {
   @IsOptional() @IsString() @MaxLength(80) sourceRecordType?: string;
   @IsOptional() @IsString() @MaxLength(160) sourceRecordId?: string;
 }
+class TaskStatusDto {
+  @IsIn(['in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
+}
 class CreateDocumentDto {
   @IsString() @MinLength(2) @MaxLength(48) documentNumber!: string;
   @IsIn(['drawing', 'specification', 'report', 'contract', 'photo', 'other']) documentType!: string;
@@ -143,6 +146,14 @@ export class WorkspaceController {
     @Body() body: CreateTaskDto,
   ) {
     return this.workspace.createTask(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/tasks/:taskId/status') transitionTaskStatus(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: TaskStatusDto,
+  ) {
+    return this.workspace.transitionTaskStatus(request.actor!, projectId, taskId, body.status);
   }
   @Post('projects/:projectId/documents') addDocumentRevision(
     @Req() request: AuthenticatedRequest,
