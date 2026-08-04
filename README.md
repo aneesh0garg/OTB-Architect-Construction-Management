@@ -32,3 +32,6 @@ pnpm lint
 pnpm typecheck
 pnpm test
 ```
+
+For the complete local service map, pilot account, workspace API check, and
+separate web/API/mobile commands, see [the project setup and run guide](docs/project-setup-run-guide.md).
