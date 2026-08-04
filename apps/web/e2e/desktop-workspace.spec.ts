@@ -17,13 +17,13 @@ test.describe('desktop workspace controls', () => {
   test('opens Pipeline, Staffing, and AI workspace controls', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByText('Portfolio', { exact: true }).click();
+    await page.getByRole('link', { name: '◫ Portfolio' }).click();
     await expect(page.getByRole('dialog', { name: 'Pipeline and proposals' })).toContainText(
       'Sign in to manage opportunities and proposals',
     );
     await page.getByRole('button', { name: 'Close pipeline and proposals' }).click();
 
-    await page.getByText('My teams', { exact: true }).click();
+    await page.getByRole('link', { name: '◉ My teams' }).click();
     await expect(page.getByRole('dialog', { name: 'Staffing and capacity' })).toContainText(
       'Sign in to manage people, teams, and capacity',
     );
