@@ -200,6 +200,35 @@ export async function createObservationTask(
   return response.json() as Promise<{ id: string; title: string; status: string }>;
 }
 
+export async function createObservationWorkflow(
+  session: MobileSession,
+  input: {
+    observationId: string;
+    observationTitle: string;
+    type: 'rfi' | 'site_instruction';
+  },
+) {
+  const label = input.type === 'rfi' ? 'RFI' : 'Site instruction';
+  const response = await fetch(`${requiredApiUrl()}/v1/projects/${session.projectId}/workflows`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${session.accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      recordType: input.type,
+      title: `${label}: ${input.observationTitle}`,
+      data: {
+        sourceRecordType: 'observation',
+        sourceObservationId: input.observationId,
+        preparedFrom: 'mobile_field_capture',
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`The ${label.toLowerCase()} draft could not be created.`);
+  return response.json() as Promise<{ id: string; status: string }>;
+}
+
 export async function createSiteVisitReport(
   session: MobileSession,
   input: { visitId: string; visitDate: string; location: string; observationIds: string[] },

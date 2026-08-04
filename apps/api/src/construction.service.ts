@@ -132,6 +132,7 @@ export class ConstructionService {
     await this.authorizeProject(actor, projectId);
     if (input.recordType === 'site_visit_report')
       await this.assertSiteVisitReportSources(actor, projectId, input.data);
+    await this.assertOptionalObservationSource(actor, projectId, input.data);
     const status = workflowStates[input.recordType][0];
     const result = await this.pool.query<WorkflowRow>(
       'INSERT INTO workflow_records (organization_id, project_id, record_type, title, status, data, created_by) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7) RETURNING id, record_type, record_number, title, status, data, issued_at',
@@ -231,6 +232,22 @@ export class ConstructionService {
     );
     if (Number(observations.rows[0]?.count) !== new Set(observationIds).size)
       throw new BadRequestException('One or more selected observations are unavailable.');
+  }
+  private async assertOptionalObservationSource(
+    actor: AuthenticatedActor,
+    projectId: string,
+    data: Record<string, unknown> | undefined,
+  ) {
+    const sourceObservationId = data?.sourceObservationId;
+    if (sourceObservationId === undefined) return;
+    if (typeof sourceObservationId !== 'string' || !isUuid(sourceObservationId))
+      throw new BadRequestException('The source observation reference is invalid.');
+    const observation = await this.pool.query(
+      'SELECT id FROM observations WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [sourceObservationId, projectId, actor.organizationId],
+    );
+    if (!observation.rows[0])
+      throw new BadRequestException('The source observation is unavailable.');
   }
 }
 export interface CreateFieldVisitInput {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createSiteVisitReport,
   createObservationTask,
+  createObservationWorkflow,
   type MobileSession,
   restoreSession,
   signIn,
@@ -32,6 +33,8 @@ type Observation = {
   sync: SyncState;
   serverId?: string;
   taskId?: string;
+  rfiId?: string;
+  siteInstructionId?: string;
 };
 type FieldVisit = {
   id: string;
@@ -307,6 +310,36 @@ export default function HomeScreen() {
       setAccountError(error instanceof Error ? error.message : 'Task creation failed.');
     }
   };
+  const createWorkflowFromObservation = async (
+    observation: Observation,
+    type: 'rfi' | 'site_instruction',
+  ) => {
+    if (!session) {
+      setAccountError('Sign in before preparing a project workflow.');
+      return;
+    }
+    if (!observation.serverId || observation.sync !== 'synced') {
+      setAccountError('Sync this observation before preparing a project workflow.');
+      return;
+    }
+    try {
+      const workflow = await createObservationWorkflow(session, {
+        observationId: observation.serverId,
+        observationTitle: observation.title,
+        type,
+      });
+      const updated =
+        type === 'rfi'
+          ? { ...observation, rfiId: workflow.id }
+          : { ...observation, siteInstructionId: workflow.id };
+      setObservations((current) =>
+        current.map((item) => (item.id === observation.id ? updated : item)),
+      );
+      await persistObservation(updated);
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Workflow preparation failed.');
+    }
+  };
   const toggleReportObservation = (observation: Observation) => {
     if (!observation.serverId || observation.sync !== 'synced') return;
     setSelectedReportObservationIds((current) =>
@@ -519,6 +552,9 @@ export default function HomeScreen() {
               {...(observation.serverId && observation.sync === 'synced'
                 ? {
                     onCreateTask: () => createTaskFromObservation(observation),
+                    onCreateRfi: () => createWorkflowFromObservation(observation, 'rfi'),
+                    onCreateSiteInstruction: () =>
+                      createWorkflowFromObservation(observation, 'site_instruction'),
                     selectedForReport: selectedReportObservationIds.includes(observation.serverId),
                     onToggleReport: () => toggleReportObservation(observation),
                   }
@@ -711,11 +747,15 @@ export default function HomeScreen() {
 function ObservationCard({
   observation,
   onCreateTask,
+  onCreateRfi,
+  onCreateSiteInstruction,
   selectedForReport = false,
   onToggleReport,
 }: {
   observation: Observation;
   onCreateTask?: () => void;
+  onCreateRfi?: () => void;
+  onCreateSiteInstruction?: () => void;
   selectedForReport?: boolean;
   onToggleReport?: () => void;
 }) {
@@ -751,6 +791,20 @@ function ObservationCard({
       {onCreateTask && !observation.taskId && (
         <Pressable accessibilityRole="button" onPress={onCreateTask} style={styles.taskAction}>
           <Text style={styles.taskActionText}>Create task</Text>
+        </Pressable>
+      )}
+      {onCreateRfi && !observation.rfiId && (
+        <Pressable accessibilityRole="button" onPress={onCreateRfi} style={styles.reportAction}>
+          <Text style={styles.reportActionText}>Draft RFI</Text>
+        </Pressable>
+      )}
+      {onCreateSiteInstruction && !observation.siteInstructionId && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCreateSiteInstruction}
+          style={styles.reportAction}
+        >
+          <Text style={styles.reportActionText}>Draft instruction</Text>
         </Pressable>
       )}
       {onToggleReport && (

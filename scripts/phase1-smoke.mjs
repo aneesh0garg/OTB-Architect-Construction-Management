@@ -321,6 +321,22 @@ const repeatedObservation = await api('POST', `/v1/projects/${project.id}/observ
   syncState: 'synced',
 });
 assert.equal(repeatedObservation.id, observation.id, 'Mobile capture retry was not idempotent.');
+const observationRfi = await api('POST', `/v1/projects/${project.id}/workflows`, {
+  recordType: 'rfi',
+  title: `Observation RFI ${runId}`,
+  data: { sourceRecordType: 'observation', sourceObservationId: observation.id },
+});
+assert.equal(observationRfi.status, 'draft', 'Observation RFI did not remain a draft.');
+const observationInstruction = await api('POST', `/v1/projects/${project.id}/workflows`, {
+  recordType: 'site_instruction',
+  title: `Observation instruction ${runId}`,
+  data: { sourceRecordType: 'observation', sourceObservationId: observation.id },
+});
+assert.equal(
+  observationInstruction.status,
+  'draft',
+  'Observation instruction did not remain a draft.',
+);
 const fieldVisit = await api('POST', `/v1/projects/${project.id}/field-visits`, {
   clientCaptureId: `smoke-visit-${runId}`,
   visitDate: '2026-08-04',

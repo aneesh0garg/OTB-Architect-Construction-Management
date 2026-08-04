@@ -197,6 +197,8 @@ their sync status, visible. The server accepts idempotent field captures
 through a client capture ID, so a device can retry safely after a connectivity
 interruption.
 
+A synchronized field observation can create a linked task, RFI draft, site-instruction draft, or selected-observation site-visit report. The mobile app never issues a contractual workflow: RFI and instruction records remain drafts for a permitted web coordinator to complete, review, and issue.
+
 | Endpoint                                                       | Purpose                                                                                                                                                                                                               |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /v1/projects/:projectId/field-visits`                    | Create or retry a site-visit capture with attendees, weather, checklist, notes, and sync state.                                                                                                                       |
