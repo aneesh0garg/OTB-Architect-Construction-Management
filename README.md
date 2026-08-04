@@ -48,6 +48,9 @@ For a new-machine setup, verification checks, local Mailpit/Keycloak invitation
 configuration, end-to-end invitation test, profile-photo test, workspace API check,
 and separate web/API/mobile commands, see [the project setup and run guide](docs/project-setup-run-guide.md).
 
+The product and delivery plan for organization creation, memberships, roles, staffing,
+and pilot readiness is in the [organization onboarding plan](docs/organization-onboarding-plan.md).
+
 ## Local Phase 1 smoke test
 
 With Docker Compose and the API already running, run:
