@@ -141,9 +141,11 @@ device can retry safely after a connectivity interruption.
 
 Start the mobile field app with `pnpm --filter @orbita/mobile dev`, then use
 Expo Go or an iOS/Android simulator. “Capture observation” saves a device-local
-draft first; the sync indicator makes local, syncing, synced, failed, and
-conflict states explicit. The API’s `clientCaptureId` deduplicates retries when
-the mobile sync adapter submits the draft.
+SQLite record first, so a capture survives an app restart; the sync indicator
+makes local, syncing, synced, failed, and conflict states explicit. The current
+mobile shell deliberately does not claim a successful network sync until its
+authenticated project-session adapter is enabled. The API’s `clientCaptureId`
+deduplicates retries when that adapter submits the draft.
 
 ## P1.3 commercial control API
 

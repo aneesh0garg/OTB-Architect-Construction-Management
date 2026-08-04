@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
+import * as SQLite from 'expo-sqlite';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -19,6 +20,44 @@ type Observation = {
   state: 'Open' | 'In review' | 'Closed';
   sync: SyncState;
 };
+
+const fieldDatabase = SQLite.openDatabaseAsync('orbita-field.db');
+
+async function initializeFieldStore() {
+  const database = await fieldDatabase;
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS local_observations (
+      id TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  return database;
+}
+
+async function loadLocalObservations() {
+  const database = await initializeFieldStore();
+  const rows = await database.getAllAsync<{ payload: string }>(
+    'SELECT payload FROM local_observations ORDER BY updated_at DESC',
+  );
+  return rows.flatMap((row) => {
+    try {
+      return [JSON.parse(row.payload) as Observation];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function persistObservation(observation: Observation) {
+  const database = await initializeFieldStore();
+  await database.runAsync(
+    'INSERT INTO local_observations (id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at',
+    observation.id,
+    JSON.stringify(observation),
+    new Date().toISOString(),
+  );
+}
 
 const initialObservations: Observation[] = [
   {
@@ -65,7 +104,24 @@ export default function HomeScreen() {
     [observations],
   );
 
-  const captureObservation = () => {
+  useEffect(() => {
+    let active = true;
+    loadLocalObservations()
+      .then((stored) => {
+        if (!active || stored.length === 0) return;
+        setObservations((current) => [
+          ...stored,
+          ...current.filter((item) => !stored.some((saved) => saved.id === item.id)),
+        ]);
+        if (stored.some((item) => item.sync !== 'synced')) setSyncState('local');
+      })
+      .catch(() => active && setSyncState('failed'));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const captureObservation = async () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
     const localRecord: Observation = {
@@ -77,18 +133,23 @@ export default function HomeScreen() {
       sync: 'local',
     };
     setObservations((current) => [localRecord, ...current]);
+    await persistObservation(localRecord);
     setSyncState('local');
     setTitle('');
     setCaptureOpen(false);
   };
-  const retrySync = () => {
+  const retrySync = async () => {
     setSyncState('syncing');
+    // The transport is intentionally not faked: a capture remains local until an
+    // authenticated project session submits its client capture ID to the API.
+    const queued = observations.filter((item) => item.sync !== 'synced');
+    await Promise.all(queued.map((item) => persistObservation({ ...item, sync: 'failed' })));
     setObservations((current) =>
       current.map((item) =>
-        item.sync === 'local' || item.sync === 'failed' ? { ...item, sync: 'synced' } : item,
+        item.sync === 'local' || item.sync === 'failed' ? { ...item, sync: 'failed' } : item,
       ),
     );
-    setTimeout(() => setSyncState('synced'), 350);
+    setSyncState(queued.length ? 'failed' : 'synced');
   };
 
   return (
@@ -176,7 +237,8 @@ export default function HomeScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>New observation</Text>
             <Text style={styles.sheetCopy}>
-              It is stored locally first and syncs when a connection is available.
+              It is stored locally first. An authenticated project session is required before it can
+              sync.
             </Text>
             <TextInput
               value={title}
