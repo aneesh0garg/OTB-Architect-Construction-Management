@@ -43,6 +43,12 @@ export type ProjectRecord = {
     sender: string;
     filed_at: string;
   }[];
+  members: {
+    user_id: string;
+    role: string;
+    display_name: string | null;
+    title: string | null;
+  }[];
 };
 export type FinanceControl = {
   health: {

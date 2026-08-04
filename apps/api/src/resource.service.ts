@@ -14,6 +14,17 @@ interface PersonRow extends QueryResultRow {
 interface CapacityRow extends PersonRow {
   allocated_hours: number;
 }
+interface TeamRow extends QueryResultRow {
+  id: string;
+  name: string;
+}
+interface TeamMemberRow extends QueryResultRow {
+  team_id: string;
+  user_id: string;
+  display_name: string;
+  title: string | null;
+  role: string;
+}
 
 @Injectable()
 export class ResourceService {
@@ -28,6 +39,26 @@ export class ResourceService {
       [actor.organizationId],
     );
     return result.rows;
+  }
+
+  async teams(actor: AuthenticatedActor) {
+    const [teams, members] = await Promise.all([
+      this.database.query<TeamRow>(
+        'SELECT id, name FROM teams WHERE organization_id = $1 ORDER BY name',
+        [actor.organizationId],
+      ),
+      this.database.query<TeamMemberRow>(
+        `SELECT tm.team_id, tm.user_id, p.display_name, p.title, tm.role
+         FROM team_members tm JOIN people p
+           ON p.organization_id = tm.organization_id AND p.user_id = tm.user_id
+         WHERE tm.organization_id = $1 ORDER BY p.display_name`,
+        [actor.organizationId],
+      ),
+    ]);
+    return teams.rows.map((team) => ({
+      ...team,
+      members: members.rows.filter((member) => member.team_id === team.id),
+    }));
   }
 
   async capacity(actor: AuthenticatedActor, from: string, to: string) {

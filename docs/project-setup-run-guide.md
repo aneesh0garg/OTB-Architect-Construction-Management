@@ -296,6 +296,7 @@ after resolving the connection or customer mapping.
 | Endpoint                                                   | Purpose                                                                             |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `GET /v1/resources/people`                                 | Read the tenant’s people directory.                                                 |
+| `GET /v1/resources/teams`                                  | Read each tenant team with its registered people and team roles.                    |
 | `POST /v1/resources/people`                                | Create or update a person’s display name, title, active state, and weekly capacity. |
 | `POST /v1/resources/team-members`                          | Assign a registered person to an existing team.                                     |
 | `GET /v1/resources/capacity?from=YYYY-MM-DD&to=YYYY-MM-DD` | Compare each person’s date-range capacity with overlapping planned allocations.     |
@@ -304,6 +305,12 @@ Only organization administrators, principals, and project managers can change
 the people directory or team assignments. Capacity remains transparent: it is
 calculated from the person’s stated weekly hours and scheduled allocations, not
 from hidden utilization assumptions.
+
+`GET /v1/workspace/projects/:projectId/record` includes the permitted project
+roster (user ID, recorded role, and directory name where available); the
+workspace header uses it instead of a static avatar list. A dedicated
+`GET /v1/workspace/projects/:projectId/collaborators` endpoint returns the same
+roster for clients that need it without loading the entire project record.
 
 ## P1.4 governed Project Brain
 

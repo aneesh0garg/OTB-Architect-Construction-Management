@@ -33,6 +33,9 @@ export class ResourceController {
   @Get('people') people(@Req() request: AuthenticatedRequest) {
     return this.resources.people(request.actor!);
   }
+  @Get('teams') teams(@Req() request: AuthenticatedRequest) {
+    return this.resources.teams(request.actor!);
+  }
   @Get('capacity') capacity(
     @Req() request: AuthenticatedRequest,
     @Query('from') from: string,

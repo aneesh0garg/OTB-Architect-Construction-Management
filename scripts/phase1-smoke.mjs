@@ -67,6 +67,18 @@ const person = await api('POST', '/v1/resources/people', {
   title: 'Project director',
   weeklyCapacityHours: 40,
 });
+const team = await api('POST', '/v1/workspace/teams', { name: `Smoke team ${runId}` });
+await api('POST', '/v1/resources/team-members', {
+  teamId: team.id,
+  userId: person.user_id,
+  role: 'Construction lead',
+});
+const teams = await api('GET', '/v1/resources/teams');
+assert.equal(
+  teams.find((item) => item.id === team.id)?.members[0]?.user_id,
+  person.user_id,
+  'Team roster does not include the assigned person.',
+);
 const opportunity = await api('POST', '/v1/pipeline/opportunities', {
   clientName: `Smoke client ${runId}`,
   projectName: `Phase 1 smoke ${runId}`,
@@ -158,6 +170,12 @@ const sharedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
   headers: { authorization: `Bearer ${contractorToken.access_token}` },
 });
 assert.equal(sharedRecord.ok, true, 'Shared contractor could not read the project.');
+const sharedProjectRecord = await sharedRecord.json();
+assert.equal(
+  sharedProjectRecord.members.some((member) => member.user_id === contractorId),
+  true,
+  'Project roster does not include the shared contractor.',
+);
 await api('DELETE', `${projectPath}/collaborators/${contractorId}`);
 const revokedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
   headers: { authorization: `Bearer ${contractorToken.access_token}` },

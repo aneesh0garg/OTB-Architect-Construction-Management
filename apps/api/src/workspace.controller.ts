@@ -127,6 +127,12 @@ export class WorkspaceController {
   ) {
     return this.workspace.getProjectRecord(request.actor!, projectId);
   }
+  @Get('projects/:projectId/collaborators') getProjectCollaborators(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.workspace.getProjectCollaborators(request.actor!, projectId);
+  }
   @Post('projects/:projectId/tasks') createTask(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,

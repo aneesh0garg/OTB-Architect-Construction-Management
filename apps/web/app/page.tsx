@@ -93,6 +93,14 @@ export default function Home() {
   const teams = connectedWorkspace
     ? connectedWorkspace.teams.map((team) => team.name)
     : workspaceData.organization.teams;
+  const projectMembers =
+    projectRecord?.members ??
+    project.members.map((member) => ({
+      user_id: member,
+      display_name: member,
+      role: 'Project member',
+      title: null,
+    }));
 
   return (
     <main className="workspace-shell">
@@ -271,9 +279,22 @@ export default function Home() {
           </div>
           <div className="project-header-actions">
             <div className="member-stack">
-              {project.members.map((member) => (
-                <span key={member}>{member}</span>
+              {projectMembers.slice(0, 4).map((member) => (
+                <span
+                  key={member.user_id}
+                  title={`${member.display_name ?? member.user_id} · ${member.role.replaceAll('_', ' ')}`}
+                >
+                  {(member.display_name ?? member.user_id)
+                    .split(/\s+/)
+                    .map((part) => part[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </span>
               ))}
+              {projectMembers.length > 4 && (
+                <span title="Additional project members">+{projectMembers.length - 4}</span>
+              )}
             </div>
             <button className="button-secondary">Share</button>
             <button className="button-primary">+ New</button>

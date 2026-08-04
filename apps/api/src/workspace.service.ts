@@ -22,6 +22,10 @@ interface MemberRow extends QueryResultRow {
   user_id: string;
   role: PlatformRole;
 }
+interface ProjectMemberRow extends MemberRow {
+  display_name: string | null;
+  title: string | null;
+}
 interface TaskRow extends QueryResultRow {
   id: string;
   title: string;
@@ -243,7 +247,7 @@ export class WorkspaceService {
   }
   async getProjectRecord(actor: AuthenticatedActor, projectId: string) {
     const project = await this.projectForActor(actor, projectId);
-    const [tasks, documents, communications] = await Promise.all([
+    const [tasks, documents, communications, members] = await Promise.all([
       this.pool.query<TaskRow>(
         'SELECT id, title, status, priority, due_date, assignee_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
@@ -256,13 +260,19 @@ export class WorkspaceService {
         'SELECT id, channel, direction, subject, body, sender, recipients, filed_at FROM communications WHERE project_id = $1 AND filing_status = $2 ORDER BY filed_at DESC',
         [project.id, 'filed'],
       ),
+      this.projectMembers(project.id, actor.organizationId),
     ]);
     return {
       project,
       tasks: tasks.rows,
       documents: documents.rows,
       communications: communications.rows,
+      members,
     };
+  }
+  async getProjectCollaborators(actor: AuthenticatedActor, projectId: string) {
+    const project = await this.projectForActor(actor, projectId);
+    return this.projectMembers(project.id, actor.organizationId);
   }
   async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
@@ -404,6 +414,16 @@ export class WorkspaceService {
       'INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
       [actor.organizationId, actor.organizationId],
     );
+  }
+  private async projectMembers(projectId: string, organizationId: string) {
+    const members = await this.pool.query<ProjectMemberRow>(
+      `SELECT pm.user_id, pm.role, p.display_name, p.title
+       FROM project_members pm LEFT JOIN people p
+         ON p.organization_id = $2 AND p.user_id = pm.user_id
+       WHERE pm.project_id = $1 ORDER BY p.display_name NULLS LAST, pm.user_id`,
+      [projectId, organizationId],
+    );
+    return members.rows;
   }
   private async projectForActor(actor: AuthenticatedActor, projectId: string) {
     const result = await this.pool.query<ProjectRow>(
