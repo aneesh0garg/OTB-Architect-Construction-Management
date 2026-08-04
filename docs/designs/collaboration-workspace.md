@@ -9,12 +9,12 @@ The product should feel like a shared, persistent workspace—not a collection o
 
 ## Application shell
 
-| Region | Purpose |
-|---|---|
-| Top bar | Organization identity, global search, notifications, connected user identity, and user settings. |
-| Mode rail | Fast switching between collaboration, projects, personal work, practice operations, and AI project brain. |
-| Workspace navigation | Projects/teams plus the user’s current collaboration context. |
-| Main canvas | The selected workspace, project channel, operational module, or record. |
+| Region               | Purpose                                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| Top bar              | Organization identity, global search, notifications, connected user identity, and user settings.          |
+| Mode rail            | Fast switching between collaboration, projects, personal work, practice operations, and AI project brain. |
+| Workspace navigation | Projects/teams plus the user’s current collaboration context.                                             |
+| Main canvas          | The selected workspace, project channel, operational module, or record.                                   |
 
 ## Workspace structure
 

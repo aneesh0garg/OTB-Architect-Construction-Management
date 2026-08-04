@@ -55,27 +55,27 @@ Workspace
 
 Every authenticated user shall have access to the following controls from application chrome, subject to permission:
 
-| Control | Purpose |
-|---|---|
-| Organization switcher | Changes firm / workspace context. |
-| Project switcher | Changes active project without losing global navigation. |
-| Global search | Searches permitted projects, records, people, and communications. |
-| Create action | Creates context-appropriate records: project, task, issue, RFI, time entry, invoice, etc. |
-| AI project brain | Opens permission-aware search, drafting, review, and supervised agents. |
-| Notifications | Shows assignments, deadlines, approvals, communication, integration, and AI events. |
-| User menu | Shows profile, preferences, notification settings, connected accounts, and sign-out. |
+| Control               | Purpose                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| Organization switcher | Changes firm / workspace context.                                                         |
+| Project switcher      | Changes active project without losing global navigation.                                  |
+| Global search         | Searches permitted projects, records, people, and communications.                         |
+| Create action         | Creates context-appropriate records: project, task, issue, RFI, time entry, invoice, etc. |
+| AI project brain      | Opens permission-aware search, drafting, review, and supervised agents.                   |
+| Notifications         | Shows assignments, deadlines, approvals, communication, integration, and AI events.       |
+| User menu             | Shows profile, preferences, notification settings, connected accounts, and sign-out.      |
 
 ## 3. Home
 
 Home is a personal working surface, not a generic executive dashboard.
 
-| Area | Required content |
-|---|---|
-| My work | Tasks, approvals, mentions, time-sheet prompts, overdue work, and items awaiting review. |
-| Attention | Project risks and delivery, fee, staffing, payment, or decision alerts relevant to the user. |
-| Recent context | Recently opened projects, drawings, records, documents, and communications. |
-| Notifications | Prioritized, grouped, actionable notification feed. |
-| AI project brain | Recent queries, saved prompts, drafts pending review, and context-aware entry point. |
+| Area             | Required content                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| My work          | Tasks, approvals, mentions, time-sheet prompts, overdue work, and items awaiting review.     |
+| Attention        | Project risks and delivery, fee, staffing, payment, or decision alerts relevant to the user. |
+| Recent context   | Recently opened projects, drawings, records, documents, and communications.                  |
+| Notifications    | Prioritized, grouped, actionable notification feed.                                          |
+| AI project brain | Recent queries, saved prompts, drafts pending review, and context-aware entry point.         |
 
 ## 4. Firm operations
 
@@ -97,10 +97,10 @@ Contains scope, phases, fee, assumptions, exclusions, consultant quotations, sta
 
 ### 4.5 Invoicing, payments, and project accounting
 
-| Module | Primary purpose |
-|---|---|
-| Invoicing | Create, review, issue, resend, void, and track professional-services invoices. |
-| Payments | Record, reconcile, and track client/consultant payments, collections, and aging. |
+| Module             | Primary purpose                                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Invoicing          | Create, review, issue, resend, void, and track professional-services invoices.                                                   |
+| Payments           | Record, reconcile, and track client/consultant payments, collections, and aging.                                                 |
 | Project accounting | Connect fee, time, expense, consultant cost, invoice, payment, WIP, write-off, realization, profit, and margin by project/phase. |
 
 ### 4.6 Firm reports
@@ -152,12 +152,12 @@ Each stage has required deliverables, approvals, responsible roles, target dates
 
 ### 5.4 Planning, staffing, tasks, and milestones
 
-| Module | Primary purpose |
-|---|---|
-| Plan | Scope, phases, deliverables, dependencies, schedule baseline, and planned milestones. |
-| Team & staffing | Project roster, roles, allocation, planned hours, capacity gaps, consultants, and responsibility matrix. |
-| Tasks & milestones | Actionable work, due dates, dependencies, ownership, completion, and links to source records. |
-| Budget & planning | Approved fee, phase budgets, target hours, reimbursables, consultant allowances, and forecast. |
+| Module             | Primary purpose                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| Plan               | Scope, phases, deliverables, dependencies, schedule baseline, and planned milestones.                    |
+| Team & staffing    | Project roster, roles, allocation, planned hours, capacity gaps, consultants, and responsibility matrix. |
+| Tasks & milestones | Actionable work, due dates, dependencies, ownership, completion, and links to source records.            |
+| Budget & planning  | Approved fee, phase budgets, target hours, reimbursables, consultant allowances, and forecast.           |
 
 ### 5.5 Financial views
 

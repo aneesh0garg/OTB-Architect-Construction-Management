@@ -44,32 +44,32 @@ The goal is not to replicate all of Procore or Autodesk Forma in the MVP. The go
 
 ### 2.3 Later phases
 
-| Phase | Primary expansion |
-|---|---|
-| 2 | Submittal packages, advanced markups, client/contractor portals, Autodesk Docs and Procore connectors, WhatsApp Business messaging, richer change control |
-| 3 | Portfolio controls, owner cost/funding views, resource forecasting, proposals/e-signature, full accounting integrations |
-| 4 | BIM/model coordination, advanced schedule/cost risk intelligence, asset handover, ecosystem APIs and custom AI agents |
+| Phase | Primary expansion                                                                                                                                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2     | Submittal packages, advanced markups, client/contractor portals, Autodesk Docs and Procore connectors, WhatsApp Business messaging, richer change control |
+| 3     | Portfolio controls, owner cost/funding views, resource forecasting, proposals/e-signature, full accounting integrations                                   |
+| 4     | BIM/model coordination, advanced schedule/cost risk intelligence, asset handover, ecosystem APIs and custom AI agents                                     |
 
 ## 3. Product context and users
 
 ### 3.1 Primary users
 
-| Persona | Primary outcomes |
-|---|---|
-| Principal / practice owner | See portfolio health, capacity, margins, receivables, and delivery risk. |
-| Project architect / project manager | Coordinate delivery, control fee burn, issue records, manage decisions, and close actions. |
-| Construction administrator / site architect | Capture field evidence, issue observations, manage RFIs/submittals, and publish reports. |
-| Finance / operations lead | Control budgets, time, invoicing, payments, and firm utilization. |
-| Project team member | Log time, access current documents, complete tasks, and collaborate. |
+| Persona                                     | Primary outcomes                                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Principal / practice owner                  | See portfolio health, capacity, margins, receivables, and delivery risk.                   |
+| Project architect / project manager         | Coordinate delivery, control fee burn, issue records, manage decisions, and close actions. |
+| Construction administrator / site architect | Capture field evidence, issue observations, manage RFIs/submittals, and publish reports.   |
+| Finance / operations lead                   | Control budgets, time, invoicing, payments, and firm utilization.                          |
+| Project team member                         | Log time, access current documents, complete tasks, and collaborate.                       |
 
 ### 3.2 External users
 
-| Persona | Primary outcomes |
-|---|---|
+| Persona        | Primary outcomes                                                              |
+| -------------- | ----------------------------------------------------------------------------- |
 | Owner / client | Review progress, approvals, reports, selected financial and decision records. |
-| Contractor | Receive/respond to issues, RFIs, instructions, and submittals. |
-| Consultant | Coordinate drawings, respond to RFIs, and review assigned records. |
-| Vendor | Participate only in a specifically shared submittal or approval workflow. |
+| Contractor     | Receive/respond to issues, RFIs, instructions, and submittals.                |
+| Consultant     | Coordinate drawings, respond to RFIs, and review assigned records.            |
+| Vendor         | Participate only in a specifically shared submittal or approval workflow.     |
 
 ### 3.3 Product principles
 
@@ -83,14 +83,14 @@ The goal is not to replicate all of Procore or Autodesk Forma in the MVP. The go
 
 ### 4.1 System roles
 
-| Role | Organization access | Project access | Financial access | External issuance |
-|---|---|---|---|---|
-| Organization administrator | Full | Full | Configurable | Full |
-| Principal | Portfolio read; configurable admin | Full | Full | Full |
-| Project manager | Assigned projects | Create/edit/issue | Project budget; no firm compensation | Configurable |
-| Project team member | Assigned projects | Create/edit permitted records | Own time only by default | No |
-| Finance/operations | Full operational scope | Read or assigned | Full | Invoice-related only |
-| External collaborator | None | Explicitly shared records only | None by default | Respond/review only |
+| Role                       | Organization access                | Project access                 | Financial access                     | External issuance    |
+| -------------------------- | ---------------------------------- | ------------------------------ | ------------------------------------ | -------------------- |
+| Organization administrator | Full                               | Full                           | Configurable                         | Full                 |
+| Principal                  | Portfolio read; configurable admin | Full                           | Full                                 | Full                 |
+| Project manager            | Assigned projects                  | Create/edit/issue              | Project budget; no firm compensation | Configurable         |
+| Project team member        | Assigned projects                  | Create/edit permitted records  | Own time only by default             | No                   |
+| Finance/operations         | Full operational scope             | Read or assigned               | Full                                 | Invoice-related only |
+| External collaborator      | None                               | Explicitly shared records only | None by default                      | Respond/review only  |
 
 ### 4.2 Authorization requirements
 
@@ -204,13 +204,13 @@ The goal is not to replicate all of Procore or Autodesk Forma in the MVP. The go
 
 #### Required state models
 
-| Record | States |
-|---|---|
-| Issue | Draft → Open → In progress → Ready for review → Closed; may be Reopened |
-| RFI | Draft → Issued → Answered → Closed; may be Returned or Reopened |
-| Submittal | Draft → Submitted → Under review → Revise/resubmit or Approved/Approved as noted/Rejected → Closed |
-| Site instruction | Draft → Issued → Acknowledged → Completed → Verified → Closed |
-| Meeting minutes | Draft → Internal review → Issued → Superseded/Archived |
+| Record           | States                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| Issue            | Draft → Open → In progress → Ready for review → Closed; may be Reopened                            |
+| RFI              | Draft → Issued → Answered → Closed; may be Returned or Reopened                                    |
+| Submittal        | Draft → Submitted → Under review → Revise/resubmit or Approved/Approved as noted/Rejected → Closed |
+| Site instruction | Draft → Issued → Acknowledged → Completed → Verified → Closed                                      |
+| Meeting minutes  | Draft → Internal review → Issued → Superseded/Archived                                             |
 
 ### 5.8 Tasks and reporting
 
@@ -278,19 +278,19 @@ The MVP provides four AI modes: **Project Brain** (cited Q&A), **capture intelli
 
 ## 6. Core domain model
 
-| Entity | Key relationships |
-|---|---|
-| Organization | Owns offices, users, contacts, templates, projects, integrations |
-| Project | Belongs to organization; has phases, budgets, team, records, documents, financials |
-| Project phase | Has fee/hour budget, milestones, allocations, time entries, invoices |
-| Person / contact | May be an internal user or external party; has project roles |
-| Document | Has versions and metadata; links to any project record |
-| Drawing / revision | Stable drawing number with immutable revision records; links to locations and work records |
-| Site visit | Owns field captures and published reports |
-| Issue / RFI / submittal / instruction | Workflow record linked to people, documents, locations, tasks, and audit events |
-| Decision / meeting / task | Links work, accountability, and evidence across project records |
-| Invoice / payment | Links firm financial work to project and phase financials |
-| Audit event | Append-only actor, timestamp, action, target, before/after summary, and correlation ID |
+| Entity                                | Key relationships                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Organization                          | Owns offices, users, contacts, templates, projects, integrations                           |
+| Project                               | Belongs to organization; has phases, budgets, team, records, documents, financials         |
+| Project phase                         | Has fee/hour budget, milestones, allocations, time entries, invoices                       |
+| Person / contact                      | May be an internal user or external party; has project roles                               |
+| Document                              | Has versions and metadata; links to any project record                                     |
+| Drawing / revision                    | Stable drawing number with immutable revision records; links to locations and work records |
+| Site visit                            | Owns field captures and published reports                                                  |
+| Issue / RFI / submittal / instruction | Workflow record linked to people, documents, locations, tasks, and audit events            |
+| Decision / meeting / task             | Links work, accountability, and evidence across project records                            |
+| Invoice / payment                     | Links firm financial work to project and phase financials                                  |
+| Audit event                           | Append-only actor, timestamp, action, target, before/after summary, and correlation ID     |
 
 ## 7. Non-functional requirements
 
@@ -401,9 +401,9 @@ The MVP provides four AI modes: **Project Brain** (cited Q&A), **capture intelli
 
 ## 11. Traceability to competitive intent
 
-| Competitive learning | MVP response |
-|---|---|
-| Monograph proves A&E firms pay for connected fee, time, staffing, billing, and profitability workflows. | Include firm operations as a first-class product domain. |
-| Newforma proves the value of a linked, auditable project-information record for design teams. | Make documents, correspondence, drawings, and construction records connected and searchable. |
-| Procore proves cost, field, workflow, and network data create high-value operational control. | Build rigorous issue/RFI/approval data and selected cost visibility; defer GC accounting depth. |
-| Autodesk proves design/model connectivity and integrations are strategic infrastructure. | Treat BIM and ecosystem connectors as product foundations; do not attempt BIM authoring in MVP. |
+| Competitive learning                                                                                    | MVP response                                                                                    |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Monograph proves A&E firms pay for connected fee, time, staffing, billing, and profitability workflows. | Include firm operations as a first-class product domain.                                        |
+| Newforma proves the value of a linked, auditable project-information record for design teams.           | Make documents, correspondence, drawings, and construction records connected and searchable.    |
+| Procore proves cost, field, workflow, and network data create high-value operational control.           | Build rigorous issue/RFI/approval data and selected cost visibility; defer GC accounting depth. |
+| Autodesk proves design/model connectivity and integrations are strategic infrastructure.                | Treat BIM and ecosystem connectors as product foundations; do not attempt BIM authoring in MVP. |

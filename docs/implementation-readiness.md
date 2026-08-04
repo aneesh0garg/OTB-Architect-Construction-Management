@@ -15,21 +15,21 @@
 
 The implementation will use a TypeScript monorepo. This provides shared domain contracts, validation, design tokens, and API clients while producing a full web application and native iOS/Android applications.
 
-| Layer | Decision | Rationale |
-|---|---|---|
-| Repository | pnpm workspaces + Turborepo | Shared packages with fast, cached local and CI builds. |
-| Web workspace | Next.js App Router + React + TypeScript | Strong application routing, server rendering where useful, and typed component development. |
-| Native mobile | React Native + Expo + Expo Router + TypeScript | One native codebase for iOS and Android; supports offline field workflows and store-ready binaries. EAS Build/Submit supports Google Play and Apple App Store distribution. |
-| UI system | Shared semantic design tokens, theme provider, web/mobile component packages | Light/dark/system themes without duplicating visual rules; native components remain platform-appropriate. |
-| API | NestJS + Fastify + OpenAPI | Modular, testable TypeScript API with validation, WebSocket support, queues, and a stable contract for web/mobile clients. |
-| Database | PostgreSQL + PostGIS where location is required | Reliable transactional source of truth for tenant, project, workflow, finance, and audit data. |
-| Data access | Prisma ORM with SQL migrations | Type-safe data access plus reviewed, repeatable migrations. |
-| Files | S3-compatible encrypted object storage + signed URLs | Handles original documents, renditions, field media, retention, and scalable upload. |
-| Asynchronous work | Redis + BullMQ workers | Separates OCR, PDF rendition, email sync, notifications, exports, AI indexing, and report generation from user requests. |
-| Search and AI retrieval | PostgreSQL full-text + pgvector initially; dedicated search service only when scale requires it | Lower MVP operational complexity while retaining a migration path for high-volume search. |
-| Identity | OIDC-based identity provider supporting MFA, SAML SSO, and SCIM | Supports mobile/web authentication today and enterprise identity later. |
-| Observability | OpenTelemetry, structured logs, error tracking, metrics, and alerting | Traceable requests and background jobs from first release. |
-| CI/CD | GitHub Actions; preview/staging/production environments; EAS for mobile builds and submissions | Automated testing and release control for web, API, and native applications. |
+| Layer                   | Decision                                                                                        | Rationale                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository              | pnpm workspaces + Turborepo                                                                     | Shared packages with fast, cached local and CI builds.                                                                                                                      |
+| Web workspace           | Next.js App Router + React + TypeScript                                                         | Strong application routing, server rendering where useful, and typed component development.                                                                                 |
+| Native mobile           | React Native + Expo + Expo Router + TypeScript                                                  | One native codebase for iOS and Android; supports offline field workflows and store-ready binaries. EAS Build/Submit supports Google Play and Apple App Store distribution. |
+| UI system               | Shared semantic design tokens, theme provider, web/mobile component packages                    | Light/dark/system themes without duplicating visual rules; native components remain platform-appropriate.                                                                   |
+| API                     | NestJS + Fastify + OpenAPI                                                                      | Modular, testable TypeScript API with validation, WebSocket support, queues, and a stable contract for web/mobile clients.                                                  |
+| Database                | PostgreSQL + PostGIS where location is required                                                 | Reliable transactional source of truth for tenant, project, workflow, finance, and audit data.                                                                              |
+| Data access             | Prisma ORM with SQL migrations                                                                  | Type-safe data access plus reviewed, repeatable migrations.                                                                                                                 |
+| Files                   | S3-compatible encrypted object storage + signed URLs                                            | Handles original documents, renditions, field media, retention, and scalable upload.                                                                                        |
+| Asynchronous work       | Redis + BullMQ workers                                                                          | Separates OCR, PDF rendition, email sync, notifications, exports, AI indexing, and report generation from user requests.                                                    |
+| Search and AI retrieval | PostgreSQL full-text + pgvector initially; dedicated search service only when scale requires it | Lower MVP operational complexity while retaining a migration path for high-volume search.                                                                                   |
+| Identity                | OIDC-based identity provider supporting MFA, SAML SSO, and SCIM                                 | Supports mobile/web authentication today and enterprise identity later.                                                                                                     |
+| Observability           | OpenTelemetry, structured logs, error tracking, metrics, and alerting                           | Traceable requests and background jobs from first release.                                                                                                                  |
+| CI/CD                   | GitHub Actions; preview/staging/production environments; EAS for mobile builds and submissions  | Automated testing and release control for web, API, and native applications.                                                                                                |
 
 The backend begins as a modular monolith with independent worker processes. It will not be split into microservices until operational evidence requires that change. NestJS and BullMQ support separate asynchronous workers when document/AI processing load grows. [Next.js App Router](https://nextjs.org/docs/app), [Expo store builds](https://docs.expo.dev/build/setup/), [Expo distribution](https://docs.expo.dev/distribution/introduction/), [NestJS queues](https://docs.nestjs.com/techniques/queues)
 
@@ -64,17 +64,17 @@ The backend begins as a modular monolith with independent worker processes. It w
 
 ### Role and permission baseline
 
-| Role | Core authority |
-|---|---|
-| Organization administrator | Organization settings, users, teams, policy, integrations, audit access. |
-| Owner / principal | Portfolio, commercial controls, approvals, and reporting. |
-| Finance administrator | Invoices, payments, project accounting, receivables, and exports. |
-| Project director / manager | Project setup, plan, staffing, execution control, and permitted issuance. |
+| Role                           | Core authority                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| Organization administrator     | Organization settings, users, teams, policy, integrations, audit access.                 |
+| Owner / principal              | Portfolio, commercial controls, approvals, and reporting.                                |
+| Finance administrator          | Invoices, payments, project accounting, receivables, and exports.                        |
+| Project director / manager     | Project setup, plan, staffing, execution control, and permitted issuance.                |
 | Architect / engineer / CA lead | Documents, drawings, site records, RFIs, submittals, instructions, and assigned budgets. |
-| Field supervisor | Offline site capture, issues, checklists, photos, and assigned work. |
-| Contractor | Explicitly shared execution records; response, acknowledgement, and upload rights only. |
-| Consultant / vendor | Explicitly shared records and workflow responses only. |
-| Owner/client collaborator | Explicitly shared progress, decisions, approvals, cost, and reports only. |
+| Field supervisor               | Offline site capture, issues, checklists, photos, and assigned work.                     |
+| Contractor                     | Explicitly shared execution records; response, acknowledgement, and upload rights only.  |
+| Consultant / vendor            | Explicitly shared records and workflow responses only.                                   |
+| Owner/client collaborator      | Explicitly shared progress, decisions, approvals, cost, and reports only.                |
 
 All access is tenant-scoped, project-scoped, and record-classification-aware. Issued records, financial actions, permissions, exports, and AI actions require append-only audit events.
 
@@ -89,13 +89,13 @@ All access is tenant-scoped, project-scoped, and record-classification-aware. Is
 
 Phase 1 is the complete MVP, delivered through pilot increments rather than one unsafe big-bang release.
 
-| Increment | Scope | Exit criteria |
-|---|---|---|
-| P1.0 Foundation | Monorepo, themes, web/mobile shells, Keycloak, tenancy, roles, audit, CI/CD, observability. | Secure user can create an organization, team, project, and authorized external collaborator. |
-| P1.1 Project record | Project lifecycle, plan, tasks, documents/drawings, Gmail filing, communications, notifications. | Pilot team manages a real project record and finds current evidence. |
-| P1.2 Execution and field | RFIs, submittals, instructions, issues, meetings, site visits, offline mobile capture, reports. | Pilot completes site observation-to-closure with complete audit history. |
-| P1.3 Commercial control | Budget/planning, staffing, time, invoice, payment tracking, GST-ready fields, project accounting, owner cost/change control. | PM sees fee/cost variance and finance traces invoice/payment to source records. |
-| P1.4 AI and readiness | Cited Project Brain, drafted reports/RFIs/minutes, secure retrieval, exports, pilot hardening, store-release testing. | AI citations/permissions pass evaluation; 3–5 partners complete usability validation. |
+| Increment                | Scope                                                                                                                        | Exit criteria                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| P1.0 Foundation          | Monorepo, themes, web/mobile shells, Keycloak, tenancy, roles, audit, CI/CD, observability.                                  | Secure user can create an organization, team, project, and authorized external collaborator. |
+| P1.1 Project record      | Project lifecycle, plan, tasks, documents/drawings, Gmail filing, communications, notifications.                             | Pilot team manages a real project record and finds current evidence.                         |
+| P1.2 Execution and field | RFIs, submittals, instructions, issues, meetings, site visits, offline mobile capture, reports.                              | Pilot completes site observation-to-closure with complete audit history.                     |
+| P1.3 Commercial control  | Budget/planning, staffing, time, invoice, payment tracking, GST-ready fields, project accounting, owner cost/change control. | PM sees fee/cost variance and finance traces invoice/payment to source records.              |
+| P1.4 AI and readiness    | Cited Project Brain, drafted reports/RFIs/minutes, secure retrieval, exports, pilot hardening, store-release testing.        | AI citations/permissions pass evaluation; 3–5 partners complete usability validation.        |
 
 ## Remaining product decisions before implementation
 
@@ -127,9 +127,9 @@ Phase 1 is the complete MVP, delivered through pilot increments rather than one 
 
 ## Delivery gates
 
-| Gate | Evidence required |
-|---|---|
-| Product readiness | Prioritized MVP, approved personas, user journeys, acceptance criteria, and pilot partners. |
-| Design readiness | Validated wireframes, component library, theme tokens, accessibility review, and mobile/offline states. |
-| Architecture readiness | ADRs, threat model, data model, permission matrix, integration contracts, and POC outcomes. |
-| Build readiness | Repository structure, CI/CD, environments, observability, test strategy, backlog, and release plan. |
+| Gate                   | Evidence required                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| Product readiness      | Prioritized MVP, approved personas, user journeys, acceptance criteria, and pilot partners.             |
+| Design readiness       | Validated wireframes, component library, theme tokens, accessibility review, and mobile/offline states. |
+| Architecture readiness | ADRs, threat model, data model, permission matrix, integration contracts, and POC outcomes.             |
+| Build readiness        | Repository structure, CI/CD, environments, observability, test strategy, backlog, and release plan.     |
