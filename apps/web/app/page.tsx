@@ -935,6 +935,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   const [teamId, setTeamId] = useState('');
   const [memberId, setMemberId] = useState('');
   const [message, setMessage] = useState<string>();
+  const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; text: string }>();
   const [saving, setSaving] = useState(false);
   const refresh = async () => {
     if (!signedIn) return;
@@ -961,6 +962,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
     event.preventDefault();
     setSaving(true);
     setMessage(undefined);
+    setInviteFeedback(undefined);
     try {
       await inviteOrganizationMember({
         email: email.trim(),
@@ -973,9 +975,9 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
       setWeeklyHours('40');
       setOrganizationRole('project_member');
       await refresh();
-      setMessage(`Invitation sent to ${email.trim()}. Check Mailpit to complete activation.`);
+      setInviteFeedback({ kind: 'success', text: `Invitation sent to ${email.trim()}. Check Mailpit to complete activation.` });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Person could not be saved.');
+      setInviteFeedback({ kind: 'error', text: error instanceof Error ? error.message : 'The invitation could not be sent. Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -1073,10 +1075,11 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                   {organizationRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
-              <button className="button-primary" disabled={saving} type="submit">
-                Send invitation
+              <button className="button-primary" disabled={saving} type="submit" aria-busy={saving}>
+                {saving ? 'Sending invitation…' : 'Send invitation'}
               </button>
             </form>
+            {inviteFeedback && <p className={`invite-feedback ${inviteFeedback.kind}`} role={inviteFeedback.kind === 'error' ? 'alert' : 'status'} aria-live="polite">{inviteFeedback.text}</p>}
             </section>
             <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
               <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>

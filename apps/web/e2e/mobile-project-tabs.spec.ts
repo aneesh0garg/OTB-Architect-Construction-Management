@@ -60,7 +60,26 @@ test('uses an email-based invitation form for organization members', async ({ pa
   await dialog.getByLabel('Work email').fill('new.member@local.orbita');
   await dialog.getByLabel('Name').fill('New Member');
   await dialog.getByRole('button', { name: 'Send invitation' }).click();
-  await expect(dialog.getByText('Invitation sent to new.member@local.orbita. Check Mailpit to complete activation.')).toBeVisible();
+  await expect(dialog.getByRole('status')).toHaveText('Invitation sent to new.member@local.orbita. Check Mailpit to complete activation.');
+});
+
+test('shows an actionable invitation error in the mobile staffing dialog', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
+  await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/people', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/teams', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
+  await page.route('**/v1/resources/people/invitations', (route) => route.fulfill({ status: 503, json: { message: 'Keycloak invitation delivery failed.' } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: /Team/ }).click();
+  await page.getByRole('button', { name: 'Manage project team' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Staffing and capacity' });
+  await dialog.getByLabel('Work email').fill('error.member@local.orbita');
+  await dialog.getByLabel('Name').fill('Error Member');
+  await dialog.getByRole('button', { name: 'Send invitation' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Keycloak invitation delivery failed.');
 });
 
 test('shows the controlled profile-photo upload for the signed-in member', async ({ page }) => {
