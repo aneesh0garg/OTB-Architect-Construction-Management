@@ -30,6 +30,20 @@ interface DocumentStorageRow extends QueryResultRow {
   storage_key: string | null;
 }
 
+const supportedDocumentFormats: Record<string, string> = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff', heic: 'image/heic', svg: 'image/svg+xml',
+  dwg: 'application/acad', dxf: 'image/vnd.dxf', dgn: 'application/octet-stream',
+  rvt: 'application/octet-stream', rfa: 'application/octet-stream', rte: 'application/octet-stream',
+  ifc: 'application/x-step', ifczip: 'application/zip', ifcxml: 'application/xml', ids: 'application/xml', bcfzip: 'application/zip',
+  nwd: 'application/octet-stream', nwc: 'application/octet-stream', nwf: 'application/octet-stream',
+  skp: 'application/octet-stream', '3dm': 'application/octet-stream', obj: 'model/obj', glb: 'model/gltf-binary', gltf: 'model/gltf+json',
+  doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  zip: 'application/zip', txt: 'text/plain',
+};
+
 const createStorageClient = (endpoint: string) =>
   new S3Client({
     endpoint,
@@ -82,8 +96,8 @@ export class DocumentUploadService {
   }
 
   private async prepare(actor: AuthenticatedActor, projectId: string, input: CreateUploadInput) {
-    const contentType = input.contentType?.trim().toLocaleLowerCase();
     const originalName = safeName(input.fileName);
+    const contentType = resolveDocumentContentType(originalName, input.contentType);
     const key = `organizations/${actor.organizationId}/projects/${projectId}/uploads/${randomUUID()}/${originalName}`;
     await this.ensureBucket();
     const result = await this.database.query<UploadRow>(
@@ -197,10 +211,8 @@ export class DocumentUploadService {
   private validate(input: CreateUploadInput) {
     if (!Number.isInteger(input.size) || input.size < 1 || input.size > 200 * 1024 * 1024)
       throw new BadRequestException('Upload size must be between 1 byte and 200 MB.');
-    const contentType = input.contentType?.trim().toLocaleLowerCase();
-    if (!contentType || !['application/pdf', 'image/jpeg', 'image/png'].includes(contentType))
-      throw new BadRequestException('Only PDF, JPEG, and PNG uploads are allowed in Phase 1.');
-    safeName(input.fileName);
+    const originalName = safeName(input.fileName);
+    resolveDocumentContentType(originalName, input.contentType);
   }
   private async ensureBucket() {
     this.bucketReady ??= (async () => {
@@ -236,4 +248,17 @@ const safeName = (fileName: string) => {
   if (!name || name.length > 160)
     throw new BadRequestException('Use a file name up to 160 characters.');
   return name;
+};
+const resolveDocumentContentType = (fileName: string, providedType?: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  const expectedType = extension ? supportedDocumentFormats[extension] : undefined;
+  if (!expectedType)
+    throw new BadRequestException(
+      'Unsupported file format. Upload PDF, images, CAD/BIM, model, office, or approved archive files.',
+    );
+  const suppliedType = providedType?.trim().toLowerCase();
+  if (suppliedType && suppliedType !== 'application/octet-stream' && suppliedType !== expectedType) {
+    throw new BadRequestException('The file type does not match its extension.');
+  }
+  return expectedType;
 };

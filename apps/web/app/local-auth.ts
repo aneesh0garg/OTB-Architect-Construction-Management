@@ -590,16 +590,17 @@ export async function uploadProjectDocument(
     clientRequestId: string;
   },
 ) {
+  const contentType = documentContentType(file.name, file.type);
   const prepared = await apiPost<{ uploadId: string; uploadUrl: string }>(
     `/v1/workspace/projects/${projectId}/documents/uploads`,
-    { fileName: file.name, contentType: file.type, size: file.size },
+    { fileName: file.name, contentType, size: file.size },
     'Document upload could not be prepared.',
   );
   let uploaded: Response;
   try {
     uploaded = await fetch(prepared.uploadUrl, {
       method: 'PUT',
-      headers: { 'content-type': file.type },
+      headers: { 'content-type': contentType },
       body: file,
     });
   } catch {
@@ -622,6 +623,18 @@ export async function uploadProjectDocument(
     'Document revision could not be created.',
   );
 }
+
+const documentContentType = (fileName: string, fallback: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  const formats: Record<string, string> = {
+    pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff', heic: 'image/heic', svg: 'image/svg+xml',
+    dwg: 'application/acad', dxf: 'image/vnd.dxf', dgn: 'application/octet-stream', rvt: 'application/octet-stream', rfa: 'application/octet-stream', rte: 'application/octet-stream',
+    ifc: 'application/x-step', ifczip: 'application/zip', ifcxml: 'application/xml', ids: 'application/xml', bcfzip: 'application/zip', nwd: 'application/octet-stream', nwc: 'application/octet-stream', nwf: 'application/octet-stream',
+    skp: 'application/octet-stream', '3dm': 'application/octet-stream', obj: 'model/obj', glb: 'model/gltf-binary', gltf: 'model/gltf+json',
+    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', zip: 'application/zip', txt: 'text/plain',
+  };
+  return (extension && formats[extension]) || fallback || 'application/octet-stream';
+};
 export const issueProjectDocument = (projectId: string, documentId: string) =>
   apiPost(`/v1/workspace/projects/${projectId}/documents/${documentId}/issue`);
 export const reviewProjectDocument = (

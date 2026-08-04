@@ -340,6 +340,27 @@ assert.equal(
   documentBytes.toString('utf8'),
   'Signed original download did not match.',
 );
+const nativeSourceBytes = Buffer.from(`AC1027 Orbita DWG smoke source ${runId}`, 'utf8');
+const preparedNativeSource = await api('POST', `${projectPath}/documents/uploads`, {
+  fileName: `architectural-source-${runId}.dwg`,
+  contentType: 'application/acad',
+  size: nativeSourceBytes.length,
+});
+const nativeSourceUpload = await fetch(preparedNativeSource.uploadUrl, {
+  method: 'PUT',
+  headers: { 'content-type': 'application/acad' },
+  body: nativeSourceBytes,
+});
+assert.equal(nativeSourceUpload.ok, true, 'Signed DWG source upload failed.');
+await api('POST', `${projectPath}/documents/uploads/${preparedNativeSource.uploadId}/complete`);
+const nativeSourceDocument = await api('POST', `${projectPath}/documents`, {
+  documentType: 'drawing',
+  title: `Architectural source ${runId}`,
+  uploadId: preparedNativeSource.uploadId,
+});
+const nativeSourceDownload = await api('GET', `${projectPath}/documents/${nativeSourceDocument.id}/download`);
+const nativeSourceDownloaded = Buffer.from(await (await fetch(nativeSourceDownload.downloadUrl)).arrayBuffer());
+assert.deepEqual(nativeSourceDownloaded, nativeSourceBytes, 'DWG source download did not match.');
 const uploadFixtures = [
   {
     extension: 'pdf',
