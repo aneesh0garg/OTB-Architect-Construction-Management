@@ -1,4 +1,10 @@
-export type Viewer = { userId: string; organizationId: string; roles: string[] };
+export type Viewer = {
+  userId: string;
+  organizationId: string;
+  roles: string[];
+  displayName?: string;
+  email?: string;
+};
 export type ConnectedWorkspace = {
   organizationId: string;
   projects: { id: string; code: string; name: string; status: string }[];

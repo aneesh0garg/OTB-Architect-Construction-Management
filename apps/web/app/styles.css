@@ -131,6 +131,40 @@ button:disabled {
   align-items: center;
   padding: 4px 7px 18px;
 }
+.signed-in-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 10px 12px 6px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.signed-in-user-avatar {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  color: #39240a;
+  background: #d9ac73;
+  font-size: 10px;
+  font-weight: 800;
+}
+.signed-in-user strong,
+.signed-in-user small {
+  display: block;
+}
+.signed-in-user strong {
+  font-size: 11px;
+}
+.signed-in-user small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: capitalize;
+}
 .firm-logo {
   width: 36px;
   height: 36px;

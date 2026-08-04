@@ -18,4 +18,6 @@ export interface AuthenticatedActor {
   userId: string;
   organizationId: string;
   roles: PlatformRole[];
+  displayName?: string;
+  email?: string;
 }

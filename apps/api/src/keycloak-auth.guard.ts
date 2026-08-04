@@ -5,6 +5,9 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 type KeycloakPayload = JWTPayload & {
   realm_access?: { roles?: string[] };
   organization_id?: string;
+  name?: string;
+  preferred_username?: string;
+  email?: string;
 };
 export type AuthenticatedRequest = {
   headers: Record<string, string | string[] | undefined>;
@@ -26,7 +29,15 @@ export class KeycloakAuthGuard implements CanActivate {
     );
     if (!payload.sub || !payload.organization_id || roles.length === 0)
       throw new UnauthorizedException('Missing tenant role claims.');
-    request.actor = { userId: payload.sub, organizationId: payload.organization_id, roles };
+    request.actor = {
+      userId: payload.sub,
+      organizationId: payload.organization_id,
+      roles,
+      ...(payload.name || payload.preferred_username
+        ? { displayName: payload.name ?? payload.preferred_username }
+        : {}),
+      ...(payload.email ? { email: payload.email } : {}),
+    };
     return true;
   }
 

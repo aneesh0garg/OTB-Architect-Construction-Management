@@ -79,7 +79,12 @@ export default function Home() {
   }
 
   const initials = viewer
-    ? viewer.userId.slice(0, 2).toUpperCase()
+    ? (viewer.displayName ?? viewer.userId)
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : workspaceData.organization.user.initials;
   const projects = connectedWorkspace
     ? connectedWorkspace.projects.map((item) => ({ ...item, progress: 0 }))
@@ -121,6 +126,15 @@ export default function Home() {
           </div>
           <button aria-label="Switch organization">⌄</button>
         </div>
+        {viewer && (
+          <div className="signed-in-user" title={viewer.email ?? viewer.userId}>
+            <span className="signed-in-user-avatar">{initials}</span>
+            <span>
+              <strong>{viewer.displayName ?? viewer.userId}</strong>
+              <small>{viewer.roles.join(' · ').replaceAll('_', ' ')}</small>
+            </span>
+          </div>
+        )}
         <nav className="sidebar-section" aria-label="Firm navigation">
           <a className="sidebar-link active" href="#workspace">
             <span>⌂</span> Home
