@@ -41,6 +41,15 @@ async function api(method, path, body) {
   return payload;
 }
 
+async function apiText(path) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    headers: { authorization: `Bearer ${tokenPayload.access_token}` },
+  });
+  const content = await response.text();
+  assert.equal(response.ok, true, `GET ${path} failed: ${content}`);
+  return content;
+}
+
 await api('GET', '/health');
 await api('POST', '/v1/workspace/organization', { name: 'Orbita Phase 1 Smoke' });
 const person = await api('POST', '/v1/resources/people', {
@@ -240,6 +249,10 @@ assert.equal(
   'superseded',
   'Issued document revision was not superseded.',
 );
+const projectExport = await apiText(`/v1/projects/${project.id}/exports/project.csv`);
+assert.match(projectExport, /Facade observation/);
+const commercialExport = await apiText(`/v1/projects/${project.id}/exports/commercial.csv`);
+assert.match(commercialExport, /Amount \(INR\)/);
 const auditEvents = await api('GET', `/v1/workspace/audit?projectId=${project.id}`);
 for (const action of [
   'observation.captured',
@@ -249,6 +262,8 @@ for (const action of [
   'cost.change_status_changed',
   'project.status_changed',
   'project.search_performed',
+  'export.project_csv_created',
+  'export.commercial_csv_created',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),
