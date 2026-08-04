@@ -1779,6 +1779,21 @@ function Overview({
   );
 }
 
+const documentNumberCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const documentStatusOrder: Record<string, number> = { issued: 0, draft: 1, superseded: 2 };
+const sortControlledDocuments = (documents: ProjectRecord['documents']) =>
+  [...documents].sort((left, right) => {
+    const numberComparison = documentNumberCollator.compare(
+      left.document_number,
+      right.document_number,
+    );
+    if (numberComparison !== 0) return numberComparison;
+    const statusComparison =
+      (documentStatusOrder[left.status] ?? 3) - (documentStatusOrder[right.status] ?? 3);
+    if (statusComparison !== 0) return statusComparison;
+    return documentNumberCollator.compare(right.revision, left.revision);
+  });
+
 function Documents({
   record,
   signedIn,
@@ -1790,7 +1805,7 @@ function Documents({
   onNavigate: (view: WorkspaceView) => void;
   onChanged: () => Promise<void>;
 }) {
-  const documents = record?.documents ?? [];
+  const documents = record ? sortControlledDocuments(record.documents) : [];
   const [file, setFile] = useState<File>();
   const [documentNumber, setDocumentNumber] = useState('');
   const [title, setTitle] = useState('');
@@ -2676,9 +2691,11 @@ function Drawings({
   const [annotationBody, setAnnotationBody] = useState('');
   const [openError, setOpenError] = useState<string>();
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
-  const drawings =
-    record?.documents.filter((document) => document.document_type === 'drawing') ??
-    workspaceData.activeProject.drawings;
+  const drawings = record
+    ? sortControlledDocuments(record.documents).filter(
+        (document) => document.document_type === 'drawing',
+      )
+    : workspaceData.activeProject.drawings;
   const filteredDrawings = showCurrentOnly
     ? drawings.filter((drawing) => ['issued', 'Current'].includes(drawing.status))
     : drawings;
