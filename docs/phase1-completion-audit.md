@@ -28,6 +28,26 @@ conversion route and exercises every area above, including authentication,
 collaborator revocation, document uploads/downloads, execution, commercial
 controls, AI review, exports, and retention.
 
+## Repeated local quality gate
+
+The following verification completed successfully on 4 August 2026 against the
+local Docker services and Keycloak realm:
+
+```bash
+prettier --check .
+eslint apps/api/src apps/web/app
+tsc -p apps/api/tsconfig.json --noEmit
+tsc -p apps/web/tsconfig.json --noEmit
+tsc -p apps/mobile/tsconfig.json --noEmit
+tsc -p packages/contracts/tsconfig.json --noEmit
+tsc -p packages/design-tokens/tsconfig.json --noEmit
+node --test tests/*.test.mjs
+node scripts/phase1-smoke.mjs
+```
+
+The gate proves local source quality and the covered end-to-end workflow. It
+does not replace the configuration-gated or production-release evidence below.
+
 ## Configuration-gated verification
 
 These features are implemented and safely configuration-gated, but need real
