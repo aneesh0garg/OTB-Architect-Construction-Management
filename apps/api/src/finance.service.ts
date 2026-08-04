@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
+import { ProjectAccessService } from './project-access.service.js';
 
 interface PhaseRow extends QueryResultRow {
   id: string;
@@ -41,7 +42,10 @@ interface PaymentRow extends QueryResultRow {
 
 @Injectable()
 export class FinanceService {
-  constructor(private readonly pool: DatabaseService) {}
+  constructor(
+    private readonly pool: DatabaseService,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
 
   async getControl(actor: AuthenticatedActor, projectId: string) {
     await this.authorizeProject(actor, projectId);
@@ -252,12 +256,7 @@ export class FinanceService {
     return row(payment.rows, 'Payment could not be recorded.');
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
-    const project = await this.pool.query<QueryResultRow>(
-      'SELECT id FROM projects WHERE id = $1 AND organization_id = $2',
-      [projectId, actor.organizationId],
-    );
-    if (!project.rows[0])
-      throw new BadRequestException('Project is unavailable in this organization.');
+    await this.projectAccess.requireAccess(actor, projectId);
   }
   private async requireManager(actor: AuthenticatedActor, projectId: string) {
     await this.authorizeProject(actor, projectId);

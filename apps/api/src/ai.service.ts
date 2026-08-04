@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
+import { ProjectAccessService } from './project-access.service.js';
 
 interface EvidenceRow extends QueryResultRow {
   source_type: string;
@@ -24,7 +25,10 @@ interface DraftRow extends QueryResultRow {
 
 @Injectable()
 export class AiService {
-  constructor(private readonly pool: DatabaseService) {}
+  constructor(
+    private readonly pool: DatabaseService,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
   async setEnabled(actor: AuthenticatedActor, enabled: boolean) {
     if (!actor.roles.some((role) => ['organization_admin', 'principal'].includes(role)))
       throw new BadRequestException('Organization administrator permission is required.');
@@ -115,12 +119,7 @@ export class AiService {
     await this.audit(actor, projectId, 'ai.policy_checked', { enabled: true });
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
-    const project = await this.pool.query<QueryResultRow>(
-      'SELECT id FROM projects WHERE id = $1 AND organization_id = $2',
-      [projectId, actor.organizationId],
-    );
-    if (!project.rows[0])
-      throw new BadRequestException('Project is unavailable in this organization.');
+    await this.projectAccess.requireAccess(actor, projectId);
   }
   private async audit(
     actor: AuthenticatedActor,

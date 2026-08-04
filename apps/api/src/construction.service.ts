@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
+import { ProjectAccessService } from './project-access.service.js';
 
 type WorkflowType = 'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
 interface FieldVisitRow extends QueryResultRow {
@@ -30,7 +31,10 @@ interface WorkflowRow extends QueryResultRow {
 
 @Injectable()
 export class ConstructionService {
-  constructor(private readonly pool: DatabaseService) {}
+  constructor(
+    private readonly pool: DatabaseService,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
 
   async getRegister(actor: AuthenticatedActor, projectId: string) {
     await this.authorizeProject(actor, projectId);
@@ -158,23 +162,7 @@ export class ConstructionService {
     return next;
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
-    const project = await this.pool.query<QueryResultRow>(
-      'SELECT id FROM projects WHERE id = $1 AND organization_id = $2',
-      [projectId, actor.organizationId],
-    );
-    if (!project.rows[0])
-      throw new BadRequestException('Project is unavailable in this organization.');
-    if (
-      actor.roles.some((role) =>
-        ['organization_admin', 'principal', 'finance_admin', 'project_manager'].includes(role),
-      )
-    )
-      return;
-    const member = await this.pool.query<QueryResultRow>(
-      'SELECT user_id FROM project_members WHERE project_id = $1 AND user_id = $2',
-      [projectId, actor.userId],
-    );
-    if (!member.rows[0]) throw new BadRequestException('Project membership is required.');
+    await this.projectAccess.requireAccess(actor, projectId);
   }
 }
 export interface CreateFieldVisitInput {
