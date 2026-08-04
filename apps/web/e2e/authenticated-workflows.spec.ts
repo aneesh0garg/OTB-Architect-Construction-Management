@@ -42,6 +42,24 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByRole('heading', { name: projectName })).toBeVisible();
   });
 
+  test('assigns a named person a project role', async ({ page }) => {
+    const suffix = Date.now();
+    const userId = `ui-role-${suffix}`;
+    const name = `UI Role Person ${suffix}`;
+    await page.getByRole('link', { name: '◉ My teams' }).click();
+    await page.getByLabel('User ID').fill(userId);
+    await page.getByLabel('Name').fill(name);
+    await page.getByRole('button', { name: 'Save person' }).click();
+    await page.getByLabel('Close staffing and capacity').click();
+
+    await page.getByRole('button', { name: 'Manage project people and roles' }).click();
+    await page.getByLabel('Person').selectOption({ label: name });
+    await page.getByLabel('Project role').selectOption('owner');
+    await page.getByRole('button', { name: 'Add person' }).click();
+    const member = page.locator('article', { hasText: name });
+    await expect(member.getByText('owner', { exact: true })).toBeVisible();
+  });
+
   test('opens a task detail workspace and persists its discussion', async ({ page }) => {
     await page.getByTestId('project-tab-tasks').click();
     const title = `UI task discussion ${Date.now()}`;

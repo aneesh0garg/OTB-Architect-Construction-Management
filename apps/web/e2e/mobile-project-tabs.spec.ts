@@ -92,6 +92,14 @@ test.describe('mobile project navigation', () => {
     await page.getByRole('button', { name: 'Close create project' }).click();
   });
 
+  test('keeps named project people and roles reachable on a phone viewport', async ({ page }) => {
+    await page.getByRole('button', { name: 'Manage project people and roles' }).click();
+    await expect(page.getByRole('dialog', { name: 'Project people and roles' })).toContainText(
+      'Sign in and select a connected project',
+    );
+    await page.getByRole('button', { name: 'Close project people and roles' }).click();
+  });
+
   test('routes drawing upload to the controlled document workflow', async ({ page }) => {
     await page.getByTestId('project-tab-drawings').click();
     await page.getByRole('button', { name: 'Upload drawing' }).click();

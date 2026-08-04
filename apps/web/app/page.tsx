@@ -30,6 +30,7 @@ import {
   createPipelineProposal,
   convertPipelineOpportunity,
   assignResourceTeamMember,
+  addProjectCollaborator,
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
@@ -43,6 +44,7 @@ import {
   uploadProjectDocument,
   issueProjectDocument,
   reviewProjectDocument,
+  removeProjectCollaborator,
   createProjectTransmittal,
   type ConnectedWorkspace,
   type CostControl,
@@ -53,6 +55,7 @@ import {
   type NotificationPreference,
   type WorkspaceNotification,
   type ProjectRecord,
+  type ProjectCollaboratorRole,
   type PipelineRegister,
   type CapacityRegister,
   type ResourcePerson,
@@ -92,6 +95,7 @@ export default function Home() {
   const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [staffingOpen, setStaffingOpen] = useState(false);
+  const [projectPeopleOpen, setProjectPeopleOpen] = useState(false);
   const [lifecycleMessage, setLifecycleMessage] = useState<string>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = projectRecord?.project ?? workspaceData.activeProject;
@@ -307,7 +311,9 @@ export default function Home() {
         </div>
         <div className="team-list">
           {teams.map((team) => (
-            <span key={team}># {team}</span>
+            <button key={team} onClick={() => setStaffingOpen(true)}>
+              # {team}
+            </button>
           ))}
         </div>
         <div className="sidebar-footer">
@@ -437,13 +443,18 @@ export default function Home() {
             {lifecycleMessage && <small className="lifecycle-message">{lifecycleMessage}</small>}
           </div>
           <div className="project-header-actions">
-            <div className="member-stack">
+            <button
+              className="member-stack"
+              aria-label="Manage project people and roles"
+              onClick={() => setProjectPeopleOpen(true)}
+              type="button"
+            >
               {projectMembers.slice(0, 4).map((member) => (
                 <span
                   key={member.user_id}
-                  title={`${member.display_name ?? member.user_id} · ${member.role.replaceAll('_', ' ')}`}
+                  title={`${member.display_name ?? 'Project member'} · ${member.role.replaceAll('_', ' ')}`}
                 >
-                  {(member.display_name ?? member.user_id)
+                  {(member.display_name ?? 'Project member')
                     .split(/\s+/)
                     .map((part) => part[0])
                     .join('')
@@ -454,7 +465,7 @@ export default function Home() {
               {projectMembers.length > 4 && (
                 <span title="Additional project members">+{projectMembers.length - 4}</span>
               )}
-            </div>
+            </button>
             <button className="button-secondary" onClick={() => setView('communications')}>
               Share updates
             </button>
@@ -599,7 +610,170 @@ export default function Home() {
       {staffingOpen && (
         <StaffingDialog signedIn={Boolean(viewer)} onClose={() => setStaffingOpen(false)} />
       )}
+      {projectPeopleOpen && (
+        <ProjectPeopleDialog
+          record={projectRecord}
+          signedIn={Boolean(viewer)}
+          onClose={() => setProjectPeopleOpen(false)}
+          onChanged={() =>
+            projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+          }
+        />
+      )}
     </main>
+  );
+}
+
+const collaboratorRoles: Array<{ value: ProjectCollaboratorRole; label: string }> = [
+  { value: 'project_member', label: 'Project member' },
+  { value: 'field_supervisor', label: 'Field supervisor' },
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'owner', label: 'Owner' },
+  { value: 'vendor', label: 'Vendor' },
+];
+
+function ProjectPeopleDialog({
+  record,
+  signedIn,
+  onClose,
+  onChanged,
+}: {
+  record?: ProjectRecord;
+  signedIn: boolean;
+  onClose: () => void;
+  onChanged: () => Promise<void>;
+}) {
+  const [userId, setUserId] = useState('');
+  const [people, setPeople] = useState<ResourcePerson[]>([]);
+  const [teams, setTeams] = useState<ResourceTeam[]>([]);
+  const [teamId, setTeamId] = useState('');
+  const [role, setRole] = useState<ProjectCollaboratorRole>('project_member');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const members = record?.members ?? [];
+  useEffect(() => {
+    if (!signedIn) return;
+    Promise.all([loadResourcePeople(), loadResourceTeams()])
+      .then(([nextPeople, nextTeams]) => {
+        setPeople(nextPeople);
+        setTeams(nextTeams);
+      })
+      .catch((error: unknown) =>
+        setMessage(error instanceof Error ? error.message : 'People directory could not be loaded.'),
+      );
+  }, [signedIn]);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !signedIn) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await addProjectCollaborator(record.project.id, { userId: userId.trim(), role });
+      setUserId('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Project member could not be saved.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const remove = async (memberId: string) => {
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await removeProjectCollaborator(record.project.id, memberId);
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Project member could not be removed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const addTeam = async () => {
+    if (!record || !teamId) return;
+    const team = teams.find((item) => item.id === teamId);
+    if (!team || !team.members.length) {
+      setMessage('Choose a team with at least one person.');
+      return;
+    }
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await Promise.all(
+        team.members.map((member) =>
+          addProjectCollaborator(record.project.id, { userId: member.user_id, role }),
+        ),
+      );
+      setTeamId('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Project team could not be assigned.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section className="modal-card people-dialog" aria-label="Project people and roles" role="dialog" aria-modal="true">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">PROJECT TEAM</p>
+            <h2>People &amp; roles</h2>
+          </div>
+          <button className="icon-button" aria-label="Close project people and roles" onClick={onClose}>×</button>
+        </div>
+        {!signedIn || !record ? (
+          <p className="settings-empty">Sign in and select a connected project to manage its people and roles.</p>
+        ) : (
+          <>
+            <p className="people-dialog-copy">Project people are independent of organization teams. Add one person or bring in a reusable team; adding an existing member updates their role.</p>
+            <form className="inline-form people-form" onSubmit={submit}>
+              <label>
+                Person
+                <select value={userId} onChange={(event) => setUserId(event.target.value)} required>
+                  <option value="">Choose a person</option>
+                  {people.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}{person.title ? ` · ${person.title}` : ''}</option>)}
+                </select>
+              </label>
+              <label>
+                Project role
+                <select value={role} onChange={(event) => setRole(event.target.value as ProjectCollaboratorRole)}>
+                  {collaboratorRoles.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <button className="button-primary" disabled={saving} type="submit">{saving ? 'Saving…' : 'Add person'}</button>
+            </form>
+            {teams.length > 0 && (
+              <div className="team-assignment">
+                <label>
+                  Add organization team
+                  <select value={teamId} onChange={(event) => setTeamId(event.target.value)}>
+                    <option value="">Choose a team</option>
+                    {teams.map((team) => <option key={team.id} value={team.id}>{team.name} · {team.members.length} people</option>)}
+                  </select>
+                </label>
+                <button className="button-secondary" disabled={saving || !teamId} onClick={addTeam} type="button">Add team with selected role</button>
+              </div>
+            )}
+            {message && <p className="form-message">{message}</p>}
+            <div className="people-list">
+              {members.map((member) => (
+                <article key={member.user_id}>
+                  <span className="person-avatar">{(member.display_name ?? 'Project member').slice(0, 2).toUpperCase()}</span>
+                  <div>
+                    <strong>{member.display_name ?? 'Unnamed collaborator'}</strong>
+                    <small>{member.title ? `${member.title} · ` : ''}{member.role.replaceAll('_', ' ')}</small>
+                  </div>
+                  <button className="button-secondary" disabled={saving} onClick={() => remove(member.user_id)} type="button">Remove</button>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
   );
 }
 

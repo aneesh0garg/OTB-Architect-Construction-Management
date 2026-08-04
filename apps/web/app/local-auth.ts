@@ -490,6 +490,20 @@ async function apiPost<T>(
   return response.json() as Promise<T>;
 }
 
+async function apiDelete<T>(path: string): Promise<T> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to manage project members.');
+  const response = await fetch(`${apiUrl()}${path}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined);
+    throw new Error(payload?.message ?? 'Project member could not be removed.');
+  }
+  return response.json() as Promise<T>;
+}
+
 export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
 export const transitionWorkspaceProjectStatus = (projectId: string, status: string) =>
@@ -513,6 +527,19 @@ export const createWorkspaceProject = (input: {
   location?: string;
   stage?: string;
 }) => apiPost<{ id: string; code: string; name: string }>('/v1/workspace/projects', input);
+export type ProjectCollaboratorRole =
+  | 'contractor'
+  | 'consultant'
+  | 'owner'
+  | 'vendor'
+  | 'project_member'
+  | 'field_supervisor';
+export const addProjectCollaborator = (
+  projectId: string,
+  input: { userId: string; role: ProjectCollaboratorRole },
+) => apiPost(`/v1/workspace/projects/${projectId}/collaborators`, input);
+export const removeProjectCollaborator = (projectId: string, userId: string) =>
+  apiDelete(`/v1/workspace/projects/${projectId}/collaborators/${encodeURIComponent(userId)}`);
 export const loadPipeline = () => apiGet<PipelineRegister>('/v1/pipeline');
 export const createPipelineOpportunity = (input: {
   clientName: string;
