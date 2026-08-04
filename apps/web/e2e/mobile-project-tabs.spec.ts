@@ -22,6 +22,25 @@ test('retains PKCE sign-in when a mobile browser has no crypto.subtle on a LAN H
   expect(pageErrors).toEqual([]);
 });
 
+test('keeps the Staffing and capacity dialog vertically scrollable', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Team/ }).click();
+  await page.getByRole('button', { name: 'Manage project team' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Staffing and capacity' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveCSS('overflow-y', 'auto');
+  const canScroll = await dialog.evaluate((element) => {
+    const filler = document.createElement('div');
+    filler.style.height = '180vh';
+    element.append(filler);
+    element.scrollTop = 300;
+    const result = element.scrollTop > 0;
+    filler.remove();
+    return result;
+  });
+  expect(canScroll).toBe(true);
+});
+
 test('exchanges a task deep-link Keycloak callback only once during React development rendering', async ({ page }) => {
   let tokenRequests = 0;
   await page.addInitScript(() => sessionStorage.setItem('orbita.pkce-verifier', 'test-verifier'));

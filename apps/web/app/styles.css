@@ -1214,6 +1214,13 @@ small {
   background: var(--surface);
   box-shadow: 0 22px 60px rgb(4 13 24 / 32%);
 }
+.staffing-dialog {
+  width: min(100%, 920px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 
 .modal-form {
   display: grid;
