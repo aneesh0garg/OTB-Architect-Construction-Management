@@ -64,6 +64,15 @@ interface TransmittalRow extends QueryResultRow {
   document_ids: string[];
   created_at: Date;
 }
+interface DocumentAnnotationRow extends QueryResultRow {
+  id: string;
+  page_number: number;
+  x_percent: number | null;
+  y_percent: number | null;
+  body: string;
+  created_by: string;
+  created_at: Date;
+}
 interface CommunicationRow extends QueryResultRow {
   id: string;
   channel: string;
@@ -550,6 +559,49 @@ export class WorkspaceService {
     );
     return notifications.rows;
   }
+  async getDocumentAnnotations(actor: AuthenticatedActor, projectId: string, documentId: string) {
+    await this.documentForActor(actor, projectId, documentId);
+    const annotations = await this.pool.query<DocumentAnnotationRow>(
+      'SELECT id, page_number, x_percent, y_percent, body, created_by, created_at FROM document_annotations WHERE organization_id = $1 AND project_id = $2 AND document_id = $3 ORDER BY created_at ASC',
+      [actor.organizationId, projectId, documentId],
+    );
+    return annotations.rows;
+  }
+  async createDocumentAnnotation(
+    actor: AuthenticatedActor,
+    projectId: string,
+    documentId: string,
+    input: CreateDocumentAnnotationInput,
+  ) {
+    await this.documentForActor(actor, projectId, documentId);
+    if (
+      (input.xPercent === undefined) !== (input.yPercent === undefined) ||
+      (input.xPercent !== undefined && input.xPercent > 100) ||
+      (input.yPercent !== undefined && input.yPercent > 100)
+    )
+      throw new BadRequestException('Drawing pins require x and y coordinates between 0 and 100.');
+    const result = await this.pool.query<DocumentAnnotationRow>(
+      'INSERT INTO document_annotations (organization_id, project_id, document_id, page_number, x_percent, y_percent, body, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, page_number, x_percent, y_percent, body, created_by, created_at',
+      [
+        actor.organizationId,
+        projectId,
+        documentId,
+        input.pageNumber ?? 1,
+        input.xPercent ?? null,
+        input.yPercent ?? null,
+        this.requiredText(input.body, 'Annotation'),
+        actor.userId,
+      ],
+    );
+    const annotation = this.resultRow(result.rows, 'Drawing annotation could not be saved.');
+    await this.audit(actor, 'document.annotation_created', 'document_annotation', annotation.id, {
+      projectId,
+      documentId,
+      pageNumber: annotation.page_number,
+      hasPin: annotation.x_percent !== null,
+    });
+    return annotation;
+  }
   async getNotificationPreferences(actor: AuthenticatedActor) {
     const preferences = await this.pool.query<NotificationPreferenceRow>(
       'SELECT event_type, in_app_enabled, email_enabled, quiet_hours_start::text, quiet_hours_end::text, digest_frequency, updated_at FROM notification_preferences WHERE organization_id = $1 AND user_id = $2 ORDER BY event_type',
@@ -646,6 +698,14 @@ export class WorkspaceService {
     );
     return members.rows;
   }
+  private async documentForActor(actor: AuthenticatedActor, projectId: string, documentId: string) {
+    await this.projectForActor(actor, projectId);
+    const document = await this.pool.query<{ id: string }>(
+      'SELECT id FROM document_revisions WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [documentId, projectId, actor.organizationId],
+    );
+    return this.resultRow(document.rows, 'Document is unavailable.');
+  }
   private async projectForActor(actor: AuthenticatedActor, projectId: string) {
     const result = await this.pool.query<ProjectRow>(
       'SELECT id, code, name, status, location, stage, closed_at, retention_until FROM projects WHERE id = $1 AND organization_id = $2',
@@ -729,6 +789,12 @@ export interface CreateDocumentInput {
   floor?: string;
   zone?: string;
   uploadId?: string;
+}
+export interface CreateDocumentAnnotationInput {
+  body: string;
+  pageNumber?: number;
+  xPercent?: number;
+  yPercent?: number;
 }
 export interface CreateTransmittalInput {
   purpose: string;

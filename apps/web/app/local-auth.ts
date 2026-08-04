@@ -131,6 +131,15 @@ export type WorkspaceNotification = {
   read_at: string | null;
   created_at: string;
 };
+export type DocumentAnnotation = {
+  id: string;
+  page_number: number;
+  x_percent: number | null;
+  y_percent: number | null;
+  body: string;
+  created_by: string;
+  created_at: string;
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -281,3 +290,16 @@ export const loadNotifications = () =>
   apiGet<WorkspaceNotification[]>('/v1/workspace/notifications');
 export const markNotificationRead = (notificationId: string) =>
   apiPost<WorkspaceNotification>(`/v1/workspace/notifications/${notificationId}/read`);
+export const loadDocumentAnnotations = (projectId: string, documentId: string) =>
+  apiGet<DocumentAnnotation[]>(
+    `/v1/workspace/projects/${projectId}/documents/${documentId}/annotations`,
+  );
+export const createDocumentAnnotation = (
+  projectId: string,
+  documentId: string,
+  input: { body: string; pageNumber?: number; xPercent?: number; yPercent?: number },
+) =>
+  apiPost<DocumentAnnotation>(
+    `/v1/workspace/projects/${projectId}/documents/${documentId}/annotations`,
+    input,
+  );

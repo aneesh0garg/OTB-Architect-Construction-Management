@@ -16,6 +16,8 @@ import {
   saveNotificationPreference,
   searchProjectBrain,
   createProjectBrainDraft,
+  createDocumentAnnotation,
+  loadDocumentAnnotations,
   reviewProjectBrainDraft,
   signOutLocal,
   type ConnectedWorkspace,
@@ -26,6 +28,7 @@ import {
   type AiDraft,
   type NotificationPreference,
   type WorkspaceNotification,
+  type DocumentAnnotation,
   type ProjectRecord,
   type Viewer,
 } from './local-auth';
@@ -1060,7 +1063,10 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
     documentNumber: string;
     url: string;
     expiresAt: string;
+    documentId: string;
   }>();
+  const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([]);
+  const [annotationBody, setAnnotationBody] = useState('');
   const [openError, setOpenError] = useState<string>();
   const drawings =
     record?.documents.filter((document) => document.document_type === 'drawing') ??
@@ -1078,9 +1084,26 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
         documentNumber: drawing.document_number,
         url: download.downloadUrl,
         expiresAt: download.expiresAt,
+        documentId: drawing.id,
       });
+      setAnnotations(await loadDocumentAnnotations(record.project.id, drawing.id));
     } catch {
       setOpenError('This revision has no downloadable original, or your access has changed.');
+    }
+  };
+  const addAnnotation = async () => {
+    if (!record || !preview || !annotationBody.trim()) return;
+    try {
+      const annotation = await createDocumentAnnotation(record.project.id, preview.documentId, {
+        body: annotationBody.trim(),
+        pageNumber: 1,
+        xPercent: 50,
+        yPercent: 50,
+      });
+      setAnnotations((current) => [...current, annotation]);
+      setAnnotationBody('');
+    } catch {
+      setOpenError('The drawing comment could not be saved.');
     }
   };
   return (
@@ -1163,6 +1186,29 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
             </div>
           </header>
           <iframe title={preview.title} src={preview.url} />
+          <div className="drawing-annotations">
+            <strong>Comments &amp; pins</strong>
+            {annotations.map((annotation) => (
+              <p key={annotation.id}>
+                <b>
+                  Page {annotation.page_number}
+                  {annotation.x_percent !== null ? ' · Pin 50%, 50%' : ''}
+                </b>
+                {annotation.body}
+              </p>
+            ))}
+            <div>
+              <input
+                aria-label="Drawing comment"
+                value={annotationBody}
+                onChange={(event) => setAnnotationBody(event.target.value)}
+                placeholder="Add a review comment"
+              />
+              <button onClick={addAnnotation} disabled={!annotationBody.trim()}>
+                Add pin comment
+              </button>
+            </div>
+          </div>
         </section>
       )}
     </div>

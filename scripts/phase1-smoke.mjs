@@ -289,6 +289,20 @@ const issuedDrawing = await api('POST', `${projectPath}/documents`, {
   status: 'issued',
   issueDate: '2026-08-05',
 });
+const drawingAnnotation = await api(
+  'POST',
+  `${projectPath}/documents/${issuedDrawing.id}/annotations`,
+  { body: `Verify façade bracket spacing ${runId}`, pageNumber: 1, xPercent: 42, yPercent: 58 },
+);
+const drawingAnnotations = await api(
+  'GET',
+  `${projectPath}/documents/${issuedDrawing.id}/annotations`,
+);
+assert.equal(
+  drawingAnnotations.some((annotation) => annotation.id === drawingAnnotation.id),
+  true,
+  'Drawing annotation was not retained.',
+);
 const transmittal = await api('POST', `${projectPath}/transmittals`, {
   purpose: 'Construction issue',
   issueNote: 'Issued facade drawing for coordination.',

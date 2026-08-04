@@ -77,6 +77,12 @@ class CreateDocumentDto {
   @IsOptional() @IsString() @MaxLength(120) zone?: string;
   @IsOptional() @IsString() @MaxLength(160) uploadId?: string;
 }
+class CreateDocumentAnnotationDto {
+  @IsString() @MinLength(1) @MaxLength(4000) body!: string;
+  @IsOptional() @IsNumber() @Min(1) pageNumber?: number;
+  @IsOptional() @IsNumber() @Min(0) xPercent?: number;
+  @IsOptional() @IsNumber() @Min(0) yPercent?: number;
+}
 class CreateTransmittalDto {
   @IsString() @MinLength(2) @MaxLength(240) purpose!: string;
   @IsOptional() @IsString() @MaxLength(2000) issueNote?: string;
@@ -235,6 +241,21 @@ export class WorkspaceController {
     @Param('documentId') documentId: string,
   ) {
     return this.uploads.download(request.actor!, projectId, documentId);
+  }
+  @Get('projects/:projectId/documents/:documentId/annotations') getDocumentAnnotations(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.workspace.getDocumentAnnotations(request.actor!, projectId, documentId);
+  }
+  @Post('projects/:projectId/documents/:documentId/annotations') createDocumentAnnotation(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Body() body: CreateDocumentAnnotationDto,
+  ) {
+    return this.workspace.createDocumentAnnotation(request.actor!, projectId, documentId, body);
   }
   @Post('projects/:projectId/communications') fileCommunication(
     @Req() request: AuthenticatedRequest,

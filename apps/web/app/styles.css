@@ -1105,6 +1105,44 @@ small {
   color: var(--alert, #a8540e);
   font-size: 12px;
 }
+.drawing-annotations {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--raised);
+}
+.drawing-annotations p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.drawing-annotations p b {
+  color: var(--text);
+}
+.drawing-annotations > div {
+  display: flex;
+  gap: 8px;
+}
+.drawing-annotations input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+}
+.drawing-annotations button {
+  padding: 8px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 7px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
 .drawing-viewer {
   margin-top: 18px;
   overflow: hidden;
