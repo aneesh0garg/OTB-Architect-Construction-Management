@@ -8,6 +8,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "node --test tests/*.test.mjs && turbo run test",
+    "test:ui": "pnpm --filter @orbita/web test:ui",
     "smoke:phase1": "node scripts/phase1-smoke.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

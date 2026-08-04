@@ -411,6 +411,23 @@ pnpm typecheck
 pnpm test
 ```
 
+## Web mobile UI checks
+
+The web workspace has Playwright coverage for the three currently available
+project tabs (Overview, Drawings, and Field work) at a phone viewport. It also
+asserts that future modules remain visibly disabled, rather than appearing as
+unresponsive controls.
+
+Install Chromium once, then run the suite:
+
+```bash
+pnpm --filter @orbita/web exec playwright install chromium
+pnpm test:ui
+```
+
+The test runner starts the web app unless an instance is already serving on
+port 3000. Set `PLAYWRIGHT_BASE_URL` to test a different local deployment.
+
 Before committing, run `git diff --check`. CI repeats formatting, linting,
 type-checking, and tests for each change.
 

@@ -307,6 +307,11 @@ export default function Home() {
               disabled={!item.view}
               onClick={() => item.view && setView(item.view)}
               className={view === item.view ? 'project-tab active' : 'project-tab'}
+              data-testid={`project-tab-${item.view ?? item.label.toLowerCase().replaceAll(' ', '-')}`}
+              aria-current={item.view && view === item.view ? 'page' : undefined}
+              title={
+                item.view ? `Open ${item.label}` : `${item.label} is planned for a later release`
+              }
             >
               <span>{item.icon}</span>
               {item.label}
@@ -314,11 +319,18 @@ export default function Home() {
             </button>
           ))}
         </nav>
-        {view === 'overview' && (
-          <Overview record={projectRecord} finance={financeControl} cost={costControl} />
-        )}
-        {view === 'drawings' && <Drawings record={projectRecord} />}
-        {view === 'field' && <FieldMobile execution={executionRegister} />}
+        <div
+          className="project-view"
+          data-testid={`project-view-${view}`}
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {view === 'overview' && (
+            <Overview record={projectRecord} finance={financeControl} cost={costControl} />
+          )}
+          {view === 'drawings' && <Drawings record={projectRecord} />}
+          {view === 'field' && <FieldMobile execution={executionRegister} />}
+        </div>
       </section>
     </main>
   );

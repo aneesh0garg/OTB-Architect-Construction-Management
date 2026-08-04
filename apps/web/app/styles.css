@@ -501,18 +501,23 @@ small {
   padding: 0 25px;
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 .project-tab {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 7px;
   white-space: nowrap;
+  min-height: 44px;
   padding: 12px 9px 11px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
+  touch-action: manipulation;
 }
 .project-tab:hover:not(:disabled),
 .project-tab.active {
@@ -1164,7 +1169,11 @@ small {
     display: none;
   }
   .project-tabs {
-    padding: 0 10px;
+    padding: 0 8px;
+  }
+  .project-tab {
+    padding-right: 10px;
+    padding-left: 10px;
   }
   .workspace-content {
     padding: 18px 16px 30px;
