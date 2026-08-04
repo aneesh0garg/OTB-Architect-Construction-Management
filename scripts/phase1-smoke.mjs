@@ -564,6 +564,32 @@ assert.equal(
   paymentNotificationCount,
   'A muted payment notification was delivered in-app.',
 );
+const workflowNotificationCount = notificationsAfterMutedPayment.filter(
+  (notification) => notification.event_type === 'workflow.issued',
+).length;
+await api('PUT', '/v1/workspace/notification-preferences', {
+  eventType: 'workflow.issued',
+  inAppEnabled: true,
+  emailEnabled: false,
+  quietHoursStart: '00:00',
+  quietHoursEnd: '23:59',
+  digestFrequency: 'immediate',
+});
+const quietWorkflow = await api('POST', `/v1/projects/${project.id}/workflows`, {
+  recordType: 'rfi',
+  title: `Quiet-hours workflow ${runId}`,
+});
+await api('POST', `/v1/projects/${project.id}/workflows/${quietWorkflow.id}/transitions`, {
+  status: 'issued',
+});
+const notificationsDuringQuietHours = await api('GET', '/v1/workspace/notifications');
+assert.equal(
+  notificationsDuringQuietHours.filter(
+    (notification) => notification.event_type === 'workflow.issued',
+  ).length,
+  workflowNotificationCount,
+  'A quiet-hours notification was visible before its configured end time.',
+);
 const finance = await api('GET', `/v1/projects/${project.id}/finance`);
 assert.equal(
   finance.health.paid >= Number(issuedInvoice.total),

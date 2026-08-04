@@ -450,8 +450,9 @@ unresponsive controls.
 The top-bar settings control opens a responsive **Notification settings**
 sheet. Signed-in users can set a default or event-specific delivery preference
 for issued workflows, invoices, and payments. The sheet persists in-app/email
-choices, digest preference, and optional quiet-hours values; only in-app
-delivery is active locally today. Email delivery and scheduled quiet-hour or
+choices, digest preference, and optional quiet-hours values. New in-app events
+created during quiet hours are stored but remain hidden until the quiet period
+ends (India Standard Time for the India-first launch). Email delivery and
 digest dispatch require the production delivery worker and sender identity.
 
 Install the mobile browser engines once, then run the suite:

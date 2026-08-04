@@ -501,7 +501,7 @@ function NotificationSettings({
             <label className="settings-toggle">
               <span>
                 <strong>Quiet hours</strong>
-                <small>Saved now; scheduled delivery is coming next.</small>
+                <small>New in-app activity stays hidden until your quiet period ends.</small>
               </span>
               <input
                 aria-label="Enable quiet hours"

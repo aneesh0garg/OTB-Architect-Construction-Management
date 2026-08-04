@@ -209,6 +209,13 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS observation_comments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, observation_id UUID NOT NULL REFERENCES observations(id) ON DELETE CASCADE, body TEXT NOT NULL, client_comment_id TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, client_comment_id));
     `,
   },
+  {
+    id: '0016_deferred_notifications',
+    sql: `
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS available_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      CREATE INDEX IF NOT EXISTS notifications_available_feed_idx ON notifications (organization_id, user_id, available_at DESC);
+    `,
+  },
 ];
 
 @Injectable()

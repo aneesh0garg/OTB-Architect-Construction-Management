@@ -525,7 +525,7 @@ export class WorkspaceService {
   }
   async getNotifications(actor: AuthenticatedActor) {
     const notifications = await this.pool.query<NotificationRow>(
-      'SELECT id, event_type, title, body, read_at, created_at FROM notifications WHERE organization_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 50',
+      'SELECT id, event_type, title, body, read_at, created_at FROM notifications WHERE organization_id = $1 AND user_id = $2 AND available_at <= NOW() ORDER BY created_at DESC LIMIT 50',
       [actor.organizationId, actor.userId],
     );
     return notifications.rows;
