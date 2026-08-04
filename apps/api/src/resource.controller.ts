@@ -42,8 +42,12 @@ class ProfilePhotoDto { @IsString() @MinLength(1) @MaxLength(255) fileName!: str
 export class ResourceController {
   constructor(private readonly resources: ResourceService, private readonly photos: ProfilePhotoService) {}
 
-  @Get('people') people(@Req() request: AuthenticatedRequest) {
-    return this.resources.people(request.actor!);
+  @Get('people') people(
+    @Req() request: AuthenticatedRequest,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.resources.people(request.actor!, page, pageSize);
   }
   @Get('people/:userId') person(@Req() request: AuthenticatedRequest, @Param('userId') userId: string) {
     return this.resources.person(request.actor!, userId);

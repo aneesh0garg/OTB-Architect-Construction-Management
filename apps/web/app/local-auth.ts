@@ -31,6 +31,13 @@ export type ResourcePerson = {
   email?: string | null;
   invitation_status?: string;
 };
+export type ResourcePeoplePage = {
+  items: ResourcePerson[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
 export type OrganizationMemberDetail = ResourcePerson & {
   projects: Array<{ id: string; code: string; name: string; role: string }>;
 };
@@ -620,7 +627,8 @@ export const convertPipelineOpportunity = (
   opportunityId: string,
   input: { proposalId: string; projectCode: string; location?: string },
 ) => apiPost(`/v1/pipeline/opportunities/${opportunityId}/convert`, input);
-export const loadResourcePeople = () => apiGet<ResourcePerson[]>('/v1/resources/people');
+export const loadResourcePeople = (page = 1, pageSize = 10) =>
+  apiGet<ResourcePeoplePage>(`/v1/resources/people?page=${page}&pageSize=${pageSize}`);
 export const loadOrganizationMember = (userId: string) =>
   apiGet<OrganizationMemberDetail>(`/v1/resources/people/${encodeURIComponent(userId)}`);
 export const loadMemberProfilePhoto = (userId: string) =>

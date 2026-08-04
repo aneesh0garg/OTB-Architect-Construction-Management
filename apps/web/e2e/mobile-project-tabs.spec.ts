@@ -87,7 +87,7 @@ test('uses an email-based invitation form for organization members', async ({ pa
   await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
   await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
   await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
-  await page.route('**/v1/resources/people', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/people?**', (route) => route.fulfill({ json: { items: [], page: 1, pageSize: 10, total: 0, totalPages: 1 } }));
   await page.route('**/v1/resources/people/invitations', (route) => route.fulfill({ status: 201, json: { user_id: 'new-member', display_name: 'New Member', active: true, organization_role: 'project_member', email: 'new.member@local.orbita', invitation_status: 'pending' } }));
   await page.route('**/v1/resources/teams', (route) => route.fulfill({ json: [] }));
   await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
@@ -106,12 +106,44 @@ test('uses an email-based invitation form for organization members', async ({ pa
   await expect(dialog.getByRole('button', { name: 'Sign out of Keycloak' })).toBeVisible();
 });
 
+test('paginates the organization directory in resource planning', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
+  await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/people?**', (route) => {
+    const pageNumber = Number(new URL(route.request().url()).searchParams.get('page') ?? '1');
+    const start = (pageNumber - 1) * 10;
+    const items = Array.from({ length: pageNumber === 1 ? 10 : 1 }, (_, index) => ({
+      user_id: `member-${start + index + 1}`,
+      display_name: `Directory Member ${start + index + 1}`,
+      title: null,
+      weekly_capacity_hours: 40,
+      active: true,
+      organization_role: 'project_member',
+      email: null,
+      invitation_status: 'active',
+    }));
+    return route.fulfill({ json: { items, page: pageNumber, pageSize: 10, total: 11, totalPages: 2 } });
+  });
+  await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Team/ }).click();
+  await page.getByRole('button', { name: 'Manage project team' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Staffing and capacity' });
+  await expect(dialog.getByText('Showing 1–10 of 11')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(dialog.getByText('Showing 11–11 of 11')).toBeVisible();
+  await expect(dialog.getByText('Directory Member 11', { exact: true })).toBeVisible();
+});
+
 test('shows an actionable invitation error in the mobile staffing dialog', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
   await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
   await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
   await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
-  await page.route('**/v1/resources/people', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/people?**', (route) => route.fulfill({ json: { items: [], page: 1, pageSize: 10, total: 0, totalPages: 1 } }));
   await page.route('**/v1/resources/teams', (route) => route.fulfill({ json: [] }));
   await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
   await page.route('**/v1/resources/people/invitations', (route) => route.fulfill({ status: 503, json: { message: 'Keycloak invitation delivery failed.' } }));

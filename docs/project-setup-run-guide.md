@@ -134,8 +134,12 @@ and restart the API.
    the invitation confirmation before opening the link.
 5. Complete email verification and choose a password in Keycloak.
 6. Sign out and sign in as the invited member. Then assign the active directory
-   member to the current project's delivery team from **Team & resources**. No separate
-   team selection is required: each project has exactly one delivery team.
+member to the current project's delivery team from **Team & resources**. No separate
+team selection is required: each project has exactly one delivery team.
+
+The organization directory is paged in groups of ten members. Use **Previous** and
+**Next** in Team & resources to browse larger directories; the current range and total
+member count are shown beside the controls.
 
 Mailpit does not deliver externally; any syntactically valid test address is safe.
 Keycloak intentionally rejects an activation link when that browser has an SSO session

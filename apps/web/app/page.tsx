@@ -57,6 +57,7 @@ import {
   type PipelineRegister,
   type CapacityRegister,
   type ResourcePerson,
+  type ResourcePeoplePage,
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
@@ -972,7 +973,8 @@ function WorkspaceCreationDialog({
 }
 
 function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { record: ProjectRecord | undefined; signedIn: boolean; onClose: () => void; onProjectChanged: () => Promise<void> }) {
-  const [people, setPeople] = useState<ResourcePerson[]>([]);
+  const [peoplePage, setPeoplePage] = useState<ResourcePeoplePage>();
+  const [directoryPage, setDirectoryPage] = useState(1);
   const [capacity, setCapacity] = useState<CapacityRegister>();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -983,17 +985,18 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   const [message, setMessage] = useState<string>();
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; text: string }>();
   const [saving, setSaving] = useState(false);
-  const refresh = async () => {
+  const people = peoplePage?.items ?? [];
+  const refresh = async (page = directoryPage) => {
     if (!signedIn) return;
     try {
       const [nextPeople, nextCapacity] = await Promise.all([
-        loadResourcePeople(),
+        loadResourcePeople(page),
         loadResourceCapacity(
           new Date().toISOString().slice(0, 10),
           new Date(Date.now() + 27 * 86400000).toISOString().slice(0, 10),
         ),
       ]);
-      setPeople(nextPeople);
+      setPeoplePage(nextPeople);
       setCapacity(nextCapacity);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Staffing records could not be loaded.');
@@ -1001,7 +1004,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   };
   useEffect(() => {
     void refresh();
-  }, [signedIn]);
+  }, [directoryPage, signedIn]);
   const savePerson = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -1018,7 +1021,8 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
       setDisplayName('');
       setWeeklyHours('40');
       setOrganizationRole('project_member');
-      await refresh();
+      setDirectoryPage(1);
+      await refresh(1);
       setInviteFeedback({ kind: 'success', text: `Invitation sent to ${email.trim()}. Check Mailpit to complete activation.` });
     } catch (error) {
       setInviteFeedback({ kind: 'error', text: error instanceof Error ? error.message : 'The invitation could not be sent. Please try again.' });
@@ -1111,10 +1115,6 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
             </form>
             {inviteFeedback && <div className={`invite-feedback ${inviteFeedback.kind}`} role={inviteFeedback.kind === 'error' ? 'alert' : 'status'} aria-live="polite"><p>{inviteFeedback.text}</p>{inviteFeedback.kind === 'success' && <><p className="invite-feedback-hint">To activate a different user on this device, open the mail link in a private window, or sign out of the current Keycloak session first.</p><button className="button-secondary" type="button" onClick={signOutKeycloakSession}>Sign out of Keycloak</button></>}</div>}
             </section>
-            <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
-              <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>
-              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.email ? `${person.email} · ` : ''}{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week{person.invitation_status === 'pending' ? ' · invitation pending' : ''}</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Invite your first organization member above.</p>}</div>
-            </section>
             {record && <section className="staffing-action-section" aria-labelledby="project-staffing-heading"><div className="staffing-action-heading"><p className="eyebrow">STEP 2 · PROJECT STAFFING</p><h3 id="project-staffing-heading">Assign member to project</h3><p>Assign an existing active organization member to <b>{record.project.code} · {record.project.name}</b>. This grants project-team membership; it does not change their organization role.</p></div><form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
               <label>
                 Organization member
@@ -1131,6 +1131,11 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               </label>
               <button className="button-primary" disabled={saving} type="submit">Assign to project team</button>
             </form></section>}
+            <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
+              <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>
+              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.email ? `${person.email} · ` : ''}{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week{person.invitation_status === 'pending' ? ' · invitation pending' : ''}</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Invite your first organization member above.</p>}</div>
+              {peoplePage && peoplePage.total > 0 && <nav className="directory-pagination" aria-label="Organization directory pages"><span>Showing {(peoplePage.page - 1) * peoplePage.pageSize + 1}–{Math.min(peoplePage.page * peoplePage.pageSize, peoplePage.total)} of {peoplePage.total}</span><button className="button-secondary" type="button" disabled={peoplePage.page === 1} onClick={() => setDirectoryPage((page) => page - 1)}>Previous</button><span>Page {peoplePage.page} of {peoplePage.totalPages}</span><button className="button-secondary" type="button" disabled={peoplePage.page === peoplePage.totalPages} onClick={() => setDirectoryPage((page) => page + 1)}>Next</button></nav>}
+            </section>
             {message && <p className="form-message">{message}</p>}
             <div className="simple-record-list">
               {(capacity?.people ?? []).map((person) => (

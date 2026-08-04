@@ -1316,6 +1316,18 @@ small {
   color: var(--muted);
   text-transform: capitalize;
 }
+.directory-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.directory-pagination span:first-child {
+  margin-right: auto;
+}
 .person-avatar {
   display: grid;
   width: 34px;

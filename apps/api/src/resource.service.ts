@@ -38,12 +38,22 @@ export class ResourceService {
     private readonly keycloak: KeycloakProvisioningService,
   ) {}
 
-  async people(actor: AuthenticatedActor) {
-    const result = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name',
-      [actor.organizationId],
-    );
-    return result.rows;
+  async people(actor: AuthenticatedActor, pageInput?: string, pageSizeInput?: string) {
+    const page = positiveInteger(pageInput, 1, 1, 10_000);
+    const pageSize = positiveInteger(pageSizeInput, 10, 1, 100);
+    const [people, count] = await Promise.all([
+      this.database.query<PersonRow>(
+        `SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status
+         FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name LIMIT $2 OFFSET $3`,
+        [actor.organizationId, pageSize, (page - 1) * pageSize],
+      ),
+      this.database.query<{ total: number }>(
+        'SELECT COUNT(*)::int AS total FROM people WHERE organization_id = $1',
+        [actor.organizationId],
+      ),
+    ]);
+    const total = count.rows[0]?.total ?? 0;
+    return { items: people.rows, page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
   }
 
   async person(actor: AuthenticatedActor, userId: string) {
@@ -243,4 +253,11 @@ const text = (value: string, label: string) => {
   const result = value?.trim();
   if (!result) throw new BadRequestException(`${label} is required.`);
   return result;
+};
+const positiveInteger = (value: string | undefined, fallback: number, min: number, max: number) => {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max)
+    throw new BadRequestException(`Use a whole number from ${min} to ${max}.`);
+  return parsed;
 };
