@@ -135,6 +135,38 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: '0009_contacts_directory',
+    sql: `
+      CREATE TABLE IF NOT EXISTS contacts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        display_name TEXT NOT NULL,
+        company_name TEXT,
+        email TEXT,
+        phone TEXT,
+        discipline TEXT,
+        role TEXT,
+        address TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS contacts_organization_email_uniq
+      ON contacts (organization_id, lower(email)) WHERE email IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS contact_projects (
+        contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        relationship TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (contact_id, project_id, relationship)
+      );
+      CREATE INDEX IF NOT EXISTS contact_projects_project_idx ON contact_projects (project_id);
+    `,
+  },
 ];
 
 @Injectable()

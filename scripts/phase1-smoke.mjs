@@ -110,6 +110,26 @@ assert.equal(
   'Converted project link is missing.',
 );
 const projectPath = `/v1/workspace/projects/${project.id}`;
+const contact = await api('POST', '/v1/contacts', {
+  displayName: `Smoke consultant ${runId}`,
+  companyName: 'Smoke Consultants',
+  email: `consultant-${runId}@example.test`,
+  discipline: 'Structure',
+  role: 'Consultant',
+});
+await api('POST', `/v1/contacts/${contact.id}/projects`, {
+  projectId: project.id,
+  relationship: 'Structural consultant',
+});
+const contacts = await api(
+  'GET',
+  `/v1/contacts?q=${encodeURIComponent(`Smoke consultant ${runId}`)}`,
+);
+assert.equal(
+  contacts[0]?.projects[0]?.project_id,
+  project.id,
+  'Contact project relationship is missing.',
+);
 const contractorTokenResponse = await fetch(`${issuer}/protocol/openid-connect/token`, {
   method: 'POST',
   headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -404,6 +424,11 @@ assert.equal(
   organizationAudit.some((event) => event.action === 'pipeline.opportunity_converted'),
   true,
   'Opportunity conversion was not recorded in organization audit.',
+);
+assert.equal(
+  organizationAudit.some((event) => event.action === 'contact.project_linked'),
+  true,
+  'Contact project relationship was not recorded in organization audit.',
 );
 const closedProject = await api('POST', `${projectPath}/status`, { status: 'closed' });
 assert.equal(closedProject.status, 'closed', 'Project did not transition to closed.');

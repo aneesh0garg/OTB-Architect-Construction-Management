@@ -206,6 +206,23 @@ and accounting mappings. The original proposal remains an immutable commercial
 record and all creation/conversion actions are captured in the organization
 audit trail.
 
+## P1.2b contacts directory
+
+The shared contacts directory keeps clients, consultants, vendors, and owner
+representatives as tenant records rather than repeating their details in project
+notes. Contacts can be searched by name, company, or email and linked to a
+project with an explicit relationship such as `Structural consultant` or
+`Owner representative`.
+
+| Endpoint                                | Purpose                                                              |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| `GET /v1/contacts?q=:query`             | List up to 200 tenant contacts and their project relationships.      |
+| `POST /v1/contacts`                     | Create or update a contact; non-null email is deduplicated per firm. |
+| `POST /v1/contacts/:contactId/projects` | Add an auditable project relationship.                               |
+
+Contact changes and relationship changes require a manager role and are written
+to the organization audit log. Project guests cannot administer firm contacts.
+
 ## P1.3 commercial control API
 
 The commercial module is a provider-neutral project ledger. It is ready to map
