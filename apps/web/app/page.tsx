@@ -1950,7 +1950,7 @@ function Documents({
                     {issuingId === document.id ? 'Issuing…' : 'Issue revision'}
                   </button>
                 )}
-                {signedIn && (
+                {signedIn && document.has_original && (
                   <button
                     className="button-secondary record-action"
                     onClick={() => void openDocument(document)}
@@ -1963,7 +1963,7 @@ function Documents({
                     className="button-secondary record-action"
                     onClick={() => onNavigate('drawings')}
                   >
-                    Review drawing
+                    Review &amp; markup
                   </button>
                 )}
               </article>
