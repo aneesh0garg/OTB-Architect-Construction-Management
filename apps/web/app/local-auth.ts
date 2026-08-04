@@ -10,6 +10,17 @@ export type ConnectedWorkspace = {
   projects: { id: string; code: string; name: string; status: string }[];
   teams: { id: string; name: string }[];
 };
+export type PipelineOpportunity = {
+  id: string;
+  client_name: string;
+  project_name: string;
+  stage: string;
+  probability: number;
+  anticipated_fee: string;
+  next_action: string | null;
+  proposals: { id: string; version: number; status: string; fee: string }[];
+};
+export type PipelineRegister = { opportunities: PipelineOpportunity[] };
 export type ProjectRecord = {
   project: {
     id: string;
@@ -295,6 +306,21 @@ export const createWorkspaceProject = (input: {
   location?: string;
   stage?: string;
 }) => apiPost<{ id: string; code: string; name: string }>('/v1/workspace/projects', input);
+export const loadPipeline = () => apiGet<PipelineRegister>('/v1/pipeline');
+export const createPipelineOpportunity = (input: {
+  clientName: string;
+  projectName: string;
+  anticipatedFee?: number;
+  nextAction?: string;
+}) => apiPost('/v1/pipeline/opportunities', input);
+export const createPipelineProposal = (
+  opportunityId: string,
+  input: { scope: string; fee: number },
+) =>
+  apiPost(`/v1/pipeline/opportunities/${opportunityId}/proposals`, {
+    ...input,
+    phases: [{ name: 'Base services', plannedFee: input.fee, targetHours: 1 }],
+  });
 export async function uploadProjectDocument(
   projectId: string,
   file: File,

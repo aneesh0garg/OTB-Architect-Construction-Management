@@ -9,6 +9,7 @@ import {
   loadFinanceControl,
   loadConnectedWorkspace,
   loadProjectRecord,
+  loadPipeline,
   loadNotificationPreferences,
   loadNotifications,
   markNotificationRead,
@@ -20,6 +21,8 @@ import {
   createProjectTask,
   createProjectBudget,
   createProjectInvoice,
+  createPipelineOpportunity,
+  createPipelineProposal,
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
@@ -39,6 +42,7 @@ import {
   type WorkspaceNotification,
   type DocumentAnnotation,
   type ProjectRecord,
+  type PipelineRegister,
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
@@ -72,6 +76,7 @@ export default function Home() {
   const [brainOpen, setBrainOpen] = useState(false);
   const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
   const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
+  const [pipelineOpen, setPipelineOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -188,7 +193,14 @@ export default function Home() {
           <a className="sidebar-link active" href="#workspace">
             <span>⌂</span> Home
           </a>
-          <a className="sidebar-link" href="#portfolio">
+          <a
+            className="sidebar-link"
+            href="#portfolio"
+            onClick={(event) => {
+              event.preventDefault();
+              setPipelineOpen(true);
+            }}
+          >
             <span>◫</span> Portfolio
           </a>
           <a className="sidebar-link" href="#teams">
@@ -473,6 +485,9 @@ export default function Home() {
           }}
         />
       )}
+      {pipelineOpen && (
+        <PipelineDialog signedIn={Boolean(viewer)} onClose={() => setPipelineOpen(false)} />
+      )}
     </main>
   );
 }
@@ -566,6 +581,158 @@ function WorkspaceCreationDialog({
               {saving ? 'Creating…' : `Create ${kind}`}
             </button>
           </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () => void }) {
+  const [pipeline, setPipeline] = useState<PipelineRegister>();
+  const [clientName, setClientName] = useState('');
+  const [projectName, setProjectName] = useState('');
+  const [fee, setFee] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const refresh = async () => {
+    if (!signedIn) return;
+    try {
+      setPipeline(await loadPipeline());
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Pipeline could not be loaded.');
+    }
+  };
+  useEffect(() => {
+    void refresh();
+  }, [signedIn]);
+  const createOpportunity = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createPipelineOpportunity({
+        clientName: clientName.trim(),
+        projectName: projectName.trim(),
+        anticipatedFee: Number(fee) || 0,
+      });
+      setClientName('');
+      setProjectName('');
+      setFee('');
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Opportunity could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const createProposal = async (opportunityId: string, project: string) => {
+    const proposalFee = Number(fee) || 0;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createPipelineProposal(opportunityId, {
+        scope: `${project} base services`,
+        fee: proposalFee,
+      });
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Proposal could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="modal-card pipeline-dialog"
+        aria-label="Pipeline and proposals"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">BUSINESS DEVELOPMENT</p>
+            <h2>Pipeline &amp; proposals</h2>
+          </div>
+          <button
+            className="icon-button"
+            aria-label="Close pipeline and proposals"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+        {!signedIn ? (
+          <p className="settings-empty">Sign in to manage opportunities and proposals.</p>
+        ) : (
+          <>
+            <form className="modal-form" onSubmit={createOpportunity}>
+              <label>
+                Client
+                <input
+                  value={clientName}
+                  onChange={(event) => setClientName(event.target.value)}
+                  minLength={2}
+                  required
+                />
+              </label>
+              <label>
+                Project
+                <input
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  minLength={2}
+                  required
+                />
+              </label>
+              <label>
+                Anticipated fee
+                <input
+                  type="number"
+                  min="0"
+                  value={fee}
+                  onChange={(event) => setFee(event.target.value)}
+                  required
+                />
+              </label>
+              <button className="button-primary" disabled={saving} type="submit">
+                Create opportunity
+              </button>
+            </form>
+            {message && <p className="form-message">{message}</p>}
+            <div className="simple-record-list pipeline-list">
+              {(pipeline?.opportunities ?? []).map((opportunity) => (
+                <article key={opportunity.id}>
+                  <strong>
+                    {opportunity.project_name} · {opportunity.client_name}
+                  </strong>
+                  <span>
+                    {opportunity.stage} · {opportunity.probability}% · ₹
+                    {Number(opportunity.anticipated_fee).toLocaleString('en-IN')}
+                  </span>
+                  <small>{opportunity.next_action ?? 'No next action'}</small>
+                  <div>
+                    {opportunity.proposals.map((proposal) => (
+                      <small key={proposal.id}>
+                        Proposal v{proposal.version} · ₹
+                        {Number(proposal.fee).toLocaleString('en-IN')} · {proposal.status}
+                      </small>
+                    ))}
+                  </div>
+                  {!opportunity.proposals.length && (
+                    <button
+                      className="button-secondary record-action"
+                      disabled={saving}
+                      onClick={() => createProposal(opportunity.id, opportunity.project_name)}
+                    >
+                      Build base proposal
+                    </button>
+                  )}
+                </article>
+              ))}
+              {pipeline && !pipeline.opportunities.length && <p>No opportunities yet.</p>}
+            </div>
+          </>
         )}
       </section>
     </div>
