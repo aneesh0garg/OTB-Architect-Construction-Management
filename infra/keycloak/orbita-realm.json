@@ -84,6 +84,17 @@
       "credentials": [{ "type": "password", "value": "pilot_local", "temporary": false }],
       "realmRoles": ["organization_admin"],
       "attributes": { "organization_id": ["northline-studio"] }
+    },
+    {
+      "username": "pilot-contractor",
+      "enabled": true,
+      "email": "pilot-contractor@local.orbita",
+      "emailVerified": true,
+      "firstName": "Pilot",
+      "lastName": "Contractor",
+      "credentials": [{ "type": "password", "value": "pilot_contractor", "temporary": false }],
+      "realmRoles": ["contractor"],
+      "attributes": { "organization_id": ["northline-studio"] }
     }
   ]
 }

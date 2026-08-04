@@ -52,6 +52,10 @@ The imported local realm contains a development-only user:
 These credentials exist only for local development. Do not use them in a pilot,
 staging, or production environment.
 
+The realm also includes a local-only contractor collaborator for permission
+testing: `pilot-contractor` / `pilot_contractor`. It cannot read a project until
+an administrator explicitly adds its Keycloak user ID as a project collaborator.
+
 ## Signing in to the local web workspace
 
 Open `http://localhost:3000`, select **Sign in**, and use the local pilot

@@ -66,6 +66,34 @@ const project = await api('POST', '/v1/workspace/projects', {
 });
 assert.ok(project.id, 'Project creation did not return an ID.');
 const projectPath = `/v1/workspace/projects/${project.id}`;
+const contractorTokenResponse = await fetch(`${issuer}/protocol/openid-connect/token`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({
+    grant_type: 'password',
+    client_id: 'orbita-mobile',
+    username: 'pilot-contractor',
+    password: 'pilot_contractor',
+  }),
+});
+const contractorToken = await contractorTokenResponse.json();
+assert.equal(
+  contractorTokenResponse.ok,
+  true,
+  `Contractor token request failed: ${JSON.stringify(contractorToken)}`,
+);
+const contractorId = JSON.parse(
+  Buffer.from(contractorToken.access_token.split('.')[1], 'base64url').toString('utf8'),
+).sub;
+const unsharedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
+  headers: { authorization: `Bearer ${contractorToken.access_token}` },
+});
+assert.equal(unsharedRecord.ok, false, 'Unshared contractor could read the project.');
+await api('POST', `${projectPath}/collaborators`, { userId: contractorId, role: 'contractor' });
+const sharedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
+  headers: { authorization: `Bearer ${contractorToken.access_token}` },
+});
+assert.equal(sharedRecord.ok, true, 'Shared contractor could not read the project.');
 const activeProject = await api('POST', `${projectPath}/status`, { status: 'active' });
 assert.equal(activeProject.status, 'active', 'Project did not transition to active.');
 
