@@ -3020,6 +3020,8 @@ function Drawings({
   const [openError, setOpenError] = useState<string>();
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [drawingSort, setDrawingSort] = useState<DocumentSort>('number');
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string>();
+  const selectedDrawing = record?.documents.find((document) => document.id === selectedDrawingId);
   const drawings = record
     ? sortControlledDocuments(record.documents, drawingSort).filter(
         (document) => document.document_type === 'drawing',
@@ -3132,10 +3134,64 @@ function Drawings({
               >
                 →
               </button>
+              {'id' in drawing && (
+                <button
+                  className="button-secondary record-action"
+                  onClick={() => setSelectedDrawingId(drawing.id)}
+                >
+                  Details
+                </button>
+              )}
             </div>
           ))}
         </div>
       </section>
+      {selectedDrawing && (
+        <section
+          className="content-card detail-workspace"
+          aria-label={`Drawing details for ${selectedDrawing.document_number}`}
+        >
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">DRAWING DETAIL</p>
+              <h2>
+                {selectedDrawing.document_number} · Rev {selectedDrawing.revision}
+              </h2>
+            </div>
+            <button onClick={() => setSelectedDrawingId(undefined)}>Close</button>
+          </div>
+          <p>{selectedDrawing.title}</p>
+          <div className="record-grid">
+            <div>
+              <span>Status</span>
+              <strong>{selectedDrawing.status.replaceAll('_', ' ')}</strong>
+            </div>
+            <div>
+              <span>Issued</span>
+              <strong>{selectedDrawing.issue_date ?? 'Not issued'}</strong>
+            </div>
+            <div>
+              <span>Discipline</span>
+              <strong>{selectedDrawing.discipline ?? 'Unspecified'}</strong>
+            </div>
+            <div>
+              <span>Original</span>
+              <strong>{selectedDrawing.has_original ? 'Retained' : 'Metadata only'}</strong>
+            </div>
+          </div>
+          <p className="settings-empty">
+            Linked transmittals:{' '}
+            {record?.transmittals.filter((item) => item.document_ids.includes(selectedDrawing.id))
+              .length ?? 0}
+            .
+          </p>
+          {selectedDrawing.has_original && (
+            <button className="button-primary" onClick={() => openDrawing(selectedDrawing)}>
+              Open review &amp; markup
+            </button>
+          )}
+        </section>
+      )}
       {openError && <p className="drawing-open-error">{openError}</p>}
       {preview && (
         <section
