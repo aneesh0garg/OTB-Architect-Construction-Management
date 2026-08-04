@@ -65,7 +65,7 @@ class TaskStatusDto {
   @IsIn(['in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
 }
 class CreateDocumentDto {
-  @IsString() @MinLength(2) @MaxLength(48) documentNumber!: string;
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(48) documentNumber?: string;
   @IsIn(['drawing', 'specification', 'report', 'contract', 'photo', 'other']) documentType!: string;
   @IsString() @MinLength(2) @MaxLength(240) title!: string;
   @IsString() @MinLength(1) @MaxLength(24) revision!: string;
@@ -76,6 +76,8 @@ class CreateDocumentDto {
   @IsOptional() @IsString() @MaxLength(80) floor?: string;
   @IsOptional() @IsString() @MaxLength(120) zone?: string;
   @IsOptional() @IsString() @MaxLength(160) uploadId?: string;
+  @IsOptional() @IsString() @MaxLength(160) supersedesDocumentId?: string;
+  @IsOptional() @IsString() @MaxLength(160) clientRequestId?: string;
 }
 class CreateDocumentAnnotationDto {
   @IsString() @MinLength(1) @MaxLength(4000) body!: string;

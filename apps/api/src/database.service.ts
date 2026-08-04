@@ -230,6 +230,14 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS document_review_events_document_idx ON document_review_events (document_id, created_at DESC);
     `,
   },
+  {
+    id: '0019_document_server_ids',
+    sql: `
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS client_request_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS document_revisions_idempotency_idx ON document_revisions (organization_id, client_request_id) WHERE client_request_id IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS project_document_counters (project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, document_type TEXT NOT NULL, next_number INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (project_id, document_type));
+    `,
+  },
 ];
 
 @Injectable()

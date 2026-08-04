@@ -438,7 +438,31 @@ export class WorkspaceService {
       'project_member',
     ]);
     const project = await this.projectForActor(actor, projectId);
-    const number = this.requiredText(input.documentNumber, 'Document number').toUpperCase();
+    if (input.clientRequestId) {
+      const existing = await this.pool.query<DocumentRow>(
+        `SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original FROM document_revisions WHERE organization_id = $1 AND client_request_id = $2`,
+        [actor.organizationId, input.clientRequestId],
+      );
+      if (existing.rows[0]) return existing.rows[0];
+    }
+    const superseded = input.supersedesDocumentId
+      ? this.resultRow(
+          (
+            await this.pool.query<DocumentRow>(
+              `SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original FROM document_revisions WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
+              [input.supersedesDocumentId, project.id, actor.organizationId],
+            )
+          ).rows,
+          'The selected revision is unavailable.',
+        )
+      : undefined;
+    if (superseded && superseded.document_type !== input.documentType)
+      throw new BadRequestException('A superseding revision must use the same document type.');
+    const number =
+      superseded?.document_number ??
+      (input.documentNumber?.trim()
+        ? this.requiredText(input.documentNumber, 'Document number').toUpperCase()
+        : await this.nextDocumentNumber(project.id, input.documentType));
     const upload = input.uploadId
       ? await this.uploads.consume(actor, projectId, input.uploadId)
       : { storageKey: null, checksumSha256: null };
@@ -449,8 +473,8 @@ export class WorkspaceService {
       );
     const document = await this.pool.query<DocumentRow>(
       `INSERT INTO document_revisions (organization_id, project_id, document_number, document_type,
-        title, revision, status, issue_date, discipline, building, floor, zone, storage_key, content_sha256, issuer_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        title, revision, status, issue_date, discipline, building, floor, zone, storage_key, content_sha256, issuer_id, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id, document_number, document_type, title, revision, status, issue_date,
          discipline, building, floor, zone, content_sha256`,
       [
@@ -469,6 +493,7 @@ export class WorkspaceService {
         upload.storageKey,
         upload.checksumSha256,
         actor.userId,
+        input.clientRequestId?.trim() || null,
       ],
     );
     const created = this.resultRow(document.rows, 'Document revision could not be created.');
@@ -478,6 +503,24 @@ export class WorkspaceService {
       revision: created.revision,
     });
     return created;
+  }
+  private async nextDocumentNumber(projectId: string, documentType: string) {
+    const result = await this.pool.query<{ number: number }>(
+      `INSERT INTO project_document_counters (project_id, document_type, next_number) VALUES ($1, $2, 2)
+       ON CONFLICT (project_id, document_type) DO UPDATE SET next_number = project_document_counters.next_number + 1
+       RETURNING next_number - 1 AS number`,
+      [projectId, documentType],
+    );
+    const prefix =
+      {
+        drawing: 'DRW',
+        specification: 'SPC',
+        report: 'RPT',
+        contract: 'CON',
+        photo: 'PHO',
+        other: 'DOC',
+      }[documentType] ?? 'DOC';
+    return `${prefix}-${String(result.rows[0]?.number ?? 1).padStart(4, '0')}`;
   }
   async issueDocumentRevision(actor: AuthenticatedActor, projectId: string, documentId: string) {
     this.requireRole(actor, [
@@ -868,7 +911,7 @@ export interface CreateTaskInput {
   sourceRecordId?: string;
 }
 export interface CreateDocumentInput {
-  documentNumber: string;
+  documentNumber?: string;
   documentType: string;
   title: string;
   revision: string;
@@ -879,6 +922,8 @@ export interface CreateDocumentInput {
   floor?: string;
   zone?: string;
   uploadId?: string;
+  supersedesDocumentId?: string;
+  clientRequestId?: string;
 }
 export interface CreateDocumentAnnotationInput {
   body: string;

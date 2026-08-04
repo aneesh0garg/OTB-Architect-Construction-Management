@@ -500,10 +500,11 @@ export async function uploadProjectDocument(
   projectId: string,
   file: File,
   input: {
-    documentNumber: string;
     documentType: 'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other';
     title: string;
     revision: string;
+    supersedesDocumentId?: string;
+    clientRequestId: string;
   },
 ) {
   const prepared = await apiPost<{ uploadId: string; uploadUrl: string }>(

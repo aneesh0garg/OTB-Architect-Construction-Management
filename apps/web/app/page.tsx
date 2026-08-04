@@ -1859,6 +1859,7 @@ function Documents({
     'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
   >('drawing');
   const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
+  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
   const [transmittalPurpose, setTransmittalPurpose] = useState('Construction issue');
   const [transmittalRecipients, setTransmittalRecipients] = useState('');
   const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
@@ -1896,14 +1897,16 @@ function Documents({
     setMessage(undefined);
     try {
       await uploadProjectDocument(record.project.id, file, {
-        documentNumber,
         documentType,
         title: title.trim(),
         revision: revision.trim(),
+        ...(supersedesDocumentId ? { supersedesDocumentId } : {}),
+        clientRequestId,
       });
       setFile(undefined);
       setTitle('');
       setSupersedesDocumentId('');
+      setClientRequestId(crypto.randomUUID());
       await onChanged();
       setMessage('Document revision uploaded and added to the controlled record.');
     } catch (error) {
@@ -2014,7 +2017,11 @@ function Documents({
             </label>
             <label>
               Document number
-              <input value={documentNumber} readOnly aria-label="Generated document number" />
+              <input
+                value={selectedPrior?.document_number ?? 'Assigned by server on save'}
+                readOnly
+                aria-label="Server-assigned document number"
+              />
             </label>
             <label>
               Title
