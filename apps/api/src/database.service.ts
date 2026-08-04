@@ -59,6 +59,13 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS cost_change_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, code TEXT NOT NULL, description TEXT NOT NULL, amount NUMERIC(14,2) NOT NULL, status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, code));
     `,
   },
+  {
+    id: '0005_people_and_capacity',
+    sql: `
+      CREATE TABLE IF NOT EXISTS people (organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id TEXT NOT NULL, display_name TEXT NOT NULL, title TEXT, weekly_capacity_hours REAL NOT NULL DEFAULT 40, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (organization_id, user_id));
+      CREATE TABLE IF NOT EXISTS team_members (team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE, organization_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (team_id, user_id));
+    `,
+  },
 ];
 
 @Injectable()

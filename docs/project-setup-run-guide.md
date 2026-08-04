@@ -189,6 +189,20 @@ baseline budgets, approved commitments, and approved change events produce an
 explicit forecast-at-completion and variance. This keeps Phase 1 useful for
 project cost control without becoming a payroll or general-contractor ERP.
 
+## P1.3 people and capacity API
+
+| Endpoint                                                   | Purpose                                                                             |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `GET /v1/resources/people`                                 | Read the tenant’s people directory.                                                 |
+| `POST /v1/resources/people`                                | Create or update a person’s display name, title, active state, and weekly capacity. |
+| `POST /v1/resources/team-members`                          | Assign a registered person to an existing team.                                     |
+| `GET /v1/resources/capacity?from=YYYY-MM-DD&to=YYYY-MM-DD` | Compare each person’s date-range capacity with overlapping planned allocations.     |
+
+Only organization administrators, principals, and project managers can change
+the people directory or team assignments. Capacity remains transparent: it is
+calculated from the person’s stated weekly hours and scheduled allocations, not
+from hidden utilization assumptions.
+
 ## P1.4 governed Project Brain
 
 Project Brain is disabled by default. An organization administrator or principal

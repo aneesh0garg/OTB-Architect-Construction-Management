@@ -43,6 +43,12 @@ async function api(method, path, body) {
 
 await api('GET', '/health');
 await api('POST', '/v1/workspace/organization', { name: 'Orbita Phase 1 Smoke' });
+const person = await api('POST', '/v1/resources/people', {
+  userId: `smoke-person-${runId}`,
+  displayName: `Smoke resource ${runId}`,
+  title: 'Project director',
+  weeklyCapacityHours: 40,
+});
 const project = await api('POST', '/v1/workspace/projects', {
   code: `SMK-${runId}`,
   name: `Phase 1 smoke ${runId}`,
@@ -135,6 +141,15 @@ const phase = await api('POST', `/v1/projects/${project.id}/finance/phases`, {
   plannedFee: 250000,
   targetHours: 120,
 });
+await api('POST', `/v1/projects/${project.id}/finance/allocations`, {
+  phaseId: phase.id,
+  staffId: person.user_id,
+  startsOn: '2026-08-04',
+  endsOn: '2026-08-10',
+  plannedHours: 28,
+});
+const capacity = await api('GET', '/v1/resources/capacity?from=2026-08-04&to=2026-08-10');
+assert.equal(capacity.people.find((item) => item.user_id === person.user_id)?.allocatedHours, 28);
 await api('POST', `/v1/projects/${project.id}/finance/budgets`, {
   costCode: 'CIV-100',
   name: 'Civil works baseline',
@@ -241,6 +256,12 @@ for (const action of [
     `Audit event ${action} was not recorded.`,
   );
 }
+const organizationAudit = await api('GET', '/v1/workspace/audit');
+assert.equal(
+  organizationAudit.some((event) => event.action === 'resource.person_saved'),
+  true,
+  'People directory change was not recorded in organization audit.',
+);
 const closedProject = await api('POST', `${projectPath}/status`, { status: 'closed' });
 assert.equal(closedProject.status, 'closed', 'Project did not transition to closed.');
 assert.ok(closedProject.retention_until, 'Closing a project did not set the retention date.');

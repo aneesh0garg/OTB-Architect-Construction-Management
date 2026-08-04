@@ -17,6 +17,8 @@ import { ProjectAccessService } from './project-access.service.js';
 import { AuditService } from './audit.service.js';
 import { ProjectSearchController } from './project-search.controller.js';
 import { ProjectSearchService } from './project-search.service.js';
+import { ResourceController } from './resource.controller.js';
+import { ResourceService } from './resource.service.js';
 
 @Module({
   controllers: [
@@ -28,12 +30,14 @@ import { ProjectSearchService } from './project-search.service.js';
     AiController,
     GmailController,
     ProjectSearchController,
+    ResourceController,
   ],
   providers: [
     DatabaseService,
     ProjectAccessService,
     AuditService,
     ProjectSearchService,
+    ResourceService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,
