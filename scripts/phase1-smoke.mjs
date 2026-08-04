@@ -575,6 +575,11 @@ assert.equal(
 );
 assert.equal(projectPackage.project.id, project.id, 'Project package has the wrong project.');
 assert.equal(
+  projectPackage.transmittals.some((item) => item.id === transmittal.id),
+  true,
+  'Project package does not include the transmittal receipt.',
+);
+assert.equal(
   projectPackage.documents.some((item) => item.storage_key !== undefined),
   false,
 );
