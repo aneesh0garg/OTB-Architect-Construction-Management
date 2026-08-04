@@ -1034,6 +1034,8 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
         ) : (
           <>
             <p className="people-dialog-copy">First add an organization member and set their organization role. Then assign that member to a project, where their project responsibility is chosen separately.</p>
+            <section className="staffing-action-section" aria-labelledby="organization-member-heading">
+            <div className="staffing-action-heading"><p className="eyebrow">STEP 1 · ORGANIZATION DIRECTORY</p><h3 id="organization-member-heading">Add organization member</h3><p>This creates or updates a directory member and their organization role. It does not grant project access.</p></div>
             <form className="inline-form staffing-form" onSubmit={savePerson}>
               <label>
                 User ID
@@ -1069,11 +1071,11 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 </select>
               </label>
               <button className="button-primary" disabled={saving} type="submit">
-                Save person
+                Save organization member
               </button>
             </form>
-            {record && <form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
-              <p><strong>Project staffing</strong><br />Assign an organization member to <b>{record.project.code} · {record.project.name}</b>.</p>
+            </section>
+            {record && <section className="staffing-action-section" aria-labelledby="project-staffing-heading"><div className="staffing-action-heading"><p className="eyebrow">STEP 2 · PROJECT STAFFING</p><h3 id="project-staffing-heading">Assign member to project</h3><p>Assign an existing active organization member to <b>{record.project.code} · {record.project.name}</b>. This grants project-team membership; it does not change their organization role.</p></div><form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
               <label>
                 Organization member
                 <select aria-label="Organization member" value={projectMemberId} onChange={(event) => setProjectMemberId(event.target.value)} required>
@@ -1088,7 +1090,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 </select>
               </label>
               <button className="button-primary" disabled={saving} type="submit">Assign to project team</button>
-            </form>}
+            </form></section>}
             {teams.length > 0 && people.length > 0 && (
               <form className="inline-form staffing-form" onSubmit={assign}>
                 <label>

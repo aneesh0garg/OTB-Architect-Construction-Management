@@ -1243,6 +1243,29 @@ small {
   color: var(--muted);
   font-size: 0.85rem;
 }
+.staffing-action-section {
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+}
+.staffing-action-heading {
+  margin-bottom: 12px;
+}
+.staffing-action-heading h3,
+.staffing-action-heading p {
+  margin: 0;
+}
+.staffing-action-heading h3 {
+  margin-top: 3px;
+  font-size: 15px;
+}
+.staffing-action-heading p:last-child {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .people-form {
   grid-template-columns: 1.2fr 1fr auto;
   align-items: end;
