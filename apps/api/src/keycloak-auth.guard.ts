@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { platformRoles, type AuthenticatedActor, type PlatformRole } from '@orbita/contracts';
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify, type JWTPayload } from 'jose';
 
 type KeycloakPayload = JWTPayload & {
   realm_access?: { roles?: string[] };
@@ -19,9 +19,10 @@ export class KeycloakAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.bearerToken(request.headers.authorization);
-    const issuer = process.env.KEYCLOAK_ISSUER;
-    if (!token || !issuer)
+    const issuers = this.trustedIssuers();
+    if (!token || issuers.length === 0)
       throw new UnauthorizedException('A bearer token and Keycloak issuer are required.');
+    const issuer = this.tokenIssuer(token, issuers);
     const keys = createRemoteJWKSet(new URL(`${issuer}/protocol/openid-connect/certs`));
     const { payload } = await jwtVerify<KeycloakPayload>(token, keys, { issuer });
     const roles = (payload.realm_access?.roles ?? []).filter((role): role is PlatformRole =>
@@ -44,5 +45,20 @@ export class KeycloakAuthGuard implements CanActivate {
   private bearerToken(header: string | string[] | undefined): string | undefined {
     const value = Array.isArray(header) ? header[0] : header;
     return value?.startsWith('Bearer ') ? value.slice(7) : undefined;
+  }
+
+  private trustedIssuers(): string[] {
+    const configured = process.env.KEYCLOAK_ISSUERS ?? process.env.KEYCLOAK_ISSUER;
+    return configured?.split(',').map((issuer) => issuer.trim()).filter(Boolean) ?? [];
+  }
+
+  private tokenIssuer(token: string, trustedIssuers: string[]): string {
+    try {
+      const issuer = decodeJwt(token).iss;
+      if (typeof issuer === 'string' && trustedIssuers.includes(issuer)) return issuer;
+    } catch {
+      // jwtVerify below would reject this too, but report an authorization error consistently.
+    }
+    throw new UnauthorizedException('The token issuer is not trusted.');
   }
 }
