@@ -22,6 +22,7 @@ import {
   searchProjectBrain,
   createProjectBrainDraft,
   createDocumentAnnotation,
+  createFieldObservation,
   createProjectTask,
   createProjectBudget,
   createProjectCommitment,
@@ -503,7 +504,16 @@ export default function Home() {
             />
           )}
           {view === 'drawings' && <Drawings record={projectRecord} onNavigate={setView} />}
-          {view === 'field' && <FieldMobile execution={executionRegister} />}
+          {view === 'field' && (
+            <FieldMobile
+              execution={executionRegister}
+              record={projectRecord}
+              signedIn={Boolean(viewer)}
+              onChanged={() =>
+                projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+              }
+            />
+          )}
           {view === 'documents' && (
             <Documents
               record={projectRecord}
@@ -2709,8 +2719,45 @@ function Drawings({
   );
 }
 
-function FieldMobile({ execution }: { execution: ExecutionRegister | undefined }) {
+function FieldMobile({
+  execution,
+  record,
+  signedIn,
+  onChanged,
+}: {
+  execution: ExecutionRegister | undefined;
+  record: ProjectRecord | undefined;
+  signedIn: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const items = execution?.observations ?? workspaceData.activeProject.field;
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [location, setLocation] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const capture = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createFieldObservation(record.project.id, {
+        title: title.trim(),
+        priority,
+        ...(location.trim() ? { location: location.trim() } : {}),
+      });
+      setTitle('');
+      setLocation('');
+      await onChanged();
+      setCaptureOpen(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Observation could not be captured.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="field-page">
       <div className="field-explainer">
@@ -2758,7 +2805,9 @@ function FieldMobile({ execution }: { execution: ExecutionRegister | undefined }
             </article>
           ))}
         </div>
-        <button className="capture-button">＋ Capture observation</button>
+        <button className="capture-button" onClick={() => setCaptureOpen(true)}>
+          ＋ Capture observation
+        </button>
         <div className="phone-nav">
           <span>
             ⌂<small>Home</small>
@@ -2774,6 +2823,62 @@ function FieldMobile({ execution }: { execution: ExecutionRegister | undefined }
           </span>
         </div>
       </section>
+      {captureOpen && (
+        <div className="dialog-backdrop" role="presentation">
+          <section
+            className="modal-card"
+            role="dialog"
+            aria-label="Capture field observation"
+            aria-modal="true"
+          >
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">FIELD CAPTURE</p>
+                <h2>New observation</h2>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Close field observation"
+                onClick={() => setCaptureOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {!signedIn ? (
+              <p className="settings-empty">Sign in to capture a project observation.</p>
+            ) : (
+              <form className="modal-form" onSubmit={capture}>
+                <label>
+                  Title
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    minLength={2}
+                    required
+                  />
+                </label>
+                <label>
+                  Location
+                  <input value={location} onChange={(event) => setLocation(event.target.value)} />
+                </label>
+                <label>
+                  Priority
+                  <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                {message && <p className="form-message">{message}</p>}
+                <button className="button-primary" disabled={saving} type="submit">
+                  Capture observation
+                </button>
+              </form>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

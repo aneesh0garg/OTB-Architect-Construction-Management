@@ -327,6 +327,10 @@ export const transitionWorkspaceProjectStatus = (projectId: string, status: stri
   apiPost(`/v1/workspace/projects/${projectId}/status`, { status });
 export const transitionWorkspaceProjectStage = (projectId: string, stage: string) =>
   apiPost(`/v1/workspace/projects/${projectId}/stage`, { stage });
+export const createFieldObservation = (
+  projectId: string,
+  input: { title: string; location?: string; priority?: string },
+) => apiPost(`/v1/projects/${projectId}/observations`, input);
 export const createWorkspaceTeam = (name: string) => apiPost('/v1/workspace/teams', { name });
 export const createWorkspaceProject = (input: {
   code: string;
