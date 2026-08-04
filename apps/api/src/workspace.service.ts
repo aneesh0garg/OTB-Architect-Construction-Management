@@ -970,6 +970,18 @@ export class WorkspaceService {
       'INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
       [actor.organizationId, actor.organizationId],
     );
+    await this.pool.query(
+      `INSERT INTO people (organization_id, user_id, display_name, organization_role)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (organization_id, user_id) DO UPDATE SET
+         display_name = CASE WHEN people.display_name = people.user_id THEN EXCLUDED.display_name ELSE people.display_name END`,
+      [
+        actor.organizationId,
+        actor.userId,
+        actor.displayName?.trim() || actor.userId,
+        actor.roles[0] ?? 'project_member',
+      ],
+    );
   }
   private async projectMembers(projectId: string, organizationId: string) {
     const members = await this.pool.query<ProjectMemberRow>(
@@ -1006,6 +1018,7 @@ export class WorkspaceService {
     return this.resultRow(task.rows, 'Task is unavailable.');
   }
   private async projectForActor(actor: AuthenticatedActor, projectId: string) {
+    await this.ensureOrganization(actor);
     const result = await this.pool.query<ProjectRow>(
       'SELECT id, code, name, status, location, stage, closed_at, retention_until FROM projects WHERE id = $1 AND organization_id = $2',
       [projectId, actor.organizationId],

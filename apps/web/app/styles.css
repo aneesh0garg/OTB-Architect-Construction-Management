@@ -2276,11 +2276,18 @@ small {
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 9px;
-    min-height: 54px;
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--raised);
+    min-height: 42px;
+    padding: 4px 0;
+  }
+  .mobile-directory-list .team-member strong {
+    min-width: 0;
+  }
+  .mobile-directory-list .team-member strong a {
+    display: block;
+    overflow: hidden;
+    text-decoration: underline;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .mobile-directory-list .team-member > span:last-child {
     color: var(--muted);
