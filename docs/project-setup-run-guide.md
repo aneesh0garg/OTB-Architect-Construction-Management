@@ -157,6 +157,11 @@ returned `uploadUrl` with the declared `Content-Type`, complete the upload, and
 pass its `uploadId` to the document-revision endpoint. This prevents a caller
 from attaching an arbitrary storage key from another tenant or project.
 
+Document revisions support optional `discipline`, `building`, `floor`, and
+`zone` fields alongside their stable number, type, title, revision, status, and
+issue date. These fields make a drawing or report identifiable in a multi-level
+site context and remain attached to each immutable revision.
+
 In the web workspace, the enabled **Drawings** tab opens a file-backed drawing
 inside a controlled 2D viewer. It first requests the same permission-checked,
 five-minute signed URL shown above; the viewer never exposes a storage key and

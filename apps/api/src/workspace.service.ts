@@ -42,6 +42,10 @@ interface DocumentRow extends QueryResultRow {
   revision: string;
   status: string;
   issue_date: string | null;
+  discipline: string | null;
+  building: string | null;
+  floor: string | null;
+  zone: string | null;
 }
 interface CommunicationRow extends QueryResultRow {
   id: string;
@@ -259,7 +263,7 @@ export class WorkspaceService {
         [project.id],
       ),
       this.pool.query<DocumentRow>(
-        'SELECT id, document_number, document_type, title, revision, status, issue_date FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
+        'SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
         [project.id],
       ),
       this.pool.query<CommunicationRow>(
@@ -333,7 +337,11 @@ export class WorkspaceService {
         ['superseded', project.id, number, 'issued'],
       );
     const document = await this.pool.query<DocumentRow>(
-      'INSERT INTO document_revisions (organization_id, project_id, document_number, document_type, title, revision, status, issue_date, storage_key, issuer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, document_number, document_type, title, revision, status, issue_date',
+      `INSERT INTO document_revisions (organization_id, project_id, document_number, document_type,
+        title, revision, status, issue_date, discipline, building, floor, zone, storage_key, issuer_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id, document_number, document_type, title, revision, status, issue_date,
+         discipline, building, floor, zone`,
       [
         actor.organizationId,
         project.id,
@@ -343,6 +351,10 @@ export class WorkspaceService {
         this.requiredText(input.revision, 'Revision'),
         input.status ?? 'draft',
         input.issueDate ?? null,
+        input.discipline?.trim() || null,
+        input.building?.trim() || null,
+        input.floor?.trim() || null,
+        input.zone?.trim() || null,
         storageKey,
         actor.userId,
       ],
@@ -523,6 +535,10 @@ export interface CreateDocumentInput {
   revision: string;
   status?: string;
   issueDate?: string;
+  discipline?: string;
+  building?: string;
+  floor?: string;
+  zone?: string;
   uploadId?: string;
 }
 export interface FileCommunicationInput {

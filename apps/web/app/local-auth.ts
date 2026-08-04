@@ -35,6 +35,10 @@ export type ProjectRecord = {
     revision: string;
     status: string;
     issue_date: string | null;
+    discipline: string | null;
+    building: string | null;
+    floor: string | null;
+    zone: string | null;
   }[];
   communications: {
     id: string;

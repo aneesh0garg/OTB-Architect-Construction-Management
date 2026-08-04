@@ -167,6 +167,17 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS contact_projects_project_idx ON contact_projects (project_id);
     `,
   },
+  {
+    id: '0010_document_context_metadata',
+    sql: `
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS discipline TEXT;
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS building TEXT;
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS floor TEXT;
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS zone TEXT;
+      CREATE INDEX IF NOT EXISTS document_revisions_context_idx
+      ON document_revisions (project_id, discipline, building, floor, zone);
+    `,
+  },
 ];
 
 @Injectable()

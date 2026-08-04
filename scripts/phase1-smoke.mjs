@@ -237,6 +237,10 @@ await api('POST', `${projectPath}/documents`, {
   revision: 'A',
   status: 'issued',
   issueDate: '2026-08-04',
+  discipline: 'Architecture',
+  building: 'Tower A',
+  floor: 'Level 2',
+  zone: 'Facade east',
 });
 await api('POST', `${projectPath}/documents`, {
   documentNumber: `A-${runId}`,
@@ -420,6 +424,11 @@ assert.equal(
   projectRecord.documents.find((item) => item.revision === 'A')?.status,
   'superseded',
   'Issued document revision was not superseded.',
+);
+assert.equal(
+  projectRecord.documents.find((item) => item.revision === 'A')?.zone,
+  'Facade east',
+  'Drawing location metadata was not retained.',
 );
 const projectExport = await apiText(`/v1/projects/${project.id}/exports/project.csv`);
 assert.match(projectExport, /Facade observation/);

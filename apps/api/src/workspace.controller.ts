@@ -51,6 +51,10 @@ class CreateDocumentDto {
   @IsString() @MinLength(1) @MaxLength(24) revision!: string;
   @IsOptional() @IsIn(['draft', 'issued']) status?: string;
   @IsOptional() @IsISO8601() issueDate?: string;
+  @IsOptional() @IsString() @MaxLength(80) discipline?: string;
+  @IsOptional() @IsString() @MaxLength(120) building?: string;
+  @IsOptional() @IsString() @MaxLength(80) floor?: string;
+  @IsOptional() @IsString() @MaxLength(120) zone?: string;
   @IsOptional() @IsString() @MaxLength(160) uploadId?: string;
 }
 class CreateDocumentUploadDto {
