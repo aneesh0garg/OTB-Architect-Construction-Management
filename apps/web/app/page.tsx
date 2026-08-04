@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   beginLocalLogin,
+  loadCostControl,
   loadExecutionRegister,
   loadFinanceControl,
   loadConnectedWorkspace,
@@ -10,6 +11,7 @@ import {
   restoreLocalLogin,
   signOutLocal,
   type ConnectedWorkspace,
+  type CostControl,
   type ExecutionRegister,
   type FinanceControl,
   type ProjectRecord,
@@ -37,6 +39,7 @@ export default function Home() {
   const [connectedWorkspace, setConnectedWorkspace] = useState<ConnectedWorkspace>();
   const [projectRecord, setProjectRecord] = useState<ProjectRecord>();
   const [financeControl, setFinanceControl] = useState<FinanceControl>();
+  const [costControl, setCostControl] = useState<CostControl>();
   const [executionRegister, setExecutionRegister] = useState<ExecutionRegister>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
@@ -63,13 +66,15 @@ export default function Home() {
   }, []);
 
   async function loadProjectViews(projectId: string) {
-    const [record, finance, execution] = await Promise.all([
+    const [record, finance, cost, execution] = await Promise.all([
       loadProjectRecord(projectId),
       loadFinanceControl(projectId),
+      loadCostControl(projectId),
       loadExecutionRegister(projectId),
     ]);
     setProjectRecord(record);
     setFinanceControl(finance);
+    setCostControl(cost);
     setExecutionRegister(execution);
   }
 
@@ -273,7 +278,9 @@ export default function Home() {
             </button>
           ))}
         </nav>
-        {view === 'overview' && <Overview record={projectRecord} finance={financeControl} />}
+        {view === 'overview' && (
+          <Overview record={projectRecord} finance={financeControl} cost={costControl} />
+        )}
         {view === 'drawings' && <Drawings record={projectRecord} />}
         {view === 'field' && <FieldMobile execution={executionRegister} />}
       </section>
@@ -284,9 +291,11 @@ export default function Home() {
 function Overview({
   record,
   finance,
+  cost,
 }: {
   record: ProjectRecord | undefined;
   finance: FinanceControl | undefined;
+  cost: CostControl | undefined;
 }) {
   const project = workspaceData.activeProject;
   return (
@@ -423,6 +432,26 @@ function Overview({
           <div className="commercial-footer">
             <span className="finance-dot" /> <strong>{project.commercial.invoice}</strong>
             <small> GST-ready source lines and payment trace available</small>
+          </div>
+          <div className="cost-strip">
+            <div>
+              <span>Owner cost budget</span>
+              <strong>{cost ? `₹${cost.health.budget.toLocaleString('en-IN')}` : '—'}</strong>
+            </div>
+            <div>
+              <span>Forecast at completion</span>
+              <strong>
+                {cost ? `₹${cost.health.forecastAtCompletion.toLocaleString('en-IN')}` : '—'}
+              </strong>
+            </div>
+            <div>
+              <span>Forecast variance</span>
+              <strong
+                className={cost && cost.health.forecastVariance > 0 ? 'cost-alert' : undefined}
+              >
+                {cost ? `₹${cost.health.forecastVariance.toLocaleString('en-IN')}` : '—'}
+              </strong>
+            </div>
           </div>
         </section>
         <section className="content-card brain-card">

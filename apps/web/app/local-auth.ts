@@ -50,6 +50,16 @@ export type FinanceControl = {
     hoursBurn: number;
   };
 };
+export type CostControl = {
+  health: {
+    budget: number;
+    committed: number;
+    approvedChanges: number;
+    forecastAtCompletion: number;
+    uncommittedBudget: number;
+    forecastVariance: number;
+  };
+};
 export type ExecutionRegister = {
   observations: {
     id: string;
@@ -155,5 +165,7 @@ export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
 export const loadFinanceControl = (projectId: string) =>
   apiGet<FinanceControl>(`/v1/projects/${projectId}/finance`);
+export const loadCostControl = (projectId: string) =>
+  apiGet<CostControl>(`/v1/projects/${projectId}/finance/cost`);
 export const loadExecutionRegister = (projectId: string) =>
   apiGet<ExecutionRegister>(`/v1/projects/${projectId}/execution-register`);

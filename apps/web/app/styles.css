@@ -720,6 +720,29 @@ small {
   margin-left: auto;
   text-align: right;
 }
+.cost-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.cost-strip span,
+.cost-strip strong {
+  display: block;
+}
+.cost-strip span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.cost-strip strong {
+  margin-top: 4px;
+  font-size: 13px;
+}
+.cost-alert {
+  color: #b7513d;
+}
 .finance-dot {
   width: 7px;
   height: 7px;
@@ -1071,6 +1094,9 @@ small {
     grid-template-columns: 1fr;
   }
   .commercial-metrics {
+    grid-template-columns: 1fr;
+  }
+  .cost-strip {
     grid-template-columns: 1fr;
   }
   .commercial-metrics > div + div {
