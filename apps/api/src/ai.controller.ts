@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AiService } from './ai.service.js';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 class AiSettingsDto {
@@ -24,6 +24,11 @@ class AiDraftDto {
     | 'document_classification'
     | 'record_search';
   @IsString() @MinLength(2) @MaxLength(6000) prompt!: string;
+}
+class AiFeedbackDto {
+  @IsIn(['correct', 'incorrect', 'incomplete', 'unsafe', 'not_useful']) rating!:
+    'correct' | 'incorrect' | 'incomplete' | 'unsafe' | 'not_useful';
+  @IsOptional() @IsString() @MaxLength(4000) correction?: string;
 }
 @Controller('v1')
 @UseGuards(KeycloakAuthGuard)
@@ -65,6 +70,14 @@ export class AiController {
     @Param('draftId') draftId: string,
   ) {
     return this.ai.rejectDraft(request.actor!, projectId, draftId);
+  }
+  @Post('projects/:projectId/brain/drafts/:draftId/feedback') feedback(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('draftId') draftId: string,
+    @Body() body: AiFeedbackDto,
+  ) {
+    return this.ai.recordFeedback(request.actor!, projectId, draftId, body);
   }
   @Delete('projects/:projectId/brain/drafts/:draftId') deleteDraft(
     @Req() request: AuthenticatedRequest,

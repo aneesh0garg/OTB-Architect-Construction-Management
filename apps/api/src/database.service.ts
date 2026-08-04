@@ -185,6 +185,12 @@ const migrations: Migration[] = [
       ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS content_sha256 TEXT;
     `,
   },
+  {
+    id: '0012_ai_feedback',
+    sql: `
+      CREATE TABLE IF NOT EXISTS ai_feedback (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, draft_id UUID NOT NULL REFERENCES ai_drafts(id) ON DELETE CASCADE, actor_id TEXT NOT NULL, rating TEXT NOT NULL, correction TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (draft_id, actor_id));
+    `,
+  },
 ];
 
 @Injectable()

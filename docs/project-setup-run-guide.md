@@ -357,14 +357,15 @@ curl -X POST http://localhost:3001/v1/ai/settings \
   -d '{"enabled":true}'
 ```
 
-| Endpoint                                                     | Purpose                                                                                                                                                        |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/projects/:projectId/brain/search?q=...`             | Permission-aware retrieval from filed communications, document revisions, workflow records, observations, and tasks, with source citations.                    |
-| `POST /v1/projects/:projectId/brain/drafts`                  | Create an evidence-backed, review-required RFI, site report, meeting-minutes, risk-summary, submittal-review, document-classification, or record-search draft. |
-| `POST /v1/projects/:projectId/brain/drafts/:draftId/approve` | Record explicit human approval. Approval does not itself issue a contractual project record.                                                                   |
-| `POST /v1/projects/:projectId/brain/drafts/:draftId/reject`  | Record explicit human rejection; a reviewed draft cannot be issued by this endpoint.                                                                           |
-| `GET /v1/ai/records/export`                                  | Administrator-only export of organization AI settings, drafts, and audit events in `orbita-ai-records/v1` JSON.                                                |
-| `DELETE /v1/projects/:projectId/brain/drafts/:draftId`       | Administrator-only deletion of a generated draft; deletion audit evidence is retained.                                                                         |
+| Endpoint                                                      | Purpose                                                                                                                                                        |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/projects/:projectId/brain/search?q=...`              | Permission-aware retrieval from filed communications, document revisions, workflow records, observations, and tasks, with source citations.                    |
+| `POST /v1/projects/:projectId/brain/drafts`                   | Create an evidence-backed, review-required RFI, site report, meeting-minutes, risk-summary, submittal-review, document-classification, or record-search draft. |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/feedback` | Record a user judgment (`correct`, `incorrect`, `incomplete`, `unsafe`, or `not_useful`) and optional correction for an AI draft.                              |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/approve`  | Record explicit human approval. Approval does not itself issue a contractual project record.                                                                   |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/reject`   | Record explicit human rejection; a reviewed draft cannot be issued by this endpoint.                                                                           |
+| `GET /v1/ai/records/export`                                   | Administrator-only export of organization AI settings, drafts, and audit events in `orbita-ai-records/v1` JSON.                                                |
+| `DELETE /v1/projects/:projectId/brain/drafts/:draftId`        | Administrator-only deletion of a generated draft; deletion audit evidence is retained.                                                                         |
 
 The current local implementation produces cited review briefs without sending
 customer data to an external model provider. It records setting changes,

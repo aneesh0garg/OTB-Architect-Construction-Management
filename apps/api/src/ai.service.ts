@@ -23,6 +23,12 @@ interface DraftRow extends QueryResultRow {
   status: string;
   model: string;
 }
+interface FeedbackRow extends QueryResultRow {
+  id: string;
+  draft_id: string;
+  rating: string;
+  correction: string | null;
+}
 
 @Injectable()
 export class AiService {
@@ -102,15 +108,54 @@ export class AiService {
     await this.audit(actor, projectId, 'ai.draft_rejected', { draftId });
     return draft;
   }
+  async recordFeedback(
+    actor: AuthenticatedActor,
+    projectId: string,
+    draftId: string,
+    input: AiFeedbackInput,
+  ) {
+    await this.authorizeProject(actor, projectId);
+    const draft = await this.pool.query<DraftRow>(
+      'SELECT id, intent, content, citations, status, model FROM ai_drafts WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [draftId, projectId, actor.organizationId],
+    );
+    row(draft.rows, 'AI draft is unavailable.');
+    const result = await this.pool.query<FeedbackRow>(
+      `INSERT INTO ai_feedback (organization_id, project_id, draft_id, actor_id, rating, correction)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (draft_id, actor_id) DO UPDATE SET rating = EXCLUDED.rating, correction = EXCLUDED.correction, created_at = NOW()
+       RETURNING id, draft_id, rating, correction`,
+      [
+        actor.organizationId,
+        projectId,
+        draftId,
+        actor.userId,
+        input.rating,
+        input.correction?.trim() || null,
+      ],
+    );
+    const feedback = row(result.rows, 'AI feedback could not be recorded.');
+    await this.audit(actor, projectId, 'ai.feedback_recorded', {
+      draftId,
+      rating: feedback.rating,
+      hasCorrection: Boolean(feedback.correction),
+    });
+    return feedback;
+  }
   async exportRecords(actor: AuthenticatedActor) {
     this.requireAdmin(actor);
-    const [settings, drafts, events] = await Promise.all([
+    const [settings, drafts, feedback, events] = await Promise.all([
       this.pool.query<SettingRow>('SELECT enabled FROM ai_settings WHERE organization_id = $1', [
         actor.organizationId,
       ]),
       this.pool.query<DraftRow>(
         `SELECT id, intent, content, citations, status, model
          FROM ai_drafts WHERE organization_id = $1 ORDER BY created_at`,
+        [actor.organizationId],
+      ),
+      this.pool.query<QueryResultRow>(
+        `SELECT id, project_id, draft_id, actor_id, rating, correction, created_at
+         FROM ai_feedback WHERE organization_id = $1 ORDER BY created_at`,
         [actor.organizationId],
       ),
       this.pool.query<QueryResultRow>(
@@ -121,6 +166,7 @@ export class AiService {
     ]);
     await this.audit(actor, undefined, 'ai.records_exported', {
       draftCount: drafts.rows.length,
+      feedbackCount: feedback.rows.length,
       eventCount: events.rows.length,
     });
     return {
@@ -128,6 +174,7 @@ export class AiService {
       exportedAt: new Date().toISOString(),
       settings: settings.rows[0] ?? { enabled: false },
       drafts: drafts.rows,
+      feedback: feedback.rows,
       events: events.rows,
     };
   }
@@ -204,6 +251,10 @@ export interface CreateDraftInput {
     | 'document_classification'
     | 'record_search';
   prompt: string;
+}
+export interface AiFeedbackInput {
+  rating: 'correct' | 'incorrect' | 'incomplete' | 'unsafe' | 'not_useful';
+  correction?: string;
 }
 const row = <T extends QueryResultRow>(rows: T[], message: string) => {
   const value = rows[0];

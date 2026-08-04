@@ -494,6 +494,11 @@ const approvedDraft = await api(
   `/v1/projects/${project.id}/brain/drafts/${draft.id}/approve`,
 );
 assert.equal(approvedDraft.status, 'approved');
+const feedback = await api('POST', `/v1/projects/${project.id}/brain/drafts/${draft.id}/feedback`, {
+  rating: 'incomplete',
+  correction: 'Include the façade drawing revision in the response.',
+});
+assert.equal(feedback.rating, 'incomplete', 'AI feedback was not retained.');
 const classificationDraft = await api('POST', `/v1/projects/${project.id}/brain/drafts`, {
   intent: 'document_classification',
   prompt: `Classify the smoke facade report ${runId}`,
@@ -513,6 +518,11 @@ assert.equal(
   aiExport.drafts.some((item) => item.id === disposableDraft.id),
   true,
   'AI records export omits the generated draft.',
+);
+assert.equal(
+  aiExport.feedback.some((item) => item.draft_id === draft.id && item.rating === 'incomplete'),
+  true,
+  'AI records export omits the recorded feedback.',
 );
 const deletedDraft = await api(
   'DELETE',
