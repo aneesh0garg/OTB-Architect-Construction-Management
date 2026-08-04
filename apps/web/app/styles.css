@@ -832,6 +832,9 @@ small {
   align-items: end;
   margin: 0 0 16px;
 }
+.task-form {
+  grid-template-columns: minmax(0, 1fr) 140px 150px 170px auto;
+}
 
 .document-form {
   display: grid;

@@ -2293,6 +2293,8 @@ function Tasks({
   const tasks = record?.tasks ?? [];
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState('normal');
+  const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
 
@@ -2302,8 +2304,15 @@ function Tasks({
     setSaving(true);
     setMessage(undefined);
     try {
-      await createProjectTask(record.project.id, { title: title.trim(), priority });
+      await createProjectTask(record.project.id, {
+        title: title.trim(),
+        priority,
+        ...(dueDate ? { dueDate } : {}),
+        ...(assigneeId ? { assigneeId } : {}),
+      });
       setTitle('');
+      setDueDate('');
+      setAssigneeId('');
       await onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Task could not be created.');
@@ -2343,7 +2352,7 @@ function Tasks({
           <span>{tasks.length} tasks</span>
         </div>
         {signedIn && record && (
-          <form className="inline-form" onSubmit={createTask}>
+          <form className="inline-form task-form" onSubmit={createTask}>
             <label>
               New task
               <input value={title} onChange={(event) => setTitle(event.target.value)} required />
@@ -2355,6 +2364,30 @@ function Tasks({
                 <option value="normal">Normal</option>
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
+              </select>
+            </label>
+            <label>
+              Due date
+              <input
+                aria-label="Task due date"
+                type="date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Assignee
+              <select
+                aria-label="Task assignee"
+                value={assigneeId}
+                onChange={(event) => setAssigneeId(event.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {(record.members ?? []).map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.display_name ?? member.user_id}
+                  </option>
+                ))}
               </select>
             </label>
             <button className="button-primary" disabled={saving} type="submit">

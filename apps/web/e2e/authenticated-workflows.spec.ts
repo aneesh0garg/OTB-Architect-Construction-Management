@@ -18,6 +18,10 @@ test.describe('authenticated workspace workflows', () => {
     await page.getByTestId('project-tab-tasks').click();
     const title = `UI task ${Date.now()}`;
     await page.getByLabel('New task').fill(title);
+    await page.getByLabel('Task due date').fill('2026-12-31');
+    const assignee = page.getByLabel('Task assignee');
+    const assigneeOptions = await assignee.locator('option').count();
+    if (assigneeOptions > 1) await assignee.selectOption({ index: 1 });
     await page.getByRole('button', { name: 'Add task' }).click();
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   });
