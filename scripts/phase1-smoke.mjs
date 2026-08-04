@@ -424,6 +424,16 @@ const repeatedCommunication = await api('POST', `${projectPath}/communications`,
   sourceMessageId: `smoke-message-${runId}`,
 });
 assert.equal(repeatedCommunication.id, communication.id, 'Email filing was not idempotent.');
+const communicationFollowUp = await api('POST', `${projectPath}/communications`, {
+  channel: 'manual_note',
+  direction: 'internal',
+  subject: `Facade coordination ${runId}`,
+  body: 'Design lead will confirm the cavity depth before issuance.',
+  sender: identity.displayName,
+  recipients: ['pilot-admin@local.orbita'],
+  threadId: communication.id,
+});
+assert.equal(communicationFollowUp.thread_id, communication.id, 'Communication thread was not retained.');
 
 const captureId = `smoke-capture-${runId}`;
 const observation = await api('POST', `/v1/projects/${project.id}/observations`, {

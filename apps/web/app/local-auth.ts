@@ -84,6 +84,7 @@ export type ProjectRecord = {
     body: string;
     sender: string;
     recipients: string[];
+    thread_id: string | null;
     filed_at: string;
   }[];
   members: {
@@ -610,6 +611,7 @@ export const fileProjectCommunication = (
     body: string;
     sender: string;
     recipients: string[];
+    threadId?: string;
   },
 ) => apiPost(`/v1/workspace/projects/${projectId}/communications`, input);
 export const loadFinanceControl = (projectId: string) =>

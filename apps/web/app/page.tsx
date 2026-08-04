@@ -2420,6 +2420,7 @@ function Communications({
                 </span>
                 <p>{message.body}</p>
                 <small>Filed {new Date(message.filed_at).toLocaleString()}</small>
+                <button className="button-secondary record-action" onClick={() => record && window.location.assign(`/projects/${record.project.id}/communications/${message.id}`)}>Open conversation</button>
               </article>
             ))
           ) : (
