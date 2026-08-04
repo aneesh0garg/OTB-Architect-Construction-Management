@@ -629,7 +629,7 @@ export default function Home() {
         <PipelineDialog signedIn={Boolean(viewer)} onClose={() => setPipelineOpen(false)} />
       )}
       {staffingOpen && (
-        <StaffingDialog signedIn={Boolean(viewer)} onClose={() => setStaffingOpen(false)} />
+        <StaffingDialog record={projectRecord} signedIn={Boolean(viewer)} onClose={() => setStaffingOpen(false)} onProjectChanged={() => projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()} />
       )}
       {projectPeopleOpen && (
         <ProjectPeopleDialog
@@ -787,35 +787,9 @@ function ProjectPeopleDialog({
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
-  const [userId, setUserId] = useState('');
-  const [people, setPeople] = useState<ResourcePerson[]>([]);
-  const [role, setRole] = useState<ProjectCollaboratorRole>('project_member');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const members = record?.members ?? [];
-  useEffect(() => {
-    if (!signedIn) return;
-    loadResourcePeople()
-      .then(setPeople)
-      .catch((error: unknown) =>
-        setMessage(error instanceof Error ? error.message : 'People directory could not be loaded.'),
-      );
-  }, [signedIn]);
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!record || !signedIn) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await addProjectCollaborator(record.project.id, { userId: userId.trim(), role });
-      setUserId('');
-      await onChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Project member could not be saved.');
-    } finally {
-      setSaving(false);
-    }
-  };
   const remove = async (memberId: string) => {
     if (!record) return;
     setSaving(true);
@@ -843,23 +817,7 @@ function ProjectPeopleDialog({
           <p className="settings-empty">Sign in and select a connected project to manage its people and roles.</p>
         ) : (
           <>
-            <p className="people-dialog-copy">Project people have project-specific roles. Adding an existing member updates their role.</p>
-            <form className="inline-form people-form" onSubmit={submit}>
-              <label>
-                Person
-                <select value={userId} onChange={(event) => setUserId(event.target.value)} required>
-                  <option value="">Choose a person</option>
-                  {people.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}{person.title ? ` · ${person.title}` : ''} · {person.organization_role.replaceAll('_', ' ')}</option>)}
-                </select>
-              </label>
-              <label>
-                Project role
-                <select value={role} onChange={(event) => setRole(event.target.value as ProjectCollaboratorRole)}>
-                  {collaboratorRoles.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <button className="button-primary" disabled={saving} type="submit">{saving ? 'Saving…' : 'Add person'}</button>
-            </form>
+            <p className="people-dialog-copy">This is the delivery roster for the current project. Assign organization members under Resource capacity.</p>
             {message && <p className="form-message">{message}</p>}
             <div className="people-list">
               {members.map((member) => (
@@ -963,7 +921,7 @@ function WorkspaceCreationDialog({
   );
 }
 
-function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () => void }) {
+function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { record: ProjectRecord | undefined; signedIn: boolean; onClose: () => void; onProjectChanged: () => Promise<void> }) {
   const [people, setPeople] = useState<ResourcePerson[]>([]);
   const [teams, setTeams] = useState<ResourceTeam[]>([]);
   const [capacity, setCapacity] = useState<CapacityRegister>();
@@ -971,6 +929,8 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
   const [displayName, setDisplayName] = useState('');
   const [weeklyHours, setWeeklyHours] = useState('40');
   const [organizationRole, setOrganizationRole] = useState('project_member');
+  const [projectMemberId, setProjectMemberId] = useState('');
+  const [projectRole, setProjectRole] = useState<ProjectCollaboratorRole>('project_member');
   const [teamId, setTeamId] = useState('');
   const [memberId, setMemberId] = useState('');
   const [message, setMessage] = useState<string>();
@@ -1028,6 +988,22 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Team assignment could not be saved.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const assignToProject = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !projectMemberId) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await addProjectCollaborator(record.project.id, { userId: projectMemberId, role: projectRole });
+      setProjectMemberId('');
+      await onProjectChanged();
+      setMessage('Organization member assigned to the project delivery team.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Project team assignment could not be saved.');
     } finally {
       setSaving(false);
     }
@@ -1096,6 +1072,23 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
                 Save person
               </button>
             </form>
+            {record && <form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
+              <p><strong>Project staffing</strong><br />Assign an organization member to <b>{record.project.code} · {record.project.name}</b>.</p>
+              <label>
+                Organization member
+                <select aria-label="Organization member" value={projectMemberId} onChange={(event) => setProjectMemberId(event.target.value)} required>
+                  <option value="">Choose an active member</option>
+                  {people.filter((person) => person.active).map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name} · {person.organization_role.replaceAll('_', ' ')}</option>)}
+                </select>
+              </label>
+              <label>
+                Project responsibility
+                <select aria-label="Project responsibility" value={projectRole} onChange={(event) => setProjectRole(event.target.value as ProjectCollaboratorRole)}>
+                  {collaboratorRoles.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <button className="button-primary" disabled={saving} type="submit">Assign to project team</button>
+            </form>}
             {teams.length > 0 && people.length > 0 && (
               <form className="inline-form staffing-form" onSubmit={assign}>
                 <label>

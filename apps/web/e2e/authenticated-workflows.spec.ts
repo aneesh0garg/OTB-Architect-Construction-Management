@@ -48,10 +48,13 @@ test.describe('authenticated workspace workflows', () => {
     await page.getByRole('button', { name: 'Save person' }).click();
     await page.getByLabel('Close staffing and capacity').click();
 
+    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
+    await page.getByLabel('Organization member').selectOption({ label: `${name} · project member` });
+    await page.getByLabel('Project responsibility').selectOption('owner');
+    await page.getByRole('button', { name: 'Assign to project team' }).click();
+    await page.getByLabel('Close staffing and capacity').click();
+
     await page.getByRole('button', { name: 'Manage project people and roles' }).click();
-    await page.getByLabel('Person').selectOption({ label: name });
-    await page.getByLabel('Project role').selectOption('owner');
-    await page.getByRole('button', { name: 'Add person' }).click();
     const member = page.locator('article', { hasText: name });
     await expect(member.getByText('owner', { exact: true })).toBeVisible();
   });
