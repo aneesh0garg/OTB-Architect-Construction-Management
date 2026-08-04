@@ -1076,6 +1076,10 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               </button>
             </form>
             </section>
+            <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
+              <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>
+              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Add your first organization member above.</p>}</div>
+            </section>
             {record && <section className="staffing-action-section" aria-labelledby="project-staffing-heading"><div className="staffing-action-heading"><p className="eyebrow">STEP 2 · PROJECT STAFFING</p><h3 id="project-staffing-heading">Assign member to project</h3><p>Assign an existing active organization member to <b>{record.project.code} · {record.project.name}</b>. This grants project-team membership; it does not change their organization role.</p></div><form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
               <label>
                 Organization member

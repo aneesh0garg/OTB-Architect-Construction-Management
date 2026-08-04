@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   IsBoolean,
   IsNumber,
@@ -34,6 +34,9 @@ export class ResourceController {
 
   @Get('people') people(@Req() request: AuthenticatedRequest) {
     return this.resources.people(request.actor!);
+  }
+  @Get('people/:userId') person(@Req() request: AuthenticatedRequest, @Param('userId') userId: string) {
+    return this.resources.person(request.actor!, userId);
   }
   @Get('teams') teams(@Req() request: AuthenticatedRequest) {
     return this.resources.teams(request.actor!);

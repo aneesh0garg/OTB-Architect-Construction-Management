@@ -42,6 +42,21 @@ export class ResourceService {
     return result.rows;
   }
 
+  async person(actor: AuthenticatedActor, userId: string) {
+    const person = await this.database.query<PersonRow>(
+      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role FROM people WHERE organization_id = $1 AND user_id = $2',
+      [actor.organizationId, text(userId, 'User ID')],
+    );
+    const value = row(person.rows, 'Organization member is unavailable.');
+    const projects = await this.database.query<{ id: string; code: string; name: string; role: string }>(
+      `SELECT p.id, p.code, p.name, pm.role FROM project_members pm
+       JOIN projects p ON p.id = pm.project_id AND p.organization_id = $1
+       WHERE pm.user_id = $2 ORDER BY p.name`,
+      [actor.organizationId, value.user_id],
+    );
+    return { ...value, projects: projects.rows };
+  }
+
   async teams(actor: AuthenticatedActor) {
     const [teams, members] = await Promise.all([
       this.database.query<TeamRow>(

@@ -29,6 +29,9 @@ export type ResourcePerson = {
   active: boolean;
   organization_role?: string;
 };
+export type OrganizationMemberDetail = ResourcePerson & {
+  projects: Array<{ id: string; code: string; name: string; role: string }>;
+};
 export type ResourceTeam = {
   id: string;
   name: string;
@@ -574,6 +577,8 @@ export const convertPipelineOpportunity = (
   input: { proposalId: string; projectCode: string; location?: string },
 ) => apiPost(`/v1/pipeline/opportunities/${opportunityId}/convert`, input);
 export const loadResourcePeople = () => apiGet<ResourcePerson[]>('/v1/resources/people');
+export const loadOrganizationMember = (userId: string) =>
+  apiGet<OrganizationMemberDetail>(`/v1/resources/people/${encodeURIComponent(userId)}`);
 export const loadResourceTeams = () => apiGet<ResourceTeam[]>('/v1/resources/teams');
 export const loadResourceCapacity = (from: string, to: string) =>
   apiGet<CapacityRegister>(
