@@ -3,6 +3,7 @@ import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
+import { NotificationService } from './notification.service.js';
 
 interface ProjectRow extends QueryResultRow {
   id: string;
@@ -121,6 +122,7 @@ export class WorkspaceService {
   constructor(
     private readonly pool: DatabaseService,
     private readonly uploads: DocumentUploadService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async getWorkspace(actor: AuthenticatedActor) {
@@ -334,7 +336,7 @@ export class WorkspaceService {
       ],
     );
     const created = this.resultRow(task.rows, 'Task could not be created.');
-    await this.notify(
+    await this.notifications.notifyUser(
       actor.organizationId,
       input.assigneeId,
       project.id,
@@ -676,20 +678,6 @@ export class WorkspaceService {
     await this.pool.query(
       'INSERT INTO audit_events (organization_id, actor_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5, $6::jsonb)',
       [actor.organizationId, actor.userId, action, entityType, entityId, JSON.stringify(metadata)],
-    );
-  }
-  private async notify(
-    organizationId: string,
-    userId: string | undefined,
-    projectId: string,
-    eventType: string,
-    title: string,
-    body: string,
-  ) {
-    if (!userId) return;
-    await this.pool.query(
-      'INSERT INTO notifications (organization_id, user_id, project_id, event_type, title, body) VALUES ($1, $2, $3, $4, $5, $6)',
-      [organizationId, userId, projectId, eventType, title, body],
     );
   }
 }

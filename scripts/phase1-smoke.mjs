@@ -564,6 +564,26 @@ assert.equal(
   paymentNotificationCount,
   'A muted payment notification was delivered in-app.',
 );
+const taskNotificationCount = notificationsAfterMutedPayment.filter(
+  (notification) => notification.event_type === 'task.assigned',
+).length;
+await api('PUT', '/v1/workspace/notification-preferences', {
+  eventType: 'task.assigned',
+  inAppEnabled: false,
+  emailEnabled: false,
+  digestFrequency: 'none',
+});
+await api('POST', `${projectPath}/tasks`, {
+  title: `Muted task assignment ${runId}`,
+  assigneeId: identity.userId,
+});
+const notificationsAfterMutedTask = await api('GET', '/v1/workspace/notifications');
+assert.equal(
+  notificationsAfterMutedTask.filter((notification) => notification.event_type === 'task.assigned')
+    .length,
+  taskNotificationCount,
+  'A muted task-assignment notification was delivered in-app.',
+);
 const workflowNotificationCount = notificationsAfterMutedPayment.filter(
   (notification) => notification.event_type === 'workflow.issued',
 ).length;

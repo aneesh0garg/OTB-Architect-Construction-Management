@@ -25,6 +25,17 @@ export class NotificationService {
       ),
     );
   }
+  async notifyUser(
+    organizationId: string,
+    userId: string | undefined,
+    projectId: string,
+    eventType: string,
+    title: string,
+    body: string,
+  ) {
+    if (!userId) return;
+    await this.deliver(organizationId, userId, projectId, eventType, title, body);
+  }
   private async deliver(
     organizationId: string,
     userId: string,
