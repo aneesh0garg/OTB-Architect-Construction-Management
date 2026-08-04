@@ -22,6 +22,7 @@ import {
   searchProjectBrain,
   createProjectBrainDraft,
   createDocumentAnnotation,
+  createTaskComment,
   createFieldObservation,
   createProjectTask,
   createProjectBudget,
@@ -36,6 +37,7 @@ import {
   createWorkspaceTeam,
   fileProjectCommunication,
   loadDocumentAnnotations,
+  loadTaskComments,
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
@@ -56,6 +58,7 @@ import {
   type NotificationPreference,
   type WorkspaceNotification,
   type DocumentAnnotation,
+  type TaskComment,
   type ProjectRecord,
   type PipelineRegister,
   type CapacityRegister,
@@ -2340,6 +2343,8 @@ function Tasks({
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string>();
+  const [taskComments, setTaskComments] = useState<TaskComment[]>([]);
+  const [commentBody, setCommentBody] = useState('');
   const selectedTask = tasks.find((task) => task.id === selectedTaskId);
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
@@ -2370,6 +2375,32 @@ function Tasks({
       await onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Task status could not be updated.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const openTaskDetail = async (taskId: string) => {
+    setSelectedTaskId(taskId);
+    setTaskComments([]);
+    setMessage(undefined);
+    if (!record || !signedIn) return;
+    try {
+      setTaskComments(await loadTaskComments(record.project.id, taskId));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task discussion could not be loaded.');
+    }
+  };
+  const addTaskComment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !selectedTask || !commentBody.trim()) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const comment = await createTaskComment(record.project.id, selectedTask.id, commentBody.trim());
+      setTaskComments((current) => [...current, comment]);
+      setCommentBody('');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task comment could not be saved.');
     } finally {
       setSaving(false);
     }
@@ -2428,7 +2459,7 @@ function Tasks({
                 </small>
                 <button
                   className="button-secondary record-action"
-                  onClick={() => setSelectedTaskId(task.id)}
+                  onClick={() => openTaskDetail(task.id)}
                 >
                   View details
                 </button>
@@ -2469,10 +2500,47 @@ function Tasks({
               <strong>{selectedTask.due_date ?? 'Not scheduled'}</strong>
             </div>
           </div>
-          <p className="settings-empty">
-            Discussion, activity, and linked-record history will appear here as task collaboration
-            is added.
-          </p>
+          <section className="task-discussion" aria-label="Task discussion">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">DISCUSSION</p>
+                <h3>Project conversation</h3>
+              </div>
+              <span>{taskComments.length} comments</span>
+            </div>
+            {taskComments.length ? (
+              <div className="comment-list">
+                {taskComments.map((comment) => (
+                  <article key={comment.id}>
+                    <strong>{comment.created_by}</strong>
+                    <time dateTime={comment.created_at}>
+                      {new Date(comment.created_at).toLocaleString()}
+                    </time>
+                    <p>{comment.body}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="settings-empty">No discussion yet. Record the next decision or question.</p>
+            )}
+            {signedIn && (
+              <form className="task-comment-form" onSubmit={addTaskComment}>
+                <label>
+                  Add a comment
+                  <textarea
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                    maxLength={4000}
+                    placeholder="Share a decision, constraint, or follow-up…"
+                    required
+                  />
+                </label>
+                <button className="button-primary" disabled={saving} type="submit">
+                  Post comment
+                </button>
+              </form>
+            )}
+          </section>
         </section>
       )}
     </div>

@@ -209,6 +209,12 @@ export type DocumentAnnotation = {
   created_by: string;
   created_at: string;
 };
+export type TaskComment = {
+  id: string;
+  body: string;
+  created_by: string;
+  created_at: string;
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -568,6 +574,10 @@ export const transitionProjectTask = (
   taskId: string,
   status: 'in_progress' | 'blocked' | 'completed' | 'cancelled',
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
+export const loadTaskComments = (projectId: string, taskId: string) =>
+  apiGet<TaskComment[]>(`/v1/workspace/projects/${projectId}/tasks/${taskId}/comments`);
+export const createTaskComment = (projectId: string, taskId: string, body: string) =>
+  apiPost<TaskComment>(`/v1/workspace/projects/${projectId}/tasks/${taskId}/comments`, { body });
 export const createProjectBudget = (
   projectId: string,
   input: { costCode: string; name: string; amount: number },

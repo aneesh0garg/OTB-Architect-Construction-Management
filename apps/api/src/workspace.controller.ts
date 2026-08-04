@@ -64,6 +64,9 @@ class CreateTaskDto {
 class TaskStatusDto {
   @IsIn(['in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
 }
+class CreateTaskCommentDto {
+  @IsString() @MinLength(1) @MaxLength(4000) body!: string;
+}
 class CreateDocumentDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(48) documentNumber?: string;
   @IsIn(['drawing', 'specification', 'report', 'contract', 'photo', 'other']) documentType!: string;
@@ -205,6 +208,21 @@ export class WorkspaceController {
     @Body() body: TaskStatusDto,
   ) {
     return this.workspace.transitionTaskStatus(request.actor!, projectId, taskId, body.status);
+  }
+  @Get('projects/:projectId/tasks/:taskId/comments') getTaskComments(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.workspace.getTaskComments(request.actor!, projectId, taskId);
+  }
+  @Post('projects/:projectId/tasks/:taskId/comments') createTaskComment(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: CreateTaskCommentDto,
+  ) {
+    return this.workspace.createTaskComment(request.actor!, projectId, taskId, body);
   }
   @Post('projects/:projectId/documents') addDocumentRevision(
     @Req() request: AuthenticatedRequest,

@@ -839,6 +839,62 @@ small {
   gap: 10px;
   align-items: center;
 }
+.task-discussion {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.task-discussion h3 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+.comment-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+.comment-list article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--raised-strong);
+}
+.comment-list time {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.comment-list p {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+.task-comment-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+.task-comment-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.task-comment-form textarea {
+  min-height: 82px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.task-comment-form button {
+  justify-self: start;
+}
 
 .dialog-backdrop {
   position: fixed;

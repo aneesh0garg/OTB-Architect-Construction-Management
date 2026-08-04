@@ -197,6 +197,15 @@ const startedTask = await api('POST', `${projectPath}/tasks/${task.id}/status`, 
   status: 'in_progress',
 });
 assert.equal(startedTask.status, 'in_progress', 'Task did not transition to in progress.');
+const taskComment = await api('POST', `${projectPath}/tasks/${task.id}/comments`, {
+  body: 'Smoke-tested task discussion entry.',
+});
+const taskComments = await api('GET', `${projectPath}/tasks/${task.id}/comments`);
+assert.equal(
+  taskComments.some((item) => item.id === taskComment.id),
+  true,
+  'The task discussion entry is unavailable.',
+);
 const myTasks = await api('GET', '/v1/workspace/my-tasks');
 assert.equal(
   myTasks.some((item) => item.id === task.id && item.project_id === project.id),

@@ -36,6 +36,12 @@ interface TaskRow extends QueryResultRow {
   assignee_id: string | null;
   created_by: string;
 }
+interface TaskCommentRow extends QueryResultRow {
+  id: string;
+  body: string;
+  created_by: string;
+  created_at: Date;
+}
 interface PersonalTaskRow extends TaskRow {
   project_id: string;
   project_code: string;
@@ -425,6 +431,40 @@ export class WorkspaceService {
       toStatus: updated.status,
     });
     return updated;
+  }
+  async getTaskComments(actor: AuthenticatedActor, projectId: string, taskId: string) {
+    const project = await this.projectForActor(actor, projectId);
+    await this.taskForActor(actor, project.id, taskId);
+    const comments = await this.pool.query<TaskCommentRow>(
+      'SELECT id, body, created_by, created_at FROM task_comments WHERE organization_id = $1 AND project_id = $2 AND task_id = $3 ORDER BY created_at ASC',
+      [actor.organizationId, project.id, taskId],
+    );
+    return comments.rows;
+  }
+  async createTaskComment(
+    actor: AuthenticatedActor,
+    projectId: string,
+    taskId: string,
+    input: CreateTaskCommentInput,
+  ) {
+    const project = await this.projectForActor(actor, projectId);
+    await this.taskForActor(actor, project.id, taskId);
+    const result = await this.pool.query<TaskCommentRow>(
+      'INSERT INTO task_comments (organization_id, project_id, task_id, body, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, body, created_by, created_at',
+      [
+        actor.organizationId,
+        project.id,
+        taskId,
+        this.requiredText(input.body, 'Task comment'),
+        actor.userId,
+      ],
+    );
+    const comment = this.resultRow(result.rows, 'Task comment could not be saved.');
+    await this.audit(actor, 'task.comment_added', 'task_comment', comment.id, {
+      projectId: project.id,
+      taskId,
+    });
+    return comment;
   }
   async addDocumentRevision(
     actor: AuthenticatedActor,
@@ -839,6 +879,13 @@ export class WorkspaceService {
     );
     return this.resultRow(document.rows, 'Document is unavailable.');
   }
+  private async taskForActor(actor: AuthenticatedActor, projectId: string, taskId: string) {
+    const task = await this.pool.query<{ id: string }>(
+      'SELECT id FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [taskId, projectId, actor.organizationId],
+    );
+    return this.resultRow(task.rows, 'Task is unavailable.');
+  }
   private async projectForActor(actor: AuthenticatedActor, projectId: string) {
     const result = await this.pool.query<ProjectRow>(
       'SELECT id, code, name, status, location, stage, closed_at, retention_until FROM projects WHERE id = $1 AND organization_id = $2',
@@ -909,6 +956,9 @@ export interface CreateTaskInput {
   assigneeId?: string;
   sourceRecordType?: string;
   sourceRecordId?: string;
+}
+export interface CreateTaskCommentInput {
+  body: string;
 }
 export interface CreateDocumentInput {
   documentNumber?: string;

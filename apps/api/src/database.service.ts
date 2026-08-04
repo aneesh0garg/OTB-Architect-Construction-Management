@@ -238,6 +238,13 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS project_document_counters (project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, document_type TEXT NOT NULL, next_number INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (project_id, document_type));
     `,
   },
+  {
+    id: '0020_task_comments',
+    sql: `
+      CREATE TABLE IF NOT EXISTS task_comments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, body TEXT NOT NULL, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE INDEX IF NOT EXISTS task_comments_task_idx ON task_comments (task_id, created_at);
+    `,
+  },
 ];
 
 @Injectable()
