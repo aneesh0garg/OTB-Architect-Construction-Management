@@ -1864,17 +1864,6 @@ function Documents({
   const [transmittalRecipients, setTransmittalRecipients] = useState('');
   const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
   const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
-  const prefix = {
-    drawing: 'DRW',
-    specification: 'SPC',
-    report: 'RPT',
-    contract: 'CON',
-    photo: 'PHO',
-    other: 'DOC',
-  }[documentType];
-  const documentNumber =
-    selectedPrior?.document_number ??
-    `${prefix}-${String(documents.filter((document) => document.document_type === documentType).length + 1).padStart(4, '0')}`;
   const revision = selectedPrior ? nextRevision(selectedPrior.revision) : 'A';
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -2301,6 +2290,8 @@ function Tasks({
   const [priority, setPriority] = useState('normal');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string>();
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2386,6 +2377,12 @@ function Tasks({
                   {task.due_date ? `Due ${task.due_date}` : 'No due date'} ·{' '}
                   {task.assignee_id ?? 'Unassigned'}
                 </small>
+                <button
+                  className="button-secondary record-action"
+                  onClick={() => setSelectedTaskId(task.id)}
+                >
+                  View details
+                </button>
               </article>
             ))
           ) : (
@@ -2393,6 +2390,42 @@ function Tasks({
           )}
         </div>
       </section>
+      {selectedTask && (
+        <section
+          className="content-card detail-workspace"
+          aria-label={`Task details for ${selectedTask.title}`}
+        >
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">TASK DETAIL</p>
+              <h2>{selectedTask.title}</h2>
+            </div>
+            <button onClick={() => setSelectedTaskId(undefined)}>Close</button>
+          </div>
+          <div className="record-grid">
+            <div>
+              <span>Status</span>
+              <strong>{selectedTask.status.replaceAll('_', ' ')}</strong>
+            </div>
+            <div>
+              <span>Priority</span>
+              <strong>{selectedTask.priority}</strong>
+            </div>
+            <div>
+              <span>Assignee</span>
+              <strong>{selectedTask.assignee_id ?? 'Unassigned'}</strong>
+            </div>
+            <div>
+              <span>Due</span>
+              <strong>{selectedTask.due_date ?? 'Not scheduled'}</strong>
+            </div>
+          </div>
+          <p className="settings-empty">
+            Discussion, activity, and linked-record history will appear here as task collaboration
+            is added.
+          </p>
+        </section>
+      )}
     </div>
   );
 }
