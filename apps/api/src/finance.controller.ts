@@ -111,6 +111,13 @@ export class FinanceController {
   ) {
     return this.finance.getCostControl(request.actor!, projectId);
   }
+  @Get('invoices/:invoiceId') getInvoice(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.finance.getInvoice(request.actor!, projectId, invoiceId);
+  }
   @Post('budgets') createBudget(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,

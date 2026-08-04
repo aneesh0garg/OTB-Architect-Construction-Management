@@ -640,6 +640,9 @@ await api('POST', `/v1/projects/${project.id}/finance/invoices/${invoice.id}/pay
   paidDate: '2026-08-05',
   reference: `SMOKE-${runId}`,
 });
+const invoiceDetail = await api('GET', `/v1/projects/${project.id}/finance/invoices/${invoice.id}`);
+assert.equal(invoiceDetail.lines.length, 1, 'Invoice detail did not retain its billing line.');
+assert.equal(invoiceDetail.balance, 0, 'Invoice detail did not reconcile the recorded payment.');
 const notifications = await api('GET', '/v1/workspace/notifications');
 for (const eventType of [
   'workflow.issued',

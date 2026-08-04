@@ -126,6 +126,13 @@ export type FinanceControl = {
     hoursBurn: number;
   };
 };
+export type InvoiceDetail = {
+  invoice: FinanceControl['invoices'][number] & { client_name: string; issue_date: string | null };
+  lines: Array<{ id: string; source_type: string; source_id: string | null; description: string; quantity: string; unit_amount: string; line_total: string }>;
+  payments: FinanceControl['payments'];
+  paid: number;
+  balance: number;
+};
 export type CostControl = {
   budgets: { id: string; cost_code: string; name: string; amount: string }[];
   commitments: {
@@ -616,6 +623,8 @@ export const fileProjectCommunication = (
 ) => apiPost(`/v1/workspace/projects/${projectId}/communications`, input);
 export const loadFinanceControl = (projectId: string) =>
   apiGet<FinanceControl>(`/v1/projects/${projectId}/finance`);
+export const loadInvoiceDetail = (projectId: string, invoiceId: string) =>
+  apiGet<InvoiceDetail>(`/v1/projects/${projectId}/finance/invoices/${invoiceId}`);
 export const loadCostControl = (projectId: string) =>
   apiGet<CostControl>(`/v1/projects/${projectId}/finance/cost`);
 export const loadExecutionRegister = (projectId: string) =>

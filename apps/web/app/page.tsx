@@ -2816,6 +2816,7 @@ function CostContracts({
               <span>
                 {invoice.status.replaceAll('_', ' ')} · Accounting {invoice.accounting_sync_status}
               </span>
+              <button className="button-secondary record-action" onClick={() => record && window.location.assign(`/projects/${record.project.id}/invoices/${invoice.id}`)}>Open invoice</button>
               {signedIn && invoice.status === 'draft' && (
                 <button
                   className="button-secondary record-action"

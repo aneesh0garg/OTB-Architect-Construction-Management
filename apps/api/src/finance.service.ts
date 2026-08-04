@@ -41,6 +41,19 @@ interface PaymentRow extends QueryResultRow {
   paid_date: string;
   reference: string | null;
 }
+interface InvoiceDetailRow extends InvoiceRow {
+  client_name: string;
+  issue_date: string | null;
+}
+interface InvoiceLineRow extends QueryResultRow {
+  id: string;
+  source_type: string;
+  source_id: string | null;
+  description: string;
+  quantity: string;
+  unit_amount: string;
+  line_total: string;
+}
 interface BudgetRow extends QueryResultRow {
   id: string;
   cost_code: string;
@@ -159,6 +172,26 @@ export class FinanceService {
         forecastVariance: forecastAtCompletion - budget,
       },
     };
+  }
+  async getInvoice(actor: AuthenticatedActor, projectId: string, invoiceId: string) {
+    await this.authorizeProject(actor, projectId);
+    const [invoice, lines, payments] = await Promise.all([
+      this.pool.query<InvoiceDetailRow>(
+        'SELECT id, invoice_number, status, client_name, issue_date, due_date, subtotal, gst_amount, total, accounting_sync_status FROM invoices WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+        [invoiceId, projectId, actor.organizationId],
+      ),
+      this.pool.query<InvoiceLineRow>(
+        'SELECT id, source_type, source_id, description, quantity, unit_amount, line_total FROM invoice_lines WHERE invoice_id = $1 ORDER BY id',
+        [invoiceId],
+      ),
+      this.pool.query<PaymentRow>(
+        'SELECT id, amount, paid_date, reference FROM payments WHERE invoice_id = $1 ORDER BY paid_date DESC, id DESC',
+        [invoiceId],
+      ),
+    ]);
+    const found = row(invoice.rows, 'Invoice is unavailable.');
+    const paid = payments.rows.reduce((sum, payment) => sum + Number(payment.amount), 0);
+    return { invoice: found, lines: lines.rows, payments: payments.rows, paid, balance: Number(found.total) - paid };
   }
   async createBudget(actor: AuthenticatedActor, projectId: string, input: CreateBudgetInput) {
     await this.requireManager(actor, projectId);
