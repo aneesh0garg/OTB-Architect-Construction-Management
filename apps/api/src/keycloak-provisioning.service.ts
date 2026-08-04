@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 
 type KeycloakUser = { id: string };
+type KeycloakRealmRole = { id: string; name: string };
 
 @Injectable()
 export class KeycloakProvisioningService {
@@ -14,6 +15,8 @@ export class KeycloakProvisioningService {
     const existing = await this.request<KeycloakUser[]>(
       `/users?email=${encodeURIComponent(input.email)}&exact=true`,
       accessToken,
+      undefined,
+      'Keycloak could not look up the identity.',
     );
     const userId = existing[0]?.id ?? (await this.createUser(input, accessToken));
     await this.assignRealmRole(userId, input.organizationRole, accessToken);
@@ -21,15 +24,23 @@ export class KeycloakProvisioningService {
       `/users/${encodeURIComponent(userId)}/execute-actions-email?client_id=orbita-web&lifespan=604800`,
       accessToken,
       { method: 'PUT', body: JSON.stringify(['VERIFY_EMAIL', 'UPDATE_PASSWORD']) },
+      'Keycloak invitation delivery failed.',
     );
     return { userId, isNewIdentity: existing.length === 0 };
   }
 
   private async assignRealmRole(userId: string, role: string, accessToken: string) {
+    const realmRole = await this.request<KeycloakRealmRole>(
+      `/roles/${encodeURIComponent(role)}`,
+      accessToken,
+      undefined,
+      'Keycloak could not look up the invited member role.',
+    );
     await this.request<void>(
       `/users/${encodeURIComponent(userId)}/role-mappings/realm`,
       accessToken,
-      { method: 'POST', body: JSON.stringify([{ name: role }]) },
+      { method: 'POST', body: JSON.stringify([realmRole]) },
+      'Keycloak could not apply the invited member role.',
     );
   }
 
@@ -73,12 +84,12 @@ export class KeycloakProvisioningService {
     return payload.access_token;
   }
 
-  private async request<T>(path: string, accessToken: string, init?: RequestInit) {
+  private async request<T>(path: string, accessToken: string, init?: RequestInit, failureMessage = 'Keycloak request failed.') {
     const response = await fetch(`${this.adminBaseUrl()}${path}`, {
       ...init,
       headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json', ...init?.headers },
     });
-    if (!response.ok) throw this.failure(response.status, 'Keycloak invitation delivery failed.');
+    if (!response.ok) throw this.failure(response.status, failureMessage);
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }

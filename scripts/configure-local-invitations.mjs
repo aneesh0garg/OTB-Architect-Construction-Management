@@ -87,7 +87,7 @@ export function configureLocalInvitations() {
   writeFileSync(envPath, upsertEnvValue(env, 'KEYCLOAK_PROVISIONER_CLIENT_SECRET', secret));
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     configureLocalInvitations();
     console.log('Local invitation provisioning is configured in .env. The secret was not displayed.');
