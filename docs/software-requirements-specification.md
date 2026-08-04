@@ -30,8 +30,8 @@ The goal is not to replicate all of Procore or Autodesk Forma in the MVP. The go
 6. RFIs, submittals, site instructions, meetings, decisions, and task follow-up.
 7. Project-wide search, reporting, notifications, audit trail, and export.
 8. A permission-aware AI project brain: multimodal ingestion, grounded search, assistive drafting, risk detection, and supervised workflow agents.
-9. Channel-aware communication management: native notifications, Gmail/Google Workspace and Microsoft 365 email capture, plus a defined WhatsApp Business Platform integration path.
-10. Initial integrations: Microsoft 365 or Google Workspace, QuickBooks Online or Xero, and import/export support.
+9. Channel-aware communication management: native notifications and user-confirmed Gmail/Google Workspace capture, plus a defined WhatsApp Business Platform integration path.
+10. Initial integrations: Gmail/Google Workspace, Zoho Books, and import/export support. The accounting boundary remains provider-neutral for a later QuickBooks or Xero connector outside India.
 
 ### 2.2 Explicitly out of scope for MVP
 
@@ -270,7 +270,7 @@ The MVP provides four AI modes: **Project Brain** (cited Q&A), **capture intelli
 
 ### 5.10 Integration and data portability
 
-- **FR-INT-001:** The system shall support OAuth-based connections to at least one accounting system and one productivity suite in MVP.
+- **FR-INT-001:** The system shall support OAuth-based Gmail/Google Workspace and Zoho Books connections in MVP; its accounting boundary shall permit later provider additions.
 - **FR-INT-002:** The system shall provide CSV import for contacts, projects, budgets, time entries, drawing registers, and issue/RFI registers.
 - **FR-INT-003:** The system shall export project records, attachments, and audit data in a documented, non-proprietary package.
 - **FR-INT-004:** The platform shall expose versioned APIs and outbound webhooks for core project records no later than Phase 2.
@@ -389,15 +389,15 @@ The MVP provides four AI modes: **Project Brain** (cited Q&A), **capture intelli
 - Confirmed AI permission leakage is zero in pre-release evaluation and production monitoring.
 - Pilot firms can export their complete project record without vendor assistance.
 
-## 10. Open decisions
+## 10. Confirmed launch decisions and remaining validation
 
-1. Initial launch geography and data-residency requirements.
-2. First accounting connector: QuickBooks Online or Xero.
-3. Whether invoices/payments are MVP features or launched immediately after time/budget reporting.
-4. Initial mobile architecture and supported offline file sizes.
-5. Initial email-ingestion path: Microsoft 365, Google Workspace, or both.
-6. Contractual terminology and templates required for the target geography.
-7. Whether the first commercial segment is 5–50 person firms or 50–200 person multidisciplinary practices.
+- **Launch geography:** Dehradun, Uttarakhand, India, with India data-residency readiness.
+- **Primary users:** contractors/construction firms, architects, owners, and their project teams.
+- **MVP commercial boundary:** comprehensive professional-services invoicing, payment tracking, project accounting, and owner cost controls; no payroll or general-contractor payment processing.
+- **First integrations:** Gmail/Google Workspace and Zoho Books. WhatsApp Business Platform and Microsoft 365 are Phase 2 candidates.
+- **Identity and cloud path:** local Docker/Keycloak first; AWS Mumbai is the production target when a pilot warrants paid infrastructure.
+
+The remaining product-validation work is to confirm contractual terminology and templates with Dehradun design partners, validate supported offline file sizes on physical devices, and test the prioritized workflows with 3–5 pilot firms.
 
 ## 11. Traceability to competitive intent
 
