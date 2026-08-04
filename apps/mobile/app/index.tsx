@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 
 type SyncState = 'local' | 'syncing' | 'synced' | 'failed' | 'conflict';
+type MobileTab = 'home' | 'field' | 'tasks' | 'more';
 type Observation = {
   id: string;
   title: string;
@@ -101,17 +102,34 @@ const syncCopy: Record<SyncState, string> = {
   conflict: 'Conflict needs review',
 };
 
+const mobileTabs: { id: MobileTab; icon: string; label: string; title: string }[] = [
+  { id: 'home', icon: '⌂', label: 'Home', title: 'Site home' },
+  { id: 'field', icon: '⌖', label: 'Field', title: 'Field work' },
+  { id: 'tasks', icon: '☷', label: 'Tasks', title: 'My tasks' },
+  { id: 'more', icon: '◉', label: 'More', title: 'Project settings' },
+];
+
 export default function HomeScreen() {
   const [observations, setObservations] = useState(initialObservations);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('synced');
+  const [activeTab, setActiveTab] = useState<MobileTab>('field');
   const [session, setSession] = useState<MobileSession>();
   const [accountError, setAccountError] = useState<string>();
   const openCount = useMemo(
     () => observations.filter((item) => item.state !== 'Closed').length,
     [observations],
   );
+  const openObservations = useMemo(
+    () => observations.filter((item) => item.state !== 'Closed'),
+    [observations],
+  );
+  const queuedCount = useMemo(
+    () => observations.filter((item) => item.sync !== 'synced').length,
+    [observations],
+  );
+  const currentTab = mobileTabs.find((tab) => tab.id === activeTab) ?? mobileTabs[1]!;
 
   useEffect(() => {
     let active = true;
@@ -201,7 +219,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>{session?.projectName ?? 'RIVERSIDE RESIDENCES'}</Text>
-          <Text style={styles.title}>Field work</Text>
+          <Text style={styles.title}>{currentTab.title}</Text>
         </View>
         <Pressable style={styles.avatar} onPress={session ? disconnectAccount : connectAccount}>
           <Text style={styles.avatarText}>{session ? 'AM' : 'IN'}</Text>
@@ -219,62 +237,129 @@ export default function HomeScreen() {
           </Pressable>
         )}
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.visitCard}>
-          <View>
-            <Text style={styles.eyebrow}>TODAY'S SITE VISIT</Text>
-            <Text style={styles.visitTitle}>Riverside site · 14 Mar</Text>
-            <Text style={styles.visitMeta}>Clear · 2 attendees · 1 checklist item</Text>
-          </View>
-          <Pressable style={styles.visitButton}>
-            <Text style={styles.visitButtonText}>Open</Text>
-          </Pressable>
-        </View>
-        <View style={styles.listHeader}>
-          <View>
-            <Text style={styles.sectionTitle}>Observations</Text>
-            <Text style={styles.sectionMeta}>{openCount} open</Text>
-          </View>
-          <Pressable>
-            <Text style={styles.filterText}>Filter ▾</Text>
-          </Pressable>
-        </View>
-        {observations.map((observation) => (
-          <View style={styles.observationCard} key={observation.id}>
-            <View style={styles.observationTop}>
-              <View style={styles.observationCode}>
-                <View
-                  style={[
-                    styles.priorityDot,
-                    observation.priority === 'High'
-                      ? styles.priorityHigh
-                      : observation.priority === 'Medium'
-                        ? styles.priorityMedium
-                        : styles.priorityLow,
-                  ]}
-                />
-                <Text style={styles.observationId}>
-                  {observation.id} · {observation.area}
-                </Text>
-              </View>
-              <Text style={styles.recordSync}>{observation.sync === 'synced' ? '✓' : '○'}</Text>
+      {activeTab === 'home' && (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.visitCard}>
+            <View>
+              <Text style={styles.eyebrow}>TODAY'S SITE VISIT</Text>
+              <Text style={styles.visitTitle}>Riverside site · 14 Mar</Text>
+              <Text style={styles.visitMeta}>Clear · 2 attendees · 1 checklist item</Text>
             </View>
-            <Text style={styles.observationTitle}>{observation.title}</Text>
-            <View style={styles.observationFooter}>
-              <Text style={styles.priorityText}>{observation.priority}</Text>
-              <Text style={styles.recordState}>{observation.state}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open field work"
+              style={styles.visitButton}
+              onPress={() => setActiveTab('field')}
+            >
+              <Text style={styles.visitButtonText}>Open</Text>
+            </Pressable>
+          </View>
+          <View style={styles.summaryGrid}>
+            <Pressable style={styles.summaryCard} onPress={() => setActiveTab('field')}>
+              <Text style={styles.summaryValue}>{openCount}</Text>
+              <Text style={styles.summaryLabel}>Open observations</Text>
+            </Pressable>
+            <Pressable style={styles.summaryCard} onPress={() => setActiveTab('tasks')}>
+              <Text style={styles.summaryValue}>{openObservations.length}</Text>
+              <Text style={styles.summaryLabel}>Tasks needing review</Text>
+            </Pressable>
+          </View>
+          <View style={styles.listHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Recent field activity</Text>
+              <Text style={styles.sectionMeta}>Latest project records on this device</Text>
             </View>
           </View>
-        ))}
-      </ScrollView>
-      <Pressable
-        accessibilityRole="button"
-        style={styles.captureButton}
-        onPress={() => setCaptureOpen(true)}
-      >
-        <Text style={styles.captureIcon}>＋</Text>
-        <Text style={styles.captureText}>Capture observation</Text>
-      </Pressable>
+          {observations.slice(0, 2).map((observation) => (
+            <ObservationCard observation={observation} key={observation.id} />
+          ))}
+        </ScrollView>
+      )}
+      {activeTab === 'field' && (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.visitCard}>
+            <View>
+              <Text style={styles.eyebrow}>TODAY'S SITE VISIT</Text>
+              <Text style={styles.visitTitle}>Riverside site · 14 Mar</Text>
+              <Text style={styles.visitMeta}>Clear · 2 attendees · 1 checklist item</Text>
+            </View>
+            <Pressable accessibilityRole="button" style={styles.visitButton}>
+              <Text style={styles.visitButtonText}>Open</Text>
+            </Pressable>
+          </View>
+          <View style={styles.listHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Observations</Text>
+              <Text style={styles.sectionMeta}>{openCount} open</Text>
+            </View>
+            <Pressable accessibilityRole="button" onPress={() => setActiveTab('tasks')}>
+              <Text style={styles.filterText}>View tasks →</Text>
+            </Pressable>
+          </View>
+          {observations.map((observation) => (
+            <ObservationCard observation={observation} key={observation.id} />
+          ))}
+        </ScrollView>
+      )}
+      {activeTab === 'tasks' && (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.listHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Open field tasks</Text>
+              <Text style={styles.sectionMeta}>Resolve observations before the next visit</Text>
+            </View>
+          </View>
+          {openObservations.map((observation) => (
+            <ObservationCard observation={observation} key={observation.id} />
+          ))}
+        </ScrollView>
+      )}
+      {activeTab === 'more' && (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.settingsCard}>
+            <Text style={styles.eyebrow}>ACCOUNT</Text>
+            <Text style={styles.settingsTitle}>
+              {session ? session.projectName : 'Connect your Orbita account'}
+            </Text>
+            <Text style={styles.settingsCopy}>
+              {session
+                ? 'This device can sync field records to the selected project.'
+                : 'Sign in to synchronize locally captured field observations.'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.settingsAction}
+              onPress={session ? disconnectAccount : connectAccount}
+            >
+              <Text style={styles.settingsActionText}>{session ? 'Sign out' : 'Sign in'}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.settingsCard}>
+            <Text style={styles.eyebrow}>OFFLINE QUEUE</Text>
+            <Text style={styles.settingsTitle}>{queuedCount} records waiting to sync</Text>
+            <Text style={styles.settingsCopy}>{syncCopy[syncState]}</Text>
+            {queuedCount > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                style={styles.settingsAction}
+                onPress={retrySync}
+              >
+                <Text style={styles.settingsActionText}>Sync now</Text>
+              </Pressable>
+            )}
+          </View>
+        </ScrollView>
+      )}
+      {activeTab === 'field' && (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.captureButton}
+          onPress={() => setCaptureOpen(true)}
+        >
+          <Text style={styles.captureIcon}>＋</Text>
+          <Text style={styles.captureText}>Capture observation</Text>
+        </Pressable>
+      )}
       {captureOpen && (
         <View style={styles.sheetBackdrop}>
           <View style={styles.captureSheet}>
@@ -306,22 +391,73 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
-      <View style={styles.tabBar}>
-        <Tab icon="⌂" label="Home" />
-        <Tab icon="⌖" label="Field" active />
-        <Tab icon="☷" label="Tasks" />
-        <Tab icon="◉" label="More" />
+      <View accessibilityRole="tablist" style={styles.tabBar}>
+        {mobileTabs.map((tab) => (
+          <Tab
+            active={tab.id === activeTab}
+            icon={tab.icon}
+            key={tab.id}
+            label={tab.label}
+            onPress={() => setActiveTab(tab.id)}
+          />
+        ))}
       </View>
     </SafeAreaView>
   );
 }
 
-function Tab({ icon, label, active = false }: { icon: string; label: string; active?: boolean }) {
+function ObservationCard({ observation }: { observation: Observation }) {
   return (
-    <View style={styles.tab}>
+    <View style={styles.observationCard}>
+      <View style={styles.observationTop}>
+        <View style={styles.observationCode}>
+          <View
+            style={[
+              styles.priorityDot,
+              observation.priority === 'High'
+                ? styles.priorityHigh
+                : observation.priority === 'Medium'
+                  ? styles.priorityMedium
+                  : styles.priorityLow,
+            ]}
+          />
+          <Text style={styles.observationId}>
+            {observation.id} · {observation.area}
+          </Text>
+        </View>
+        <Text style={styles.recordSync}>{observation.sync === 'synced' ? '✓' : '○'}</Text>
+      </View>
+      <Text style={styles.observationTitle}>{observation.title}</Text>
+      <View style={styles.observationFooter}>
+        <Text style={styles.priorityText}>{observation.priority}</Text>
+        <Text style={styles.recordState}>{observation.state}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Tab({
+  icon,
+  label,
+  active = false,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`Open ${label}`}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.tab, pressed && styles.tabPressed]}
+    >
       <Text style={[styles.tabIcon, active && styles.tabActive]}>{icon}</Text>
       <Text style={[styles.tabLabel, active && styles.tabActive]}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -374,6 +510,17 @@ const styles = StyleSheet.create({
   syncText: { flex: 1, fontSize: 11, color: '#315c51', fontWeight: '600' },
   syncAction: { color: '#176b58', fontSize: 11, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 98 },
+  summaryGrid: { marginTop: 12, flexDirection: 'row', gap: 10 },
+  summaryCard: {
+    flex: 1,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#dce8e4',
+    borderRadius: 11,
+    backgroundColor: '#fff',
+  },
+  summaryValue: { fontSize: 23, fontWeight: '800', color: '#1d2b27' },
+  summaryLabel: { marginTop: 4, fontSize: 10, lineHeight: 14, color: '#6f7e7a', fontWeight: '600' },
   visitCard: {
     borderWidth: 1,
     borderColor: '#dce8e4',
@@ -466,6 +613,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tab: { alignItems: 'center', gap: 2, minWidth: 35 },
+  tabPressed: { opacity: 0.56 },
   tabIcon: { fontSize: 16, color: '#7b8884' },
   tabLabel: { fontSize: 9, color: '#7b8884' },
   tabActive: { color: '#176b58', fontWeight: '800' },
@@ -512,4 +660,23 @@ const styles = StyleSheet.create({
   },
   saveDisabled: { opacity: 0.4 },
   saveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  settingsCard: {
+    marginBottom: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#dce8e4',
+    borderRadius: 11,
+    backgroundColor: '#fff',
+  },
+  settingsTitle: { marginTop: 7, fontSize: 16, color: '#1d2b27', fontWeight: '700' },
+  settingsCopy: { marginTop: 5, fontSize: 12, lineHeight: 18, color: '#6f7e7a' },
+  settingsAction: {
+    alignSelf: 'flex-start',
+    marginTop: 15,
+    borderRadius: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: '#e8f4ee',
+  },
+  settingsActionText: { color: '#176b58', fontSize: 12, fontWeight: '800' },
 });
