@@ -58,6 +58,18 @@ export type ProjectRecord = {
   }[];
 };
 export type FinanceControl = {
+  phases: { id: string; name: string; planned_fee: string; target_hours: number }[];
+  invoices: {
+    id: string;
+    invoice_number: number;
+    status: string;
+    subtotal: string;
+    gst_amount: string;
+    total: string;
+    due_date: string | null;
+    accounting_sync_status: string;
+  }[];
+  payments: { id: string; amount: string; paid_date: string; reference: string | null }[];
   health: {
     plannedFee: number;
     targetHours: number;
@@ -70,6 +82,16 @@ export type FinanceControl = {
   };
 };
 export type CostControl = {
+  budgets: { id: string; cost_code: string; name: string; amount: string }[];
+  commitments: {
+    id: string;
+    vendor_name: string;
+    description: string;
+    original_amount: string;
+    approved_amount: string;
+    status: string;
+  }[];
+  changeEvents: { id: string; code: string; description: string; amount: string; status: string }[];
   health: {
     budget: number;
     committed: number;
@@ -310,6 +332,19 @@ export const transitionProjectTask = (
   taskId: string,
   status: 'in_progress' | 'blocked' | 'completed' | 'cancelled',
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
+export const createProjectBudget = (
+  projectId: string,
+  input: { costCode: string; name: string; amount: number },
+) => apiPost(`/v1/projects/${projectId}/finance/budgets`, input);
+export const createProjectInvoice = (
+  projectId: string,
+  input: { clientName: string; dueDate?: string; gstRate?: number; lines: unknown[] },
+) => apiPost(`/v1/projects/${projectId}/finance/invoices`, input);
+export const recordProjectPayment = (
+  projectId: string,
+  invoiceId: string,
+  input: { amount: number; paidDate: string; reference?: string },
+) => apiPost(`/v1/projects/${projectId}/finance/invoices/${invoiceId}/payments`, input);
 export const fileProjectCommunication = (
   projectId: string,
   input: {

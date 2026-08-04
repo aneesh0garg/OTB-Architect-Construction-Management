@@ -18,6 +18,8 @@ import {
   createProjectBrainDraft,
   createDocumentAnnotation,
   createProjectTask,
+  createProjectBudget,
+  createProjectInvoice,
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
@@ -25,6 +27,7 @@ import {
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
+  recordProjectPayment,
   uploadProjectDocument,
   type ConnectedWorkspace,
   type CostControl,
@@ -420,7 +423,17 @@ export default function Home() {
               }
             />
           )}
-          {view === 'cost' && <CostContracts finance={financeControl} cost={costControl} />}
+          {view === 'cost' && (
+            <CostContracts
+              finance={financeControl}
+              cost={costControl}
+              record={projectRecord}
+              signedIn={Boolean(viewer)}
+              onChanged={() =>
+                projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+              }
+            />
+          )}
         </div>
       </section>
       {notificationSettingsOpen && (
@@ -1554,10 +1567,90 @@ function Communications({
 function CostContracts({
   finance,
   cost,
+  record,
+  signedIn,
+  onChanged,
 }: {
   finance: FinanceControl | undefined;
   cost: CostControl | undefined;
+  record: ProjectRecord | undefined;
+  signedIn: boolean;
+  onChanged: () => Promise<void>;
 }) {
+  const [budgetCode, setBudgetCode] = useState('');
+  const [budgetName, setBudgetName] = useState('');
+  const [budgetAmount, setBudgetAmount] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [invoiceDescription, setInvoiceDescription] = useState('');
+  const [invoiceAmount, setInvoiceAmount] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const addBudget = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createProjectBudget(record.project.id, {
+        costCode: budgetCode.trim(),
+        name: budgetName.trim(),
+        amount: Number(budgetAmount),
+      });
+      setBudgetCode('');
+      setBudgetName('');
+      setBudgetAmount('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Budget could not be added.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const addInvoice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createProjectInvoice(record.project.id, {
+        clientName: clientName.trim(),
+        gstRate: 18,
+        lines: [
+          {
+            sourceType: 'manual',
+            description: invoiceDescription.trim(),
+            quantity: 1,
+            unitAmount: Number(invoiceAmount),
+          },
+        ],
+      });
+      setClientName('');
+      setInvoiceDescription('');
+      setInvoiceAmount('');
+      await onChanged();
+      setMessage('Invoice created as a draft for internal review.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Invoice could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const recordPayment = async (invoiceId: string, total: string) => {
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await recordProjectPayment(record.project.id, invoiceId, {
+        amount: Number(total),
+        paidDate: new Date().toISOString().slice(0, 10),
+      });
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Payment could not be recorded.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -1599,6 +1692,155 @@ function CostContracts({
               {cost ? `Variance ₹${cost.health.forecastVariance.toLocaleString('en-IN')}` : ''}
             </small>
           </div>
+        </div>
+      </section>
+      <section className="content-card commercial-records">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">PROJECT ACCOUNTING</p>
+            <h2>Budgets, commitments &amp; changes</h2>
+          </div>
+          <span>{cost?.budgets.length ?? 0} budget lines</span>
+        </div>
+        {signedIn && record && (
+          <form className="inline-form budget-form" onSubmit={addBudget}>
+            <label>
+              Cost code
+              <input
+                value={budgetCode}
+                onChange={(event) => setBudgetCode(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Budget name
+              <input
+                value={budgetName}
+                onChange={(event) => setBudgetName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Amount
+              <input
+                min="0"
+                step="0.01"
+                type="number"
+                value={budgetAmount}
+                onChange={(event) => setBudgetAmount(event.target.value)}
+                required
+              />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              Add budget
+            </button>
+          </form>
+        )}
+        {message && <p className="form-message">{message}</p>}
+        <div className="simple-record-list">
+          {(cost?.budgets ?? []).map((budget) => (
+            <article key={budget.id}>
+              <strong>
+                {budget.cost_code} · {budget.name}
+              </strong>
+              <span>₹{Number(budget.amount).toLocaleString('en-IN')}</span>
+            </article>
+          ))}
+          {(cost?.commitments ?? []).map((commitment) => (
+            <article key={commitment.id}>
+              <strong>
+                {commitment.vendor_name} · {commitment.description}
+              </strong>
+              <span>
+                ₹{Number(commitment.approved_amount).toLocaleString('en-IN')} · {commitment.status}
+              </span>
+            </article>
+          ))}
+          {(cost?.changeEvents ?? []).map((change) => (
+            <article key={change.id}>
+              <strong>
+                {change.code} · {change.description}
+              </strong>
+              <span>
+                ₹{Number(change.amount).toLocaleString('en-IN')} · {change.status}
+              </span>
+            </article>
+          ))}
+          {!cost && <p>Sign in to load project accounting records.</p>}
+        </div>
+      </section>
+      <section className="content-card commercial-records">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">INVOICING &amp; PAYMENTS</p>
+            <h2>Receivables</h2>
+          </div>
+          <span>{finance?.invoices.length ?? 0} invoices</span>
+        </div>
+        {signedIn && record && (
+          <form className="inline-form invoice-form" onSubmit={addInvoice}>
+            <label>
+              Client
+              <input
+                value={clientName}
+                onChange={(event) => setClientName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Description
+              <input
+                value={invoiceDescription}
+                onChange={(event) => setInvoiceDescription(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Amount
+              <input
+                min="0.01"
+                step="0.01"
+                type="number"
+                value={invoiceAmount}
+                onChange={(event) => setInvoiceAmount(event.target.value)}
+                required
+              />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              Create invoice
+            </button>
+          </form>
+        )}
+        <div className="simple-record-list">
+          {(finance?.invoices ?? []).map((invoice) => (
+            <article key={invoice.id}>
+              <strong>
+                INV-{invoice.invoice_number} · ₹{Number(invoice.total).toLocaleString('en-IN')}
+              </strong>
+              <span>
+                {invoice.status.replaceAll('_', ' ')} · Accounting {invoice.accounting_sync_status}
+              </span>
+              {signedIn && ['issued', 'partially_paid'].includes(invoice.status) && (
+                <button
+                  className="button-secondary record-action"
+                  disabled={saving}
+                  onClick={() => recordPayment(invoice.id, invoice.total)}
+                >
+                  Record full payment
+                </button>
+              )}
+            </article>
+          ))}
+          {(finance?.payments ?? []).map((payment) => (
+            <article key={payment.id}>
+              <strong>Payment · ₹{Number(payment.amount).toLocaleString('en-IN')}</strong>
+              <span>
+                {payment.paid_date}
+                {payment.reference ? ` · ${payment.reference}` : ''}
+              </span>
+            </article>
+          ))}
+          {!finance && <p>Sign in to load invoices and payments.</p>}
         </div>
       </section>
     </div>
