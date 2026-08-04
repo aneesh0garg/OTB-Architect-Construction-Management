@@ -169,6 +169,13 @@ export class ConstructionService {
       projectId,
       observationId,
     });
+    await this.notifications.notifyProject(
+      actor,
+      projectId,
+      'observation.comment_added',
+      'New observation comment',
+      `A comment was added to observation ${observationId.slice(0, 8)}.`,
+    );
     return comment;
   }
   async createWorkflowRecord(

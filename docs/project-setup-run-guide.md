@@ -468,8 +468,8 @@ unread item records its acknowledgement. Events deferred by quiet hours remain
 absent until their configured availability time.
 
 Task assignments, workflow issuance, invoice issuance, and payment receipts
-all use the same event-preference and quiet-hours policy before an in-app
-notification is created.
+and observation-discussion comments all use the same event-preference and
+quiet-hours policy before an in-app notification is created.
 
 Install the mobile browser engines once, then run the suite:
 

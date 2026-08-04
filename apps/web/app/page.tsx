@@ -654,6 +654,8 @@ function ProjectBrain({
 
 const notificationEvents = [
   ['*', 'All project activity'],
+  ['task.assigned', 'Task assignments'],
+  ['observation.comment_added', 'Observation comments'],
   ['workflow.issued', 'Issued workflows'],
   ['invoice.issued', 'Issued invoices'],
   ['payment.recorded', 'Recorded payments'],

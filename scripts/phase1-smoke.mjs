@@ -526,7 +526,12 @@ await api('POST', `/v1/projects/${project.id}/finance/invoices/${invoice.id}/pay
   reference: `SMOKE-${runId}`,
 });
 const notifications = await api('GET', '/v1/workspace/notifications');
-for (const eventType of ['workflow.issued', 'invoice.issued', 'payment.recorded']) {
+for (const eventType of [
+  'workflow.issued',
+  'invoice.issued',
+  'payment.recorded',
+  'observation.comment_added',
+]) {
   assert.equal(
     notifications.some((notification) => notification.event_type === eventType),
     true,
