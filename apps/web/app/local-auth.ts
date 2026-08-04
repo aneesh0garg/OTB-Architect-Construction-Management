@@ -4,6 +4,62 @@ export type ConnectedWorkspace = {
   projects: { id: string; code: string; name: string; status: string }[];
   teams: { id: string; name: string }[];
 };
+export type ProjectRecord = {
+  project: {
+    id: string;
+    code: string;
+    name: string;
+    status: string;
+    location: string | null;
+    stage: string;
+  };
+  tasks: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    due_date: string | null;
+    assignee_id: string | null;
+  }[];
+  documents: {
+    id: string;
+    document_number: string;
+    document_type: string;
+    title: string;
+    revision: string;
+    status: string;
+    issue_date: string | null;
+  }[];
+  communications: {
+    id: string;
+    channel: string;
+    subject: string;
+    sender: string;
+    filed_at: string;
+  }[];
+};
+export type FinanceControl = {
+  health: {
+    plannedFee: number;
+    targetHours: number;
+    loggedHours: number;
+    invoiced: number;
+    paid: number;
+    outstanding: number;
+    feeBurn: number;
+    hoursBurn: number;
+  };
+};
+export type ExecutionRegister = {
+  observations: {
+    id: string;
+    observation_number: string;
+    title: string;
+    priority: string;
+    status: string;
+    sync_state: string;
+  }[];
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -84,3 +140,20 @@ export async function loadConnectedWorkspace(): Promise<ConnectedWorkspace> {
   if (!response.ok) throw new Error('Workspace data could not be loaded.');
   return response.json() as Promise<ConnectedWorkspace>;
 }
+
+async function apiGet<T>(path: string): Promise<T> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to load project data.');
+  const response = await fetch(`${apiUrl}${path}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Project data could not be loaded.');
+  return response.json() as Promise<T>;
+}
+
+export const loadProjectRecord = (projectId: string) =>
+  apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
+export const loadFinanceControl = (projectId: string) =>
+  apiGet<FinanceControl>(`/v1/projects/${projectId}/finance`);
+export const loadExecutionRegister = (projectId: string) =>
+  apiGet<ExecutionRegister>(`/v1/projects/${projectId}/execution-register`);

@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 import {
   beginLocalLogin,
+  loadExecutionRegister,
+  loadFinanceControl,
   loadConnectedWorkspace,
+  loadProjectRecord,
   restoreLocalLogin,
   signOutLocal,
   type ConnectedWorkspace,
+  type ExecutionRegister,
+  type FinanceControl,
+  type ProjectRecord,
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
@@ -29,6 +35,9 @@ export default function Home() {
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<Viewer>();
   const [connectedWorkspace, setConnectedWorkspace] = useState<ConnectedWorkspace>();
+  const [projectRecord, setProjectRecord] = useState<ProjectRecord>();
+  const [financeControl, setFinanceControl] = useState<FinanceControl>();
+  const [executionRegister, setExecutionRegister] = useState<ExecutionRegister>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -40,7 +49,11 @@ export default function Home() {
       .then(async (identity) => {
         if (identity) {
           setViewer(identity);
-          setConnectedWorkspace(await loadConnectedWorkspace());
+          const workspace = await loadConnectedWorkspace();
+          setConnectedWorkspace(workspace);
+          if (workspace.projects[0]) {
+            await loadProjectViews(workspace.projects[0].id);
+          }
           setAuthMessage('Connected to local workspace');
         }
       })
@@ -48,6 +61,17 @@ export default function Home() {
         setAuthMessage(error instanceof Error ? error.message : 'Local sign-in is unavailable.'),
       );
   }, []);
+
+  async function loadProjectViews(projectId: string) {
+    const [record, finance, execution] = await Promise.all([
+      loadProjectRecord(projectId),
+      loadFinanceControl(projectId),
+      loadExecutionRegister(projectId),
+    ]);
+    setProjectRecord(record);
+    setFinanceControl(finance);
+    setExecutionRegister(execution);
+  }
 
   const initials = viewer
     ? viewer.userId.slice(0, 2).toUpperCase()
@@ -112,7 +136,17 @@ export default function Home() {
             <button
               className={item.code === project.code ? 'project-link selected' : 'project-link'}
               key={item.code}
-              onClick={() => item.code === project.code && setProjectMenuOpen(!projectMenuOpen)}
+              onClick={() =>
+                'id' in item
+                  ? loadProjectViews(item.id).catch((error: unknown) =>
+                      setAuthMessage(
+                        error instanceof Error
+                          ? error.message
+                          : 'Project data could not be loaded.',
+                      ),
+                    )
+                  : item.code === project.code && setProjectMenuOpen(!projectMenuOpen)
+              }
             >
               <span className="project-dot" />
               <span>
@@ -239,15 +273,21 @@ export default function Home() {
             </button>
           ))}
         </nav>
-        {view === 'overview' && <Overview />}
-        {view === 'drawings' && <Drawings />}
-        {view === 'field' && <FieldMobile />}
+        {view === 'overview' && <Overview record={projectRecord} finance={financeControl} />}
+        {view === 'drawings' && <Drawings record={projectRecord} />}
+        {view === 'field' && <FieldMobile execution={executionRegister} />}
       </section>
     </main>
   );
 }
 
-function Overview() {
+function Overview({
+  record,
+  finance,
+}: {
+  record: ProjectRecord | undefined;
+  finance: FinanceControl | undefined;
+}) {
   const project = workspaceData.activeProject;
   return (
     <div className="workspace-content overview-view">
@@ -271,16 +311,22 @@ function Overview() {
             <button>View all →</button>
           </div>
           <div className="task-list">
-            {project.tasks.map((task) => (
+            {(record?.tasks ?? project.tasks).map((task) => (
               <article className="task-row" key={task.title}>
                 <span className="task-check" />
                 <div>
                   <strong>{task.title}</strong>
                   <span>
-                    {task.state} · Due {task.due}
+                    {'state' in task
+                      ? `${task.state} · Due ${task.due}`
+                      : `${task.status} · ${task.due_date ? `Due ${task.due_date}` : 'No due date'}`}
                   </span>
                 </div>
-                <span className="task-owner">{task.owner}</span>
+                <span className="task-owner">
+                  {'owner' in task
+                    ? task.owner
+                    : (task.assignee_id?.slice(0, 2).toUpperCase() ?? '—')}
+                </span>
               </article>
             ))}
           </div>
@@ -327,8 +373,8 @@ function Overview() {
           </div>
           <div>
             <span>Open correspondence</span>
-            <strong>7 filed conversations</strong>
-            <small>2 awaiting response</small>
+            <strong>{record?.communications.length ?? 7} filed conversations</strong>
+            <small>Available to permitted project users</small>
           </div>
         </div>
       </section>
@@ -344,17 +390,33 @@ function Overview() {
           <div className="commercial-metrics">
             <div>
               <span>Planned fee</span>
-              <strong>{project.commercial.plannedFee}</strong>
+              <strong>
+                {finance
+                  ? `₹${finance.health.plannedFee.toLocaleString('en-IN')}`
+                  : project.commercial.plannedFee}
+              </strong>
               <small>Construction administration</small>
             </div>
             <div>
               <span>Invoiced / collected</span>
-              <strong>{project.commercial.invoiced}</strong>
-              <small>{project.commercial.collected} received</small>
+              <strong>
+                {finance
+                  ? `₹${finance.health.invoiced.toLocaleString('en-IN')}`
+                  : project.commercial.invoiced}
+              </strong>
+              <small>
+                {finance
+                  ? `₹${finance.health.paid.toLocaleString('en-IN')} received`
+                  : `${project.commercial.collected} received`}
+              </small>
             </div>
             <div>
               <span>Logged hours</span>
-              <strong>{project.commercial.hours}</strong>
+              <strong>
+                {finance
+                  ? `${finance.health.loggedHours} / ${finance.health.targetHours}`
+                  : project.commercial.hours}
+              </strong>
               <small>{project.commercial.staffing}</small>
             </div>
           </div>
@@ -389,8 +451,10 @@ function Overview() {
   );
 }
 
-function Drawings() {
-  const drawings = workspaceData.activeProject.drawings;
+function Drawings({ record }: { record: ProjectRecord | undefined }) {
+  const drawings =
+    record?.documents.filter((document) => document.document_type === 'drawing') ??
+    workspaceData.activeProject.drawings;
   return (
     <div className="workspace-content drawings-view">
       <div className="drawings-hero">
@@ -419,17 +483,29 @@ function Drawings() {
             <span />
           </div>
           {drawings.map((drawing) => (
-            <div className="drawing-row" role="row" key={drawing.number}>
-              <strong>{drawing.number}</strong>
+            <div
+              className="drawing-row"
+              role="row"
+              key={'document_number' in drawing ? drawing.id : drawing.number}
+            >
+              <strong>
+                {'document_number' in drawing ? drawing.document_number : drawing.number}
+              </strong>
               <span>{drawing.title}</span>
               <span>{drawing.revision}</span>
-              <span>{drawing.issued}</span>
+              <span>
+                {'issue_date' in drawing ? (drawing.issue_date ?? 'Unissued') : drawing.issued}
+              </span>
               <span
-                className={`status-pill ${drawing.status === 'Current' ? 'current' : 'superseded'}`}
+                className={`status-pill ${drawing.status === 'Current' || drawing.status === 'issued' ? 'current' : 'superseded'}`}
               >
                 {drawing.status}
               </span>
-              <button aria-label={`Open ${drawing.number}`}>→</button>
+              <button
+                aria-label={`Open ${'document_number' in drawing ? drawing.document_number : drawing.number}`}
+              >
+                →
+              </button>
             </div>
           ))}
         </div>
@@ -438,8 +514,8 @@ function Drawings() {
   );
 }
 
-function FieldMobile() {
-  const items = workspaceData.activeProject.field;
+function FieldMobile({ execution }: { execution: ExecutionRegister | undefined }) {
+  const items = execution?.observations ?? workspaceData.activeProject.field;
   return (
     <div className="field-page">
       <div className="field-explainer">
@@ -474,13 +550,15 @@ function FieldMobile() {
               <div>
                 <span className={`priority-dot ${item.priority.toLowerCase()}`} />
                 <small>
-                  {item.id} · {item.area}
+                  {'observation_number' in item
+                    ? `SO-${item.observation_number} · ${item.sync_state}`
+                    : `${item.id} · ${item.area}`}
                 </small>
               </div>
               <strong>{item.title}</strong>
               <footer>
                 <span>{item.priority}</span>
-                <b>{item.state}</b>
+                <b>{'state' in item ? item.state : item.status}</b>
               </footer>
             </article>
           ))}
