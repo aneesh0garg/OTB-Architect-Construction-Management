@@ -89,9 +89,10 @@ curl http://localhost:3001/v1/workspace \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
-The API will initialize the Phase 1 organization, team, project membership, and
-audit tables on startup. Application migrations will replace this bootstrap
-schema initialization before production deployment.
+On startup the API applies its ordered, transactional Phase 1 database
+migrations exactly once and records each completed version in
+`schema_migrations`. This makes a fresh local database repeatable and prevents
+individual feature services from racing to create their own tables.
 
 ## P1.1 project-record API
 

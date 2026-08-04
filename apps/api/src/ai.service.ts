@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool, type QueryResultRow } from 'pg';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
+import { DatabaseService } from './database.service.js';
 
 interface EvidenceRow extends QueryResultRow {
   source_type: string;
@@ -22,21 +23,8 @@ interface DraftRow extends QueryResultRow {
 }
 
 @Injectable()
-export class AiService implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://orbita:orbita_local@localhost:5432/orbita',
-  });
-  async onModuleInit() {
-    await this.pool.query(`
-    CREATE TABLE IF NOT EXISTS ai_settings (organization_id TEXT PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE, enabled BOOLEAN NOT NULL DEFAULT false, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS ai_drafts (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, requested_by TEXT NOT NULL, intent TEXT NOT NULL, prompt TEXT NOT NULL, content TEXT NOT NULL, citations JSONB NOT NULL DEFAULT '[]'::jsonb, model TEXT NOT NULL DEFAULT 'local-cited-draft', status TEXT NOT NULL DEFAULT 'review_required', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS ai_audit_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID REFERENCES projects(id) ON DELETE SET NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-  `);
-  }
-  async onModuleDestroy() {
-    await this.pool.end();
-  }
+export class AiService {
+  constructor(private readonly pool: DatabaseService) {}
   async setEnabled(actor: AuthenticatedActor, enabled: boolean) {
     if (!actor.roles.some((role) => ['organization_admin', 'principal'].includes(role)))
       throw new BadRequestException('Organization administrator permission is required.');

@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
-import { Pool, type QueryResultRow } from 'pg';
+import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
+import { DatabaseService } from './database.service.js';
 
 interface ConnectionRow extends QueryResultRow {
   id: string;
@@ -24,20 +25,8 @@ const gmailScopes = [
 ];
 
 @Injectable()
-export class GmailService implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://orbita:orbita_local@localhost:5432/orbita',
-  });
-  async onModuleInit() {
-    await this.pool.query(`
-    CREATE TABLE IF NOT EXISTS integration_connections (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, provider TEXT NOT NULL, mailbox TEXT, scopes TEXT[] NOT NULL DEFAULT '{}', encrypted_refresh_token TEXT, status TEXT NOT NULL DEFAULT 'pending', connected_by TEXT NOT NULL, connected_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, provider, mailbox));
-    CREATE TABLE IF NOT EXISTS integration_oauth_states (id UUID PRIMARY KEY, organization_id TEXT NOT NULL, actor_id TEXT NOT NULL, provider TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-  `);
-  }
-  async onModuleDestroy() {
-    await this.pool.end();
-  }
+export class GmailService {
+  constructor(private readonly pool: DatabaseService) {}
   async list(actor: AuthenticatedActor) {
     const result = await this.pool.query<ConnectionRow>(
       'SELECT id, mailbox, scopes, status, connected_at FROM integration_connections WHERE organization_id = $1 AND provider = $2 ORDER BY created_at DESC',

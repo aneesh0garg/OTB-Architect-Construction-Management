@@ -12,6 +12,7 @@ import { FinanceController } from './finance.controller.js';
 import { FinanceService } from './finance.service.js';
 import { WorkspaceController } from './workspace.controller.js';
 import { WorkspaceService } from './workspace.service.js';
+import { DatabaseService } from './database.service.js';
 
 @Module({
   controllers: [
@@ -24,6 +25,7 @@ import { WorkspaceService } from './workspace.service.js';
     GmailController,
   ],
   providers: [
+    DatabaseService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,

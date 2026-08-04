@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool, type QueryResultRow } from 'pg';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
+import { DatabaseService } from './database.service.js';
 
 interface ProjectRow extends QueryResultRow {
   id: string;
@@ -55,28 +56,8 @@ interface NotificationRow extends QueryResultRow {
 }
 
 @Injectable()
-export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://orbita:orbita_local@localhost:5432/orbita',
-  });
-
-  async onModuleInit() {
-    await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      CREATE TABLE IF NOT EXISTS teams (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL REFERENCES organizations(id), name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, name));
-      CREATE TABLE IF NOT EXISTS projects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL REFERENCES organizations(id), code TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'planning', location TEXT, stage TEXT NOT NULL DEFAULT 'planning', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, code));
-      CREATE TABLE IF NOT EXISTS project_members (project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, user_id TEXT NOT NULL, role TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (project_id, user_id));
-      CREATE TABLE IF NOT EXISTS audit_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      CREATE TABLE IF NOT EXISTS tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', priority TEXT NOT NULL DEFAULT 'normal', due_date DATE, assignee_id TEXT, source_record_type TEXT, source_record_id TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      CREATE TABLE IF NOT EXISTS document_revisions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, document_number TEXT NOT NULL, document_type TEXT NOT NULL, title TEXT NOT NULL, revision TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', issue_date DATE, storage_key TEXT, issuer_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, document_number, revision));
-      CREATE TABLE IF NOT EXISTS communications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, channel TEXT NOT NULL, direction TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, sender TEXT NOT NULL, recipients TEXT[] NOT NULL DEFAULT '{}', thread_id TEXT, source_message_id TEXT, filing_status TEXT NOT NULL DEFAULT 'filed', filed_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      CREATE TABLE IF NOT EXISTS notifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, user_id TEXT NOT NULL, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, event_type TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    `);
-  }
-  async onModuleDestroy() {
-    await this.pool.end();
-  }
+export class WorkspaceService {
+  constructor(private readonly pool: DatabaseService) {}
 
   async getWorkspace(actor: AuthenticatedActor) {
     await this.ensureOrganization(actor);

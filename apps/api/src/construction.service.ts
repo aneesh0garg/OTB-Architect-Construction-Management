@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool, type QueryResultRow } from 'pg';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
+import { DatabaseService } from './database.service.js';
 
 type WorkflowType = 'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
 interface FieldVisitRow extends QueryResultRow {
@@ -28,23 +29,8 @@ interface WorkflowRow extends QueryResultRow {
 }
 
 @Injectable()
-export class ConstructionService implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://orbita:orbita_local@localhost:5432/orbita',
-  });
-
-  async onModuleInit() {
-    await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS field_visits (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, visit_date DATE NOT NULL, location TEXT NOT NULL, attendees TEXT[] NOT NULL DEFAULT '{}', weather TEXT, checklist JSONB NOT NULL DEFAULT '[]'::jsonb, notes TEXT, sync_state TEXT NOT NULL DEFAULT 'synced', client_capture_id TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, client_capture_id));
-      CREATE TABLE IF NOT EXISTS observations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, field_visit_id UUID REFERENCES field_visits(id) ON DELETE SET NULL, observation_number BIGSERIAL NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT, location TEXT, floor TEXT, zone TEXT, trade TEXT, priority TEXT NOT NULL DEFAULT 'normal', status TEXT NOT NULL DEFAULT 'open', evidence JSONB NOT NULL DEFAULT '[]'::jsonb, sync_state TEXT NOT NULL DEFAULT 'synced', client_capture_id TEXT, assignee_id TEXT, due_date DATE, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, client_capture_id));
-      CREATE TABLE IF NOT EXISTS workflow_records (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, record_type TEXT NOT NULL, record_number BIGSERIAL NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, data JSONB NOT NULL DEFAULT '{}'::jsonb, issued_at TIMESTAMPTZ, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      CREATE TABLE IF NOT EXISTS workflow_transitions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), workflow_record_id UUID NOT NULL REFERENCES workflow_records(id) ON DELETE CASCADE, from_status TEXT, to_status TEXT NOT NULL, note TEXT, actor_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    `);
-  }
-  async onModuleDestroy() {
-    await this.pool.end();
-  }
+export class ConstructionService {
+  constructor(private readonly pool: DatabaseService) {}
 
   async getRegister(actor: AuthenticatedActor, projectId: string) {
     await this.authorizeProject(actor, projectId);

@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool, type QueryResultRow } from 'pg';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
+import { DatabaseService } from './database.service.js';
 
 interface PhaseRow extends QueryResultRow {
   id: string;
@@ -39,24 +40,8 @@ interface PaymentRow extends QueryResultRow {
 }
 
 @Injectable()
-export class FinanceService implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://orbita:orbita_local@localhost:5432/orbita',
-  });
-  async onModuleInit() {
-    await this.pool.query(`
-    CREATE TABLE IF NOT EXISTS project_phases (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, planned_fee NUMERIC(14,2) NOT NULL DEFAULT 0, target_hours REAL NOT NULL DEFAULT 0, baseline_version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, name, baseline_version));
-    CREATE TABLE IF NOT EXISTS staff_allocations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, phase_id UUID REFERENCES project_phases(id) ON DELETE SET NULL, staff_id TEXT NOT NULL, starts_on DATE NOT NULL, ends_on DATE NOT NULL, planned_hours REAL NOT NULL, billable BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS time_entries (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, phase_id UUID REFERENCES project_phases(id) ON DELETE SET NULL, task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, user_id TEXT NOT NULL, entry_date DATE NOT NULL, hours REAL NOT NULL, billable BOOLEAN NOT NULL DEFAULT true, note TEXT, status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS invoices (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, invoice_number BIGSERIAL NOT NULL, client_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', issue_date DATE, due_date DATE, subtotal NUMERIC(14,2) NOT NULL DEFAULT 0, gst_rate NUMERIC(5,2) NOT NULL DEFAULT 18, gst_amount NUMERIC(14,2) NOT NULL DEFAULT 0, total NUMERIC(14,2) NOT NULL DEFAULT 0, accounting_sync_status TEXT NOT NULL DEFAULT 'not_connected', created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS invoice_lines (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE, source_type TEXT NOT NULL, source_id TEXT, description TEXT NOT NULL, quantity REAL NOT NULL DEFAULT 1, unit_amount NUMERIC(14,2) NOT NULL, line_total NUMERIC(14,2) NOT NULL);
-    CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE, amount NUMERIC(14,2) NOT NULL, paid_date DATE NOT NULL, reference TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-  `);
-  }
-  async onModuleDestroy() {
-    await this.pool.end();
-  }
+export class FinanceService {
+  constructor(private readonly pool: DatabaseService) {}
 
   async getControl(actor: AuthenticatedActor, projectId: string) {
     await this.authorizeProject(actor, projectId);
