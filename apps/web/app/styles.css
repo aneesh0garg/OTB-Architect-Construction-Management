@@ -1112,6 +1112,20 @@ small {
 .task-field-value strong {
   margin: 5px 0;
 }
+.task-unassigned { color: var(--muted); font-weight: 500; }
+.inline-field-editor:has(.inline-field-error) { flex-wrap: wrap; }
+.inline-field-error { width: 100%; margin: 2px 0 0; color: var(--danger, #b42318); font-size: 0.78rem; line-height: 1.35; }
+.task-scope-tabs { display: flex; gap: 6px; margin: 4px 0 14px; }
+.task-scope-tabs button { border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; padding: 6px 10px; font: inherit; font-size: 0.82rem; font-weight: 700; }
+.task-scope-tabs button.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.task-scope-tabs span { display: inline-grid; min-width: 18px; place-items: center; margin-left: 3px; border-radius: 999px; background: color-mix(in srgb, currentColor 12%, transparent); font-size: 0.72rem; }
+.task-status-menu { position: relative; display: inline-flex; }
+.status-menu-trigger { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; font: inherit; text-transform: none; }
+.status-menu-trigger:hover { filter: brightness(0.96); }
+.status-menu-trigger:disabled { cursor: wait; opacity: 0.7; }
+.status-menu-options { position: absolute; z-index: 5; top: calc(100% + 7px); left: 0; min-width: 220px; overflow: hidden; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); box-shadow: 0 12px 28px color-mix(in srgb, #101828 18%, transparent); }
+.status-menu-options button { display: grid; width: 100%; gap: 2px; padding: 10px; border: 0; background: transparent; color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+.status-menu-options button:hover { background: var(--primary-soft); color: var(--primary); }
 .inline-field-editor input,
 .inline-field-editor select {
   min-width: 0;
@@ -1635,6 +1649,14 @@ small {
 .record-grid strong {
   margin: 5px 0;
   font-size: 13px;
+}
+.record-grid .member-name-with-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.record-grid .member-name-with-avatar .member-avatar {
+  display: inline-grid;
 }
 .control-grid {
   display: grid;

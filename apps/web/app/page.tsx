@@ -576,6 +576,7 @@ export default function Home() {
             <Tasks
               record={projectRecord}
               signedIn={Boolean(viewer)}
+              {...(viewer ? { viewerId: viewer.userId } : {})}
               onChanged={() =>
                 projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
               }
@@ -2386,13 +2387,18 @@ function TransmittalDialog({ projectId, documents, onClose, onCompleted }: { pro
 function Tasks({
   record,
   signedIn,
+  viewerId,
   onChanged,
 }: {
   record: ProjectRecord | undefined;
   signedIn: boolean;
+  viewerId?: string;
   onChanged: () => Promise<void>;
 }) {
   const tasks = record?.tasks ?? [];
+  const myTasks = viewerId ? tasks.filter((task) => task.assignee_id === viewerId) : [];
+  const [taskScope, setTaskScope] = useState<'mine' | 'all'>('mine');
+  const visibleTasks = taskScope === 'mine' && viewerId ? myTasks : tasks;
   const [createOpen, setCreateOpen] = useState(false);
   const [message, setMessage] = useState<string>();
   const openTaskDetail = (taskId: string) => {
@@ -2410,9 +2416,13 @@ function Tasks({
           <div className="record-toolbar-actions"><span>{tasks.length} tasks</span>{signedIn && record && <button className="button-primary" onClick={() => setCreateOpen(true)}>Create task</button>}</div>
         </div>
         {message && <p className="form-message">{message}</p>}
+        <div className="task-scope-tabs" role="tablist" aria-label="Task scope">
+          <button className={taskScope === 'mine' ? 'active' : ''} role="tab" aria-selected={taskScope === 'mine'} onClick={() => setTaskScope('mine')}>My tasks <span>{myTasks.length}</span></button>
+          <button className={taskScope === 'all' ? 'active' : ''} role="tab" aria-selected={taskScope === 'all'} onClick={() => setTaskScope('all')}>All tasks <span>{tasks.length}</span></button>
+        </div>
         <div className="simple-record-list">
-          {tasks.length ? (
-            tasks.map((task) => (
+          {visibleTasks.length ? (
+            visibleTasks.map((task) => (
               <article className="task-list-item" key={task.id}>
                 <div className="task-record">
                   <strong>
@@ -2438,7 +2448,7 @@ function Tasks({
               </article>
             ))
           ) : (
-            <p>No connected project tasks are available.</p>
+            <p>{taskScope === 'mine' && viewerId ? 'No tasks are assigned to you yet.' : 'No connected project tasks are available.'}</p>
           )}
         </div>
       </section>

@@ -477,13 +477,7 @@ export class WorkspaceService {
       [taskId, project.id, actor.organizationId],
     );
     const current = this.resultRow(task.rows, 'Task is unavailable.');
-    const canManageTasks = actor.roles.some((role) =>
-      ['organization_admin', 'principal', 'project_manager'].includes(role),
-    );
-    if (!canManageTasks && current.created_by !== actor.userId)
-      throw new BadRequestException('Only the task creator or a project manager can update this task.');
-    if (!canManageTasks && input.assigneeId !== undefined && input.assigneeId !== current.assignee_id)
-      throw new BadRequestException('Only a project manager can reassign this task.');
+    if (input.assigneeId) await this.projectMemberForAssignment(actor, project.id, input.assigneeId);
     const result = await this.pool.query<TaskRow>(
       `UPDATE tasks SET title = $1, priority = $2, due_date = $3, assignee_id = $4
        WHERE id = $5 AND project_id = $6 AND organization_id = $7

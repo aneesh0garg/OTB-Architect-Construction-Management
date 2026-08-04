@@ -283,7 +283,13 @@ const localServiceUrl = (configuredUrl: string) => {
 };
 
 const issuerUrl = () => localServiceUrl(configuredIssuer);
-const apiUrl = () => localServiceUrl(configuredApiUrl);
+const apiUrl = () => {
+  const url = new URL(configuredApiUrl);
+  // Browsers embedded on a phone can block direct cross-port localhost calls.
+  // Use the same-origin Next proxy for locally hosted APIs instead.
+  if (typeof window !== 'undefined' && url.hostname === 'localhost') return '/api';
+  return localServiceUrl(configuredApiUrl);
+};
 
 const base64Url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes))
