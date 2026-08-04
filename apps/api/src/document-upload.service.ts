@@ -8,7 +8,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import type { QueryResultRow } from 'pg';
 import { AuditService } from './audit.service.js';
@@ -23,6 +23,7 @@ interface UploadRow extends QueryResultRow {
   expected_size: string;
   actual_size: string | null;
   status: string;
+  content_sha256: string | null;
 }
 interface DocumentStorageRow extends QueryResultRow {
   id: string;
@@ -77,7 +78,7 @@ export class DocumentUploadService {
     const key = `organizations/${actor.organizationId}/projects/${projectId}/uploads/${randomUUID()}/${originalName}`;
     await this.ensureBucket();
     const result = await this.database.query<UploadRow>(
-      "INSERT INTO document_uploads (organization_id, project_id, storage_key, original_name, content_type, expected_size, expires_at, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,NOW() + INTERVAL '15 minutes',$7) RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status",
+      "INSERT INTO document_uploads (organization_id, project_id, storage_key, original_name, content_type, expected_size, expires_at, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6,NOW() + INTERVAL '15 minutes',$7) RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status, content_sha256",
       [actor.organizationId, projectId, key, originalName, contentType, input.size, actor.userId],
     );
     const upload = row(result.rows, 'Upload could not be prepared.');
@@ -110,29 +111,42 @@ export class DocumentUploadService {
       throw new BadRequestException('Uploaded file size does not match the prepared upload.');
     if (head.ContentType !== upload.content_type)
       throw new BadRequestException('Uploaded file type does not match the prepared upload.');
+    const object = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket(), Key: upload.storage_key }),
+    );
+    const bytes = await object.Body?.transformToByteArray();
+    if (!bytes || bytes.byteLength !== actualSize)
+      throw new BadRequestException('Uploaded file could not be read for integrity verification.');
+    const checksum = createHash('sha256').update(bytes).digest('hex');
     const result = await this.database.query<UploadRow>(
-      "UPDATE document_uploads SET status = 'uploaded', actual_size = $1, completed_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status",
-      [actualSize, upload.id],
+      "UPDATE document_uploads SET status = 'uploaded', actual_size = $1, content_sha256 = $2, completed_at = NOW() WHERE id = $3 AND status = 'pending' RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status, content_sha256",
+      [actualSize, checksum, upload.id],
     );
     const completed = row(result.rows, 'Upload is unavailable or already completed.');
     await this.audit.record(actor, 'document.upload_completed', 'document_upload', completed.id, {
       projectId,
       actualSize,
+      checksum,
     });
-    return { uploadId: completed.id, storageKey: completed.storage_key, status: completed.status };
+    return {
+      uploadId: completed.id,
+      storageKey: completed.storage_key,
+      checksumSha256: completed.content_sha256,
+      status: completed.status,
+    };
   }
 
   async consume(actor: AuthenticatedActor, projectId: string, uploadId: string) {
     const upload = await this.find(actor, projectId, uploadId, 'uploaded');
     const result = await this.database.query<UploadRow>(
-      "UPDATE document_uploads SET status = 'attached', attached_at = NOW() WHERE id = $1 AND status = 'uploaded' RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status",
+      "UPDATE document_uploads SET status = 'attached', attached_at = NOW() WHERE id = $1 AND status = 'uploaded' RETURNING id, storage_key, original_name, content_type, expected_size, actual_size, status, content_sha256",
       [upload.id],
     );
     const attached = row(result.rows, 'Upload is unavailable or already attached.');
     await this.audit.record(actor, 'document.upload_attached', 'document_upload', attached.id, {
       projectId,
     });
-    return attached.storage_key;
+    return { storageKey: attached.storage_key, checksumSha256: attached.content_sha256 };
   }
 
   async download(actor: AuthenticatedActor, projectId: string, documentId: string) {
@@ -162,7 +176,7 @@ export class DocumentUploadService {
     status: string,
   ) {
     const result = await this.database.query<UploadRow>(
-      'SELECT id, storage_key, original_name, content_type, expected_size, actual_size, status FROM document_uploads WHERE id = $1 AND organization_id = $2 AND project_id = $3 AND status = $4',
+      'SELECT id, storage_key, original_name, content_type, expected_size, actual_size, status, content_sha256 FROM document_uploads WHERE id = $1 AND organization_id = $2 AND project_id = $3 AND status = $4',
       [uploadId, actor.organizationId, projectId, status],
     );
     return row(result.rows, 'Upload is unavailable.');

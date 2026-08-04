@@ -247,6 +247,7 @@ const completedUpload = await api(
   `${projectPath}/documents/uploads/${preparedUpload.uploadId}/complete`,
 );
 assert.equal(completedUpload.status, 'uploaded', 'Upload was not verified.');
+assert.match(completedUpload.checksumSha256, /^[a-f0-9]{64}$/, 'Upload checksum is missing.');
 const uploadedDocument = await api('POST', `${projectPath}/documents`, {
   documentNumber: `UP-${runId}`,
   documentType: 'report',
@@ -477,6 +478,12 @@ assert.equal(
   projectRecord.documents.find((item) => item.revision === 'A')?.zone,
   'Facade east',
   'Drawing location metadata was not retained.',
+);
+assert.match(
+  projectRecord.documents.find((item) => item.document_number === `UP-${runId}`.toUpperCase())
+    ?.content_sha256,
+  /^[a-f0-9]{64}$/,
+  'Attached document checksum was not retained.',
 );
 const projectExport = await apiText(`/v1/projects/${project.id}/exports/project.csv`);
 assert.match(projectExport, /Facade observation/);

@@ -173,6 +173,11 @@ are prepared; the response has one upload ID and URL per file. Each uploaded
 file still must be completed and attached individually, preserving size/type
 verification and a separate immutable revision record.
 
+Completion also reads the controlled object once and records a SHA-256 checksum.
+That checksum is copied into the attached immutable document revision, providing
+a local integrity-processing proof before later malware-scanning or OCR workers
+are introduced.
+
 Document revisions support optional `discipline`, `building`, `floor`, and
 `zone` fields alongside their stable number, type, title, revision, status, and
 issue date. These fields make a drawing or report identifiable in a multi-level

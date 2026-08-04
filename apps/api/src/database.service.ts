@@ -178,6 +178,13 @@ const migrations: Migration[] = [
       ON document_revisions (project_id, discipline, building, floor, zone);
     `,
   },
+  {
+    id: '0011_document_integrity_checksum',
+    sql: `
+      ALTER TABLE document_uploads ADD COLUMN IF NOT EXISTS content_sha256 TEXT;
+      ALTER TABLE document_revisions ADD COLUMN IF NOT EXISTS content_sha256 TEXT;
+    `,
+  },
 ];
 
 @Injectable()

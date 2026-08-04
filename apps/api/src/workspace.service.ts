@@ -47,6 +47,7 @@ interface DocumentRow extends QueryResultRow {
   building: string | null;
   floor: string | null;
   zone: string | null;
+  content_sha256: string | null;
 }
 interface CommunicationRow extends QueryResultRow {
   id: string;
@@ -264,7 +265,7 @@ export class WorkspaceService {
         [project.id],
       ),
       this.pool.query<DocumentRow>(
-        'SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
+        'SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone, content_sha256 FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
         [project.id],
       ),
       this.pool.query<CommunicationRow>(
@@ -377,9 +378,9 @@ export class WorkspaceService {
     ]);
     const project = await this.projectForActor(actor, projectId);
     const number = this.requiredText(input.documentNumber, 'Document number').toUpperCase();
-    const storageKey = input.uploadId
+    const upload = input.uploadId
       ? await this.uploads.consume(actor, projectId, input.uploadId)
-      : null;
+      : { storageKey: null, checksumSha256: null };
     if (input.status === 'issued')
       await this.pool.query(
         'UPDATE document_revisions SET status = $1 WHERE project_id = $2 AND document_number = $3 AND status = $4',
@@ -387,10 +388,10 @@ export class WorkspaceService {
       );
     const document = await this.pool.query<DocumentRow>(
       `INSERT INTO document_revisions (organization_id, project_id, document_number, document_type,
-        title, revision, status, issue_date, discipline, building, floor, zone, storage_key, issuer_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        title, revision, status, issue_date, discipline, building, floor, zone, storage_key, content_sha256, issuer_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id, document_number, document_type, title, revision, status, issue_date,
-         discipline, building, floor, zone`,
+         discipline, building, floor, zone, content_sha256`,
       [
         actor.organizationId,
         project.id,
@@ -404,7 +405,8 @@ export class WorkspaceService {
         input.building?.trim() || null,
         input.floor?.trim() || null,
         input.zone?.trim() || null,
-        storageKey,
+        upload.storageKey,
+        upload.checksumSha256,
         actor.userId,
       ],
     );
