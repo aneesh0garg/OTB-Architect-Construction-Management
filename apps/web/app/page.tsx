@@ -383,6 +383,7 @@ export default function Home() {
               value={theme}
               onChange={(event) => setTheme(event.target.value as Theme)}
               aria-label="Theme"
+              suppressHydrationWarning
             >
               <option value="system">System</option>
               <option value="light">Light</option>
