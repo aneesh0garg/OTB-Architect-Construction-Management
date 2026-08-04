@@ -1,4 +1,9 @@
 export type Viewer = { userId: string; organizationId: string; roles: string[] };
+export type ConnectedWorkspace = {
+  organizationId: string;
+  projects: { id: string; code: string; name: string; status: string }[];
+  teams: { id: string; name: string }[];
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -68,4 +73,14 @@ export async function restoreLocalLogin(): Promise<Viewer | undefined> {
 export function signOutLocal() {
   sessionStorage.removeItem(tokenKey);
   sessionStorage.removeItem(verifierKey);
+}
+
+export async function loadConnectedWorkspace(): Promise<ConnectedWorkspace> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to load workspace data.');
+  const response = await fetch(`${apiUrl}/v1/workspace`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Workspace data could not be loaded.');
+  return response.json() as Promise<ConnectedWorkspace>;
 }

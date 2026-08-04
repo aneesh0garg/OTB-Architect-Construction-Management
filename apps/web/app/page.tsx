@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { beginLocalLogin, restoreLocalLogin, signOutLocal, type Viewer } from './local-auth';
+import {
+  beginLocalLogin,
+  loadConnectedWorkspace,
+  restoreLocalLogin,
+  signOutLocal,
+  type ConnectedWorkspace,
+  type Viewer,
+} from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -21,6 +28,7 @@ export default function Home() {
   const [view, setView] = useState<WorkspaceView>('overview');
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [viewer, setViewer] = useState<Viewer>();
+  const [connectedWorkspace, setConnectedWorkspace] = useState<ConnectedWorkspace>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -29,9 +37,10 @@ export default function Home() {
   }, [theme]);
   useEffect(() => {
     restoreLocalLogin()
-      .then((identity) => {
+      .then(async (identity) => {
         if (identity) {
           setViewer(identity);
+          setConnectedWorkspace(await loadConnectedWorkspace());
           setAuthMessage('Connected to local workspace');
         }
       })
@@ -43,6 +52,12 @@ export default function Home() {
   const initials = viewer
     ? viewer.userId.slice(0, 2).toUpperCase()
     : workspaceData.organization.user.initials;
+  const projects = connectedWorkspace
+    ? connectedWorkspace.projects.map((item) => ({ ...item, progress: 0 }))
+    : workspaceData.projects;
+  const teams = connectedWorkspace
+    ? connectedWorkspace.teams.map((team) => team.name)
+    : workspaceData.organization.teams;
 
   return (
     <main className="workspace-shell">
@@ -93,7 +108,7 @@ export default function Home() {
           <button aria-label="Create project">+</button>
         </div>
         <nav className="project-list" aria-label="Projects">
-          {workspaceData.projects.map((item) => (
+          {projects.map((item) => (
             <button
               className={item.code === project.code ? 'project-link selected' : 'project-link'}
               key={item.code}
@@ -120,7 +135,7 @@ export default function Home() {
           <button aria-label="Create team">+</button>
         </div>
         <div className="team-list">
-          {workspaceData.organization.teams.map((team) => (
+          {teams.map((team) => (
             <span key={team}># {team}</span>
           ))}
         </div>
@@ -165,7 +180,10 @@ export default function Home() {
               className="auth-button"
               onClick={() =>
                 viewer
-                  ? (signOutLocal(), setViewer(undefined), setAuthMessage('Demo workspace'))
+                  ? (signOutLocal(),
+                    setViewer(undefined),
+                    setConnectedWorkspace(undefined),
+                    setAuthMessage('Demo workspace'))
                   : beginLocalLogin().catch((error: unknown) =>
                       setAuthMessage(
                         error instanceof Error ? error.message : 'Unable to start sign-in.',
