@@ -197,6 +197,12 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS document_transmittals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, transmittal_number BIGSERIAL NOT NULL, purpose TEXT NOT NULL, issue_note TEXT, recipients TEXT[] NOT NULL, document_ids UUID[] NOT NULL, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     `,
   },
+  {
+    id: '0014_notification_preferences',
+    sql: `
+      CREATE TABLE IF NOT EXISTS notification_preferences (organization_id TEXT NOT NULL, user_id TEXT NOT NULL, event_type TEXT NOT NULL DEFAULT '*', in_app_enabled BOOLEAN NOT NULL DEFAULT true, email_enabled BOOLEAN NOT NULL DEFAULT false, quiet_hours_start TIME, quiet_hours_end TIME, digest_frequency TEXT NOT NULL DEFAULT 'immediate', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (organization_id, user_id, event_type));
+    `,
+  },
 ];
 
 @Injectable()
