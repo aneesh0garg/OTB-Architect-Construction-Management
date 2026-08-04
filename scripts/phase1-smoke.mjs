@@ -124,6 +124,11 @@ const issuedRfi = await api('POST', `/v1/projects/${project.id}/workflows/${rfi.
   note: 'Issued by smoke workflow.',
 });
 assert.equal(issuedRfi.status, 'issued');
+const search = await api(
+  'GET',
+  `/v1/projects/${project.id}/search?q=${encodeURIComponent(`facade ${runId}`)}`,
+);
+assert.ok(search.results.length > 0, 'Project search did not return matching evidence.');
 
 const phase = await api('POST', `/v1/projects/${project.id}/finance/phases`, {
   name: 'Construction administration',
@@ -228,6 +233,7 @@ for (const action of [
   'finance.payment_recorded',
   'cost.change_status_changed',
   'project.status_changed',
+  'project.search_performed',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),

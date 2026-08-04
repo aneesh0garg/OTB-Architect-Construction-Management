@@ -15,6 +15,8 @@ import { WorkspaceService } from './workspace.service.js';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
 import { AuditService } from './audit.service.js';
+import { ProjectSearchController } from './project-search.controller.js';
+import { ProjectSearchService } from './project-search.service.js';
 
 @Module({
   controllers: [
@@ -25,11 +27,13 @@ import { AuditService } from './audit.service.js';
     FinanceController,
     AiController,
     GmailController,
+    ProjectSearchController,
   ],
   providers: [
     DatabaseService,
     ProjectAccessService,
     AuditService,
+    ProjectSearchService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,
