@@ -25,7 +25,8 @@ pnpm dev
 
 The invitation setup command is safe to repeat. It creates the local-only Keycloak
 provisioner client when necessary, grants only the required local user-management
-roles, retrieves its generated secret into the ignored `.env`, and configures
+roles (`view-users`, `manage-users`, and `view-realm`), retrieves its generated
+secret into the ignored `.env`, and configures
 Keycloak SMTP to use Mailpit. It never prints or stores that secret in Git.
 
 Without Corepack, the equivalent commands are:
@@ -95,6 +96,31 @@ existing local realm to send SMTP to Mailpit, so it works even when Keycloak was
 before this feature was added. Never commit that secret or expose it in the web or mobile
 app. Production must use an approved transactional-email SMTP/API provider with equivalent
 delivery controls.
+
+### Manual local invitation setup
+
+Use the automated command whenever possible: it is repeatable and adds only permissions
+that are missing. If a local environment must be configured manually, complete these steps
+in the Keycloak Admin Console at `http://localhost:8180`:
+
+1. Sign in to the `master` realm as the local bootstrap administrator, then select the
+   `orbita` realm.
+2. In **Realm settings → Email**, set Host to `mailpit`, Port to `1025`, From to
+   `no-reply@local.orbita`, and disable Authentication, SSL, and StartTLS. Save.
+3. In **Clients**, create (or open) the confidential client `orbita-provisioner` with
+   **Service accounts roles** enabled and browser/direct-grant flows disabled.
+4. Open **Service account roles**, choose the `realm-management` client roles, and assign
+   only `view-users`, `manage-users`, and `view-realm`. These permit identity lookup and
+   creation plus applying the organization role selected on the invitation; they do not
+   grant realm-administration or client-management access.
+5. Open **Credentials**, copy the generated client secret, and add it to the untracked root
+   `.env` as `KEYCLOAK_PROVISIONER_CLIENT_SECRET`. Also set
+   `KEYCLOAK_PROVISIONER_CLIENT_ID=orbita-provisioner` and `KEYCLOAK_REALM=orbita`.
+6. Restart the API, then send a test invitation and confirm its message appears in Mailpit.
+
+Do not put the client secret in `.env.example`, source control, the browser, or a mobile
+build. If the secret is exposed, regenerate it in **Credentials**, update the local `.env`,
+and restart the API.
 
 ### Test an invitation end to end
 

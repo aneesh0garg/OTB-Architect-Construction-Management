@@ -13,6 +13,11 @@ export function upsertEnvValue(contents, key, value) {
     : `${contents.replace(/\s*$/, '')}\n${line}\n`;
 }
 
+export function missingRoleNames(assignedRoles, requiredRoles) {
+  const assigned = new Set(assignedRoles.map((role) => role.name));
+  return requiredRoles.filter((role) => !assigned.has(role));
+}
+
 const docker = (args) =>
   execFileSync('docker', ['compose', 'exec', '-T', 'keycloak', ...args], {
     cwd: root,
@@ -42,17 +47,33 @@ export function configureLocalInvitations() {
       '-s', 'clientId=orbita-provisioner', '-s', 'enabled=true', '-s', 'publicClient=false',
       '-s', 'serviceAccountsEnabled=true', '-s', 'standardFlowEnabled=false', '-s', 'directAccessGrantsEnabled=false',
     ]);
-    docker([
-      '/opt/keycloak/bin/kcadm.sh', 'add-roles', '-r', 'orbita',
-      '--uusername', 'service-account-orbita-provisioner', '--cclientid', 'realm-management',
-      '--rolename', 'view-users', '--rolename', 'manage-users',
-    ]);
     clients = JSON.parse(docker([
       '/opt/keycloak/bin/kcadm.sh', 'get', 'clients', '-r', 'orbita', '-q', 'clientId=orbita-provisioner',
     ]));
   }
   const clientId = clients[0]?.id;
   if (!clientId) throw new Error('The orbita-provisioner client could not be created.');
+  const realmManagementClients = JSON.parse(docker([
+    '/opt/keycloak/bin/kcadm.sh', 'get', 'clients', '-r', 'orbita', '-q', 'clientId=realm-management',
+  ]));
+  const realmManagementClientId = realmManagementClients[0]?.id;
+  if (!realmManagementClientId) throw new Error('The realm-management client could not be found.');
+  const serviceAccount = JSON.parse(docker([
+    '/opt/keycloak/bin/kcadm.sh', 'get', `clients/${clientId}/service-account-user`, '-r', 'orbita',
+  ]));
+  const assignedRoles = JSON.parse(docker([
+    '/opt/keycloak/bin/kcadm.sh', 'get',
+    `users/${serviceAccount.id}/role-mappings/clients/${realmManagementClientId}`,
+    '-r', 'orbita',
+  ]));
+  const rolesToAdd = missingRoleNames(assignedRoles, ['view-users', 'manage-users', 'view-realm']);
+  if (rolesToAdd.length > 0) {
+    docker([
+      '/opt/keycloak/bin/kcadm.sh', 'add-roles', '-r', 'orbita',
+      '--uusername', 'service-account-orbita-provisioner', '--cclientid', 'realm-management',
+      ...rolesToAdd.flatMap((role) => ['--rolename', role]),
+    ]);
+  }
   const secret = JSON.parse(docker([
     '/opt/keycloak/bin/kcadm.sh', 'get', `clients/${clientId}/client-secret`, '-r', 'orbita',
   ])).value;
