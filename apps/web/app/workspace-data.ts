@@ -102,5 +102,22 @@ export const workspaceData = {
         state: 'Closed',
       },
     ],
+    commercial: {
+      plannedFee: '₹2.50L',
+      invoiced: '₹59,000',
+      collected: '₹59,000',
+      hours: '7.5 / 320',
+      staffing: '120h allocated through June',
+      invoice: 'INV-001 · Paid 25 Mar',
+    },
+    brain: {
+      enabled: true,
+      prompt: 'Draft a response request about facade cavity depth',
+      citations: [
+        'RFI #1 · Confirm facade cavity depth',
+        'Facade sample confirmation',
+        'Review facade shop drawing',
+      ],
+    },
   },
 } as const;

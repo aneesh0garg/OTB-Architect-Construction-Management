@@ -274,6 +274,59 @@ function Overview() {
           </div>
         </div>
       </section>
+      <div className="control-grid">
+        <section className="content-card commercial-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">COMMERCIAL CONTROL</p>
+              <h2>Fee, time &amp; collections</h2>
+            </div>
+            <button>Open project control →</button>
+          </div>
+          <div className="commercial-metrics">
+            <div>
+              <span>Planned fee</span>
+              <strong>{project.commercial.plannedFee}</strong>
+              <small>Construction administration</small>
+            </div>
+            <div>
+              <span>Invoiced / collected</span>
+              <strong>{project.commercial.invoiced}</strong>
+              <small>{project.commercial.collected} received</small>
+            </div>
+            <div>
+              <span>Logged hours</span>
+              <strong>{project.commercial.hours}</strong>
+              <small>{project.commercial.staffing}</small>
+            </div>
+          </div>
+          <div className="commercial-footer">
+            <span className="finance-dot" /> <strong>{project.commercial.invoice}</strong>
+            <small> GST-ready source lines and payment trace available</small>
+          </div>
+        </section>
+        <section className="content-card brain-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">PROJECT BRAIN</p>
+              <h2>Evidence before answers</h2>
+            </div>
+            <span className="brain-status">{project.brain.enabled ? 'Enabled' : 'Off'}</span>
+          </div>
+          <p className="brain-prompt">“{project.brain.prompt}”</p>
+          <div className="citation-list">
+            {project.brain.citations.map((citation, index) => (
+              <span key={citation}>
+                <b>[{index + 1}]</b> {citation}
+              </span>
+            ))}
+          </div>
+          <footer>
+            <span>Review-required draft</span>
+            <button>Ask Orbita AI →</button>
+          </footer>
+        </section>
+      </div>
     </div>
   );
 }

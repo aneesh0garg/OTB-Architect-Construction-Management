@@ -646,6 +646,110 @@ small {
   margin: 5px 0;
   font-size: 13px;
 }
+.control-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 15px;
+  margin-top: 15px;
+}
+.commercial-card,
+.brain-card {
+  min-width: 0;
+}
+.commercial-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+}
+.commercial-metrics > div {
+  padding: 14px 12px 6px 0;
+}
+.commercial-metrics > div + div {
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+.commercial-metrics span,
+.commercial-metrics strong,
+.commercial-metrics small {
+  display: block;
+}
+.commercial-metrics span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.commercial-metrics strong {
+  margin: 6px 0 3px;
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+.commercial-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.commercial-footer small {
+  margin-left: auto;
+  text-align: right;
+}
+.finance-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3d9b70;
+}
+.brain-status {
+  padding: 3px 7px;
+  border-radius: 99px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+.brain-prompt {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--raised-strong);
+  color: var(--text);
+  font-size: 12px;
+  font-style: italic;
+}
+.citation-list {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+.citation-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+.citation-list b {
+  color: var(--primary);
+}
+.brain-card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+.brain-card footer button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
 .drawings-hero {
   display: flex;
   align-items: flex-end;
@@ -880,6 +984,9 @@ small {
   .content-grid {
     grid-template-columns: 1fr;
   }
+  .control-grid {
+    grid-template-columns: 1fr;
+  }
   .project-header,
   .workspace-content {
     padding-left: 22px;
@@ -934,6 +1041,23 @@ small {
   }
   .record-grid {
     grid-template-columns: 1fr;
+  }
+  .commercial-metrics {
+    grid-template-columns: 1fr;
+  }
+  .commercial-metrics > div + div {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .commercial-footer {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .commercial-footer small {
+    width: 100%;
+    margin-left: 13px;
+    text-align: left;
   }
   .record-grid div + div {
     padding-left: 0;
