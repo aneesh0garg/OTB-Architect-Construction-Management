@@ -54,6 +54,15 @@ interface NotificationRow extends QueryResultRow {
   read_at: Date | null;
   created_at: Date;
 }
+interface AuditRow extends QueryResultRow {
+  id: string;
+  actor_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+}
 
 @Injectable()
 export class WorkspaceService {
@@ -291,6 +300,17 @@ export class WorkspaceService {
       [notificationId, actor.organizationId, actor.userId],
     );
     return this.resultRow(notification.rows, 'Notification is unavailable.');
+  }
+  async getAuditEvents(actor: AuthenticatedActor, projectId?: string) {
+    this.requireRole(actor, ['organization_admin', 'principal']);
+    if (projectId) await this.projectForActor(actor, projectId);
+    const events = await this.pool.query<AuditRow>(
+      projectId
+        ? "SELECT id, actor_id, action, entity_type, entity_id, metadata, created_at FROM audit_events WHERE organization_id = $1 AND metadata->>'projectId' = $2 ORDER BY created_at DESC LIMIT 200"
+        : 'SELECT id, actor_id, action, entity_type, entity_id, metadata, created_at FROM audit_events WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 200',
+      projectId ? [actor.organizationId, projectId] : [actor.organizationId],
+    );
+    return events.rows;
   }
   private async ensureOrganization(actor: AuthenticatedActor) {
     await this.pool.query(

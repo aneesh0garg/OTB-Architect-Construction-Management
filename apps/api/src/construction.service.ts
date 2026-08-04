@@ -3,6 +3,7 @@ import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
+import { AuditService } from './audit.service.js';
 
 type WorkflowType = 'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
 interface FieldVisitRow extends QueryResultRow {
@@ -34,6 +35,7 @@ export class ConstructionService {
   constructor(
     private readonly pool: DatabaseService,
     private readonly projectAccess: ProjectAccessService,
+    private readonly audit: AuditService,
   ) {}
 
   async getRegister(actor: AuthenticatedActor, projectId: string) {
@@ -76,7 +78,12 @@ export class ConstructionService {
         actor.userId,
       ],
     );
-    return row(result.rows, 'Field visit could not be created.');
+    const visit = row(result.rows, 'Field visit could not be created.');
+    await this.audit.record(actor, 'field_visit.captured', 'field_visit', visit.id, {
+      projectId,
+      syncState: visit.sync_state,
+    });
+    return visit;
   }
   async createObservation(
     actor: AuthenticatedActor,
@@ -106,7 +113,13 @@ export class ConstructionService {
         actor.userId,
       ],
     );
-    return row(result.rows, 'Observation could not be created.');
+    const observation = row(result.rows, 'Observation could not be created.');
+    await this.audit.record(actor, 'observation.captured', 'observation', observation.id, {
+      projectId,
+      priority: observation.priority,
+      syncState: observation.sync_state,
+    });
+    return observation;
   }
   async createWorkflowRecord(
     actor: AuthenticatedActor,
@@ -132,6 +145,11 @@ export class ConstructionService {
       'INSERT INTO workflow_transitions (workflow_record_id, to_status, note, actor_id) VALUES ($1,$2,$3,$4)',
       [created.id, status, 'Record created', actor.userId],
     );
+    await this.audit.record(actor, 'workflow.created', 'workflow_record', created.id, {
+      projectId,
+      recordType: created.record_type,
+      status: created.status,
+    });
     return created;
   }
   async transitionWorkflowRecord(
@@ -159,6 +177,12 @@ export class ConstructionService {
       'INSERT INTO workflow_transitions (workflow_record_id, from_status, to_status, note, actor_id) VALUES ($1,$2,$3,$4,$5)',
       [current.id, current.status, input.status, input.note ?? null, actor.userId],
     );
+    await this.audit.record(actor, 'workflow.transitioned', 'workflow_record', next.id, {
+      projectId,
+      recordType: next.record_type,
+      fromStatus: current.status,
+      toStatus: next.status,
+    });
     return next;
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {

@@ -196,4 +196,17 @@ assert.equal(
   'superseded',
   'Issued document revision was not superseded.',
 );
+const auditEvents = await api('GET', `/v1/workspace/audit?projectId=${project.id}`);
+for (const action of [
+  'observation.captured',
+  'workflow.transitioned',
+  'finance.invoice_status_changed',
+  'finance.payment_recorded',
+]) {
+  assert.equal(
+    auditEvents.some((event) => event.action === action),
+    true,
+    `Audit event ${action} was not recorded.`,
+  );
+}
 console.log(`Phase 1 smoke passed for ${project.code} (${project.id}).`);

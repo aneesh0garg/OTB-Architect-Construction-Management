@@ -14,6 +14,7 @@ import { WorkspaceController } from './workspace.controller.js';
 import { WorkspaceService } from './workspace.service.js';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
+import { AuditService } from './audit.service.js';
 
 @Module({
   controllers: [
@@ -28,6 +29,7 @@ import { ProjectAccessService } from './project-access.service.js';
   providers: [
     DatabaseService,
     ProjectAccessService,
+    AuditService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   IsArray,
   IsIn,
@@ -112,6 +112,12 @@ export class WorkspaceController {
   }
   @Get('notifications') getNotifications(@Req() request: AuthenticatedRequest) {
     return this.workspace.getNotifications(request.actor!);
+  }
+  @Get('audit') getAuditEvents(
+    @Req() request: AuthenticatedRequest,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.workspace.getAuditEvents(request.actor!, projectId);
   }
   @Post('notifications/:notificationId/read') markNotificationRead(
     @Req() request: AuthenticatedRequest,

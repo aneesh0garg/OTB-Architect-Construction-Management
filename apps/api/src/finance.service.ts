@@ -3,6 +3,7 @@ import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
+import { AuditService } from './audit.service.js';
 
 interface PhaseRow extends QueryResultRow {
   id: string;
@@ -45,6 +46,7 @@ export class FinanceService {
   constructor(
     private readonly pool: DatabaseService,
     private readonly projectAccess: ProjectAccessService,
+    private readonly audit: AuditService,
   ) {}
 
   async getControl(actor: AuthenticatedActor, projectId: string) {
@@ -108,7 +110,13 @@ export class FinanceService {
         input.targetHours,
       ],
     );
-    return row(result.rows, 'Phase could not be created.');
+    const phase = row(result.rows, 'Phase could not be created.');
+    await this.audit.record(actor, 'finance.phase_created', 'project_phase', phase.id, {
+      projectId,
+      plannedFee: phase.planned_fee,
+      targetHours: phase.target_hours,
+    });
+    return phase;
   }
   async createAllocation(
     actor: AuthenticatedActor,
@@ -129,7 +137,19 @@ export class FinanceService {
         input.billable ?? true,
       ],
     );
-    return row(result.rows, 'Allocation could not be created.');
+    const allocation = row(result.rows, 'Allocation could not be created.');
+    await this.audit.record(
+      actor,
+      'finance.allocation_created',
+      'staff_allocation',
+      allocation.id,
+      {
+        projectId,
+        staffId: allocation.staff_id,
+        plannedHours: allocation.planned_hours,
+      },
+    );
+    return allocation;
   }
   async createTimeEntry(actor: AuthenticatedActor, projectId: string, input: CreateTimeInput) {
     await this.authorizeProject(actor, projectId);
@@ -147,7 +167,13 @@ export class FinanceService {
         input.note ?? null,
       ],
     );
-    return row(result.rows, 'Time entry could not be created.');
+    const entry = row(result.rows, 'Time entry could not be created.');
+    await this.audit.record(actor, 'finance.time_created', 'time_entry', entry.id, {
+      projectId,
+      hours: entry.hours,
+      entryDate: entry.entry_date,
+    });
+    return entry;
   }
   async transitionTimeEntry(
     actor: AuthenticatedActor,
@@ -160,7 +186,12 @@ export class FinanceService {
       'UPDATE time_entries SET status = $1 WHERE id = $2 AND project_id = $3 AND organization_id = $4 AND status <> $5 RETURNING id, hours, status, entry_date',
       [status, entryId, projectId, actor.organizationId, 'locked'],
     );
-    return row(result.rows, 'Time entry is unavailable or locked.');
+    const entry = row(result.rows, 'Time entry is unavailable or locked.');
+    await this.audit.record(actor, 'finance.time_status_changed', 'time_entry', entry.id, {
+      projectId,
+      status: entry.status,
+    });
+    return entry;
   }
   async createInvoice(actor: AuthenticatedActor, projectId: string, input: CreateInvoiceInput) {
     await this.requireFinance(actor, projectId);
@@ -197,6 +228,12 @@ export class FinanceService {
           line.quantity * line.unitAmount,
         ],
       );
+    await this.audit.record(actor, 'finance.invoice_created', 'invoice', created.id, {
+      projectId,
+      invoiceNumber: created.invoice_number,
+      total: created.total,
+      lineCount: input.lines.length,
+    });
     return created;
   }
   async transitionInvoice(
@@ -221,7 +258,13 @@ export class FinanceService {
       'UPDATE invoices SET status = $1 WHERE id = $2 AND project_id = $3 AND organization_id = $4 RETURNING id, invoice_number, status, subtotal, gst_amount, total, due_date, accounting_sync_status',
       [status, invoiceId, projectId, actor.organizationId],
     );
-    return row(result.rows, 'Invoice is unavailable.');
+    const invoice = row(result.rows, 'Invoice is unavailable.');
+    await this.audit.record(actor, 'finance.invoice_status_changed', 'invoice', invoice.id, {
+      projectId,
+      invoiceNumber: invoice.invoice_number,
+      status: invoice.status,
+    });
+    return invoice;
   }
   async recordPayment(
     actor: AuthenticatedActor,
@@ -253,7 +296,15 @@ export class FinanceService {
     const status =
       Number(totalPaid.rows[0]?.paid ?? 0) >= Number(found.total) ? 'paid' : 'partially_paid';
     await this.pool.query('UPDATE invoices SET status = $1 WHERE id = $2', [status, found.id]);
-    return row(payment.rows, 'Payment could not be recorded.');
+    const recorded = row(payment.rows, 'Payment could not be recorded.');
+    await this.audit.record(actor, 'finance.payment_recorded', 'payment', recorded.id, {
+      projectId,
+      invoiceId: found.id,
+      invoiceNumber: found.invoice_number,
+      amount: recorded.amount,
+      resultingInvoiceStatus: status,
+    });
+    return recorded;
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
     await this.projectAccess.requireAccess(actor, projectId);
