@@ -434,6 +434,7 @@ for (const action of [
   'cost.change_status_changed',
   'project.status_changed',
   'project.stage_changed',
+  'project.collaborator_removed',
   'project.search_performed',
   'export.project_csv_created',
   'export.commercial_csv_created',

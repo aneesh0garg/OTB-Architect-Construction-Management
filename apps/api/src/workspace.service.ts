@@ -228,7 +228,10 @@ export class WorkspaceService {
       [project.id, this.requiredText(input.userId, 'Collaborator user ID'), role],
     );
     const added = this.resultRow(member.rows, 'Collaborator could not be added.');
-    await this.audit(actor, 'project.collaborator_added', 'project', project.id, added);
+    await this.audit(actor, 'project.collaborator_added', 'project', project.id, {
+      ...added,
+      projectId: project.id,
+    });
     return added;
   }
   async removeCollaborator(actor: AuthenticatedActor, projectId: string, userId: string) {
@@ -242,7 +245,10 @@ export class WorkspaceService {
       [project.id, this.requiredText(userId, 'Collaborator user ID')],
     );
     const collaborator = this.resultRow(removed.rows, 'Collaborator is unavailable for removal.');
-    await this.audit(actor, 'project.collaborator_removed', 'project', project.id, collaborator);
+    await this.audit(actor, 'project.collaborator_removed', 'project', project.id, {
+      ...collaborator,
+      projectId: project.id,
+    });
     return collaborator;
   }
   async getProjectRecord(actor: AuthenticatedActor, projectId: string) {
