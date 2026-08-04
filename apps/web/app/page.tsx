@@ -2397,60 +2397,41 @@ function Tasks({
 }) {
   const tasks = record?.tasks ?? [];
   const myTasks = viewerId ? tasks.filter((task) => task.assignee_id === viewerId) : [];
-  const [taskScope, setTaskScope] = useState<'mine' | 'all'>('mine');
-  const visibleTasks = taskScope === 'mine' && viewerId ? myTasks : tasks;
   const [createOpen, setCreateOpen] = useState(false);
   const [message, setMessage] = useState<string>();
   const openTaskDetail = (taskId: string) => {
     if (!record) return;
     window.location.assign(`/projects/${record.project.id}/tasks/${taskId}`);
   };
+  const taskList = (items: typeof tasks, emptyMessage: string) => <div className="simple-record-list">
+    {items.length ? items.map((task) => (
+      <article className="task-list-item" key={task.id}>
+        <div className="task-record"><strong><a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.title}</a></strong></div>
+        <span><a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.task_number}</a> · {task.status.replaceAll('_', ' ')} · {task.priority}</span>
+        <small>{task.due_date ? `Due ${task.due_date}` : 'No due date'} · {task.assignee_name ?? task.assignee_id ?? 'Unassigned'}</small>
+        <button className="document-record-arrow" aria-label={`Open ${task.task_number} details`} title="Open task details" onClick={() => openTaskDetail(task.id)}>→</button>
+      </article>
+    )) : <p>{emptyMessage}</p>}
+  </div>;
   return (
     <div className="workspace-content">
-      <section className="content-card">
+      <section className="content-card task-scope-card">
         <div className="card-header">
           <div>
             <p className="eyebrow">PROJECT WORK</p>
-            <h2>Tasks</h2>
+            <h2>Tasks assigned to me</h2>
           </div>
-          <div className="record-toolbar-actions"><span>{tasks.length} tasks</span>{signedIn && record && <button className="button-primary" onClick={() => setCreateOpen(true)}>Create task</button>}</div>
+          <span>{myTasks.length} tasks</span>
         </div>
         {message && <p className="form-message">{message}</p>}
-        <div className="task-scope-tabs" role="tablist" aria-label="Task scope">
-          <button className={taskScope === 'mine' ? 'active' : ''} role="tab" aria-selected={taskScope === 'mine'} onClick={() => setTaskScope('mine')}>My tasks <span>{myTasks.length}</span></button>
-          <button className={taskScope === 'all' ? 'active' : ''} role="tab" aria-selected={taskScope === 'all'} onClick={() => setTaskScope('all')}>All tasks <span>{tasks.length}</span></button>
+        {taskList(myTasks, viewerId ? 'No tasks are assigned to you yet.' : 'Sign in to see tasks assigned to you.')}
+      </section>
+      <section className="content-card task-scope-card">
+        <div className="card-header">
+          <div><p className="eyebrow">PROJECT WORK</p><h2>All tasks</h2></div>
+          <div className="record-toolbar-actions"><span>{tasks.length} tasks</span>{signedIn && record && <button className="button-primary" onClick={() => setCreateOpen(true)}>Create task</button>}</div>
         </div>
-        <div className="simple-record-list">
-          {visibleTasks.length ? (
-            visibleTasks.map((task) => (
-              <article className="task-list-item" key={task.id}>
-                <div className="task-record">
-                  <strong>
-                    <a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.title}</a>
-                  </strong>
-                </div>
-                <span>
-                  <a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.task_number}</a> ·{' '}
-                  {task.status.replaceAll('_', ' ')} · {task.priority}
-                </span>
-                <small>
-                  {task.due_date ? `Due ${task.due_date}` : 'No due date'} ·{' '}
-                  {task.assignee_name ?? task.assignee_id ?? 'Unassigned'}
-                </small>
-                <button
-                  className="document-record-arrow"
-                  aria-label={`Open ${task.task_number} details`}
-                  title="Open task details"
-                  onClick={() => openTaskDetail(task.id)}
-                >
-                  →
-                </button>
-              </article>
-            ))
-          ) : (
-            <p>{taskScope === 'mine' && viewerId ? 'No tasks are assigned to you yet.' : 'No connected project tasks are available.'}</p>
-          )}
-        </div>
+        {taskList(tasks, 'No connected project tasks are available.')}
       </section>
       {createOpen && record && <TaskCreationDialog record={record} onClose={() => setCreateOpen(false)} onCompleted={async () => { await onChanged(); setCreateOpen(false); setMessage('Task created.'); }} />}
     </div>

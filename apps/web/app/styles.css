@@ -1115,10 +1115,7 @@ small {
 .task-unassigned { color: var(--muted); font-weight: 500; }
 .inline-field-editor:has(.inline-field-error) { flex-wrap: wrap; }
 .inline-field-error { width: 100%; margin: 2px 0 0; color: var(--danger, #b42318); font-size: 0.78rem; line-height: 1.35; }
-.task-scope-tabs { display: flex; gap: 6px; margin: 4px 0 14px; }
-.task-scope-tabs button { border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; padding: 6px 10px; font: inherit; font-size: 0.82rem; font-weight: 700; }
-.task-scope-tabs button.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
-.task-scope-tabs span { display: inline-grid; min-width: 18px; place-items: center; margin-left: 3px; border-radius: 999px; background: color-mix(in srgb, currentColor 12%, transparent); font-size: 0.72rem; }
+.task-scope-card + .task-scope-card { margin-top: 16px; }
 .task-status-menu { position: relative; display: inline-flex; }
 .status-menu-trigger { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; font: inherit; text-transform: none; }
 .status-menu-trigger:hover { filter: brightness(0.96); }
