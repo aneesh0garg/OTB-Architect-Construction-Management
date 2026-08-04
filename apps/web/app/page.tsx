@@ -94,7 +94,7 @@ export default function Home() {
   const [staffingOpen, setStaffingOpen] = useState(false);
   const [lifecycleMessage, setLifecycleMessage] = useState<string>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
-  const project = workspaceData.activeProject;
+  const project = projectRecord?.project ?? workspaceData.activeProject;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -166,7 +166,7 @@ export default function Home() {
     : workspaceData.organization.teams;
   const projectMembers =
     projectRecord?.members ??
-    project.members.map((member) => ({
+    workspaceData.activeProject.members.map((member) => ({
       user_id: member,
       display_name: member,
       role: 'Project member',
@@ -337,7 +337,9 @@ export default function Home() {
             <span>Projects</span>
             <b>/</b>
             <strong>{project.name}</strong>
-            <span className="project-status">Active</span>
+            <span className="project-status">
+              {(projectRecord?.project.status ?? 'active').replaceAll('_', ' ')}
+            </span>
           </div>
           <div className="top-actions">
             <button className="search-button">
