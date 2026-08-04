@@ -1362,6 +1362,20 @@ small {
 .mobile-pdf-open {
   display: none;
 }
+.document-register-toolbar {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.document-register-toolbar input,
+.document-register-toolbar select {
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
 .drawing-original-image {
   display: block;
   width: 100%;
@@ -1662,6 +1676,16 @@ small {
     align-items: flex-start;
     flex-direction: column;
     gap: 7px;
+  }
+  .document-register-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .document-register-toolbar input,
+  .document-register-toolbar select {
+    width: 100%;
+    min-height: 42px;
   }
   .drawing-viewer iframe {
     display: none;

@@ -46,6 +46,7 @@ import {
   uploadProjectDocument,
   issueProjectDocument,
   reviewProjectDocument,
+  createProjectTransmittal,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
@@ -1858,6 +1859,9 @@ function Documents({
     'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
   >('drawing');
   const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
+  const [transmittalPurpose, setTransmittalPurpose] = useState('Construction issue');
+  const [transmittalRecipients, setTransmittalRecipients] = useState('');
+  const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
   const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
   const prefix = {
     drawing: 'DRW',
@@ -1963,6 +1967,30 @@ function Documents({
       setOpeningId(undefined);
     }
   };
+  const submitTransmittal = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const transmittal = await createProjectTransmittal(record.project.id, {
+        purpose: transmittalPurpose,
+        recipients: transmittalRecipients
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+        documentIds: transmittalIds,
+      });
+      setTransmittalIds([]);
+      setTransmittalRecipients('');
+      await onChanged();
+      setMessage(`Transmittal #${transmittal.transmittal_number} was created.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Transmittal could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -2037,6 +2065,54 @@ function Documents({
           </form>
         )}
         {message && <p className="form-message">{message}</p>}
+        {signedIn && (
+          <form className="document-form" onSubmit={submitTransmittal}>
+            <label>
+              Transmittal purpose
+              <input
+                value={transmittalPurpose}
+                onChange={(event) => setTransmittalPurpose(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Recipients (comma-separated)
+              <input
+                value={transmittalRecipients}
+                onChange={(event) => setTransmittalRecipients(event.target.value)}
+                required
+              />
+            </label>
+            <fieldset className="document-transmittal-select">
+              <legend>Issued documents</legend>
+              {documents
+                .filter((document) => document.status === 'issued')
+                .map((document) => (
+                  <label key={document.id}>
+                    <input
+                      type="checkbox"
+                      checked={transmittalIds.includes(document.id)}
+                      onChange={(event) =>
+                        setTransmittalIds((current) =>
+                          event.target.checked
+                            ? [...current, document.id]
+                            : current.filter((id) => id !== document.id),
+                        )
+                      }
+                    />{' '}
+                    {document.document_number} · Rev {document.revision}
+                  </label>
+                ))}
+            </fieldset>
+            <button
+              className="button-secondary"
+              disabled={saving || transmittalIds.length === 0}
+              type="submit"
+            >
+              Create transmittal
+            </button>
+          </form>
+        )}
         <div className="table-toolbar document-register-toolbar">
           <input
             aria-label="Search documents"

@@ -92,6 +92,14 @@ export type ProjectRecord = {
     display_name: string | null;
     title: string | null;
   }[];
+  transmittals: {
+    id: string;
+    transmittal_number: number;
+    purpose: string;
+    recipients: string[];
+    document_ids: string[];
+    created_at: string;
+  }[];
 };
 export type FinanceControl = {
   phases: { id: string; name: string; planned_fee: string; target_hours: number }[];
@@ -542,6 +550,14 @@ export const reviewProjectDocument = (
     action,
     comment,
   });
+export const createProjectTransmittal = (
+  projectId: string,
+  input: { purpose: string; recipients: string[]; documentIds: string[] },
+) =>
+  apiPost<{ transmittal_number: number }>(
+    `/v1/workspace/projects/${projectId}/transmittals`,
+    input,
+  );
 export const createProjectTask = (
   projectId: string,
   input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },
