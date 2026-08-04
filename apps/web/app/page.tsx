@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import {
   beginLocalLogin,
   loadCostControl,
@@ -17,9 +17,12 @@ import {
   searchProjectBrain,
   createProjectBrainDraft,
   createDocumentAnnotation,
+  createProjectTask,
+  fileProjectCommunication,
   loadDocumentAnnotations,
   reviewProjectBrainDraft,
   signOutLocal,
+  transitionProjectTask,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
@@ -375,8 +378,25 @@ export default function Home() {
           {view === 'drawings' && <Drawings record={projectRecord} />}
           {view === 'field' && <FieldMobile execution={executionRegister} />}
           {view === 'documents' && <Documents record={projectRecord} />}
-          {view === 'tasks' && <Tasks record={projectRecord} />}
-          {view === 'communications' && <Communications record={projectRecord} />}
+          {view === 'tasks' && (
+            <Tasks
+              record={projectRecord}
+              signedIn={Boolean(viewer)}
+              onChanged={() =>
+                projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+              }
+            />
+          )}
+          {view === 'communications' && (
+            <Communications
+              record={projectRecord}
+              signedIn={Boolean(viewer)}
+              sender={viewer?.displayName ?? viewer?.email ?? viewer?.userId}
+              onChanged={() =>
+                projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+              }
+            />
+          )}
           {view === 'cost' && <CostContracts finance={financeControl} cost={costControl} />}
         </div>
       </section>
@@ -1101,8 +1121,53 @@ function Documents({ record }: { record: ProjectRecord | undefined }) {
   );
 }
 
-function Tasks({ record }: { record: ProjectRecord | undefined }) {
+function Tasks({
+  record,
+  signedIn,
+  onChanged,
+}: {
+  record: ProjectRecord | undefined;
+  signedIn: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const tasks = record?.tasks ?? [];
+  const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+
+  const createTask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !title.trim()) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await createProjectTask(record.project.id, { title: title.trim(), priority });
+      setTitle('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const completeTask = async (taskId: string, completed: boolean) => {
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await transitionProjectTask(
+        record.project.id,
+        taskId,
+        completed ? 'completed' : 'in_progress',
+      );
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task status could not be updated.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -1113,11 +1178,41 @@ function Tasks({ record }: { record: ProjectRecord | undefined }) {
           </div>
           <span>{tasks.length} tasks</span>
         </div>
+        {signedIn && record && (
+          <form className="inline-form" onSubmit={createTask}>
+            <label>
+              New task
+              <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </label>
+            <label>
+              Priority
+              <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              Add task
+            </button>
+          </form>
+        )}
+        {message && <p className="form-message">{message}</p>}
         <div className="simple-record-list">
           {tasks.length ? (
             tasks.map((task) => (
               <article key={task.id}>
-                <strong>{task.title}</strong>
+                <div className="task-record">
+                  <input
+                    aria-label={`Mark ${task.title} complete`}
+                    checked={task.status === 'completed'}
+                    disabled={!signedIn || saving || ['cancelled'].includes(task.status)}
+                    onChange={(event) => completeTask(task.id, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <strong>{task.title}</strong>
+                </div>
                 <span>
                   {task.status.replaceAll('_', ' ')} · {task.priority}
                 </span>
@@ -1136,8 +1231,45 @@ function Tasks({ record }: { record: ProjectRecord | undefined }) {
   );
 }
 
-function Communications({ record }: { record: ProjectRecord | undefined }) {
+function Communications({
+  record,
+  signedIn,
+  sender,
+  onChanged,
+}: {
+  record: ProjectRecord | undefined;
+  signedIn: boolean;
+  sender: string | undefined;
+  onChanged: () => Promise<void>;
+}) {
   const communications = record?.communications ?? [];
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const fileNote = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !subject.trim() || !body.trim() || !sender) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await fileProjectCommunication(record.project.id, {
+        channel: 'manual_note',
+        direction: 'internal',
+        subject: subject.trim(),
+        body: body.trim(),
+        sender,
+        recipients: [],
+      });
+      setSubject('');
+      setBody('');
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Message could not be filed.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -1148,6 +1280,26 @@ function Communications({ record }: { record: ProjectRecord | undefined }) {
           </div>
           <span>{communications.length} messages</span>
         </div>
+        {signedIn && record && (
+          <form className="inline-form communication-form" onSubmit={fileNote}>
+            <label>
+              Subject
+              <input
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Project note
+              <textarea value={body} onChange={(event) => setBody(event.target.value)} required />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              File note
+            </button>
+          </form>
+        )}
+        {message && <p className="form-message">{message}</p>}
         <div className="simple-record-list">
           {communications.length ? (
             communications.map((message) => (
@@ -1156,6 +1308,7 @@ function Communications({ record }: { record: ProjectRecord | undefined }) {
                 <span>
                   {message.channel} · {message.sender}
                 </span>
+                <p>{message.body}</p>
                 <small>Filed {new Date(message.filed_at).toLocaleString()}</small>
               </article>
             ))

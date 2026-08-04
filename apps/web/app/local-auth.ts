@@ -43,8 +43,11 @@ export type ProjectRecord = {
   communications: {
     id: string;
     channel: string;
+    direction: string;
     subject: string;
+    body: string;
     sender: string;
+    recipients: string[];
     filed_at: string;
   }[];
   members: {
@@ -263,6 +266,26 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
 export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
+export const createProjectTask = (
+  projectId: string,
+  input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },
+) => apiPost(`/v1/workspace/projects/${projectId}/tasks`, input);
+export const transitionProjectTask = (
+  projectId: string,
+  taskId: string,
+  status: 'in_progress' | 'blocked' | 'completed' | 'cancelled',
+) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
+export const fileProjectCommunication = (
+  projectId: string,
+  input: {
+    channel: 'email' | 'whatsapp_business' | 'manual_note';
+    direction: 'inbound' | 'outbound' | 'internal';
+    subject: string;
+    body: string;
+    sender: string;
+    recipients: string[];
+  },
+) => apiPost(`/v1/workspace/projects/${projectId}/communications`, input);
 export const loadFinanceControl = (projectId: string) =>
   apiGet<FinanceControl>(`/v1/projects/${projectId}/finance`);
 export const loadCostControl = (projectId: string) =>

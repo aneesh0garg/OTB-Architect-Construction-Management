@@ -766,6 +766,58 @@ small {
   margin: 8px 0;
   color: var(--muted);
 }
+
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 16px;
+}
+
+.inline-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.inline-form input,
+.inline-form select,
+.inline-form textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.communication-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+}
+
+.communication-form textarea {
+  min-height: 42px;
+  resize: vertical;
+}
+
+.form-message {
+  color: var(--danger, #b42318);
+}
+.task-record {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .inline-form,
+  .communication-form {
+    grid-template-columns: 1fr;
+  }
+}
 .snapshot-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
