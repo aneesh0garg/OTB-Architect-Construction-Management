@@ -489,6 +489,11 @@ export default function Home() {
               onOpenBrain={() => setBrainOpen(true)}
               onNavigate={setView}
               onOpenFeed={() => setNotificationFeedOpen(true)}
+              onCompleteTask={async (taskId) => {
+                if (!projectRecord) return;
+                await transitionProjectTask(projectRecord.project.id, taskId, 'completed');
+                await loadProjectViews(projectRecord.project.id);
+              }}
             />
           )}
           {view === 'drawings' && <Drawings record={projectRecord} onNavigate={setView} />}
@@ -1488,6 +1493,7 @@ function Overview({
   onOpenBrain,
   onNavigate,
   onOpenFeed,
+  onCompleteTask,
 }: {
   record: ProjectRecord | undefined;
   finance: FinanceControl | undefined;
@@ -1495,8 +1501,11 @@ function Overview({
   onOpenBrain: () => void;
   onNavigate: (view: WorkspaceView) => void;
   onOpenFeed: () => void;
+  onCompleteTask: (taskId: string) => Promise<void>;
 }) {
   const project = workspaceData.activeProject;
+  const [demoCompletedTasks, setDemoCompletedTasks] = useState<Set<string>>(new Set());
+  const [updatingTaskId, setUpdatingTaskId] = useState<string>();
   return (
     <div className="workspace-content overview-view">
       <section className="snapshot-grid">
@@ -1521,7 +1530,39 @@ function Overview({
           <div className="task-list">
             {(record?.tasks ?? project.tasks).map((task) => (
               <article className="task-row" key={task.title}>
-                <span className="task-check" />
+                {'id' in task ? (
+                  <input
+                    className="task-check"
+                    aria-label={`Mark ${task.title} complete`}
+                    checked={task.status === 'completed'}
+                    disabled={task.status === 'completed' || updatingTaskId === task.id}
+                    onChange={async (event) => {
+                      if (!event.target.checked) return;
+                      setUpdatingTaskId(task.id);
+                      try {
+                        await onCompleteTask(task.id);
+                      } finally {
+                        setUpdatingTaskId(undefined);
+                      }
+                    }}
+                    type="checkbox"
+                  />
+                ) : (
+                  <input
+                    className="task-check"
+                    aria-label={`Mark ${task.title} complete`}
+                    checked={demoCompletedTasks.has(task.title)}
+                    onChange={(event) =>
+                      setDemoCompletedTasks((current) => {
+                        const next = new Set(current);
+                        if (event.target.checked) next.add(task.title);
+                        else next.delete(task.title);
+                        return next;
+                      })
+                    }
+                    type="checkbox"
+                  />
+                )}
                 <div>
                   <strong>{task.title}</strong>
                   <span>

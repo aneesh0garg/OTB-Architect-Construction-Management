@@ -54,6 +54,14 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByTestId('project-view-documents')).toBeVisible();
   });
 
+  test('allows a demo work-queue item to be checked on a phone viewport', async ({ page }) => {
+    const checkbox = page.getByRole('checkbox', {
+      name: 'Mark Review staircase shop drawing complete',
+    });
+    await checkbox.check();
+    await expect(checkbox).toBeChecked();
+  });
+
   test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {
     await page.getByTestId('notification-settings-trigger').click();
 
