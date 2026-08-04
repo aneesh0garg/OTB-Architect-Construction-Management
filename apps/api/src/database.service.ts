@@ -5,6 +5,12 @@ interface Migration {
   id: string;
   sql: string;
 }
+export interface TransactionClient {
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): Promise<{ rows: T[]; rowCount: number | null }>;
+}
 
 const migrations: Migration[] = [
   {
@@ -79,6 +85,56 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS document_uploads (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, storage_key TEXT NOT NULL UNIQUE, original_name TEXT NOT NULL, content_type TEXT NOT NULL, expected_size BIGINT NOT NULL, actual_size BIGINT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NOT NULL, uploaded_by TEXT NOT NULL, completed_at TIMESTAMPTZ, attached_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     `,
   },
+  {
+    id: '0008_pipeline_and_proposal_conversion',
+    sql: `
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_name TEXT;
+      CREATE TABLE IF NOT EXISTS opportunities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        client_name TEXT NOT NULL,
+        project_name TEXT NOT NULL,
+        project_type TEXT,
+        stage TEXT NOT NULL DEFAULT 'lead',
+        status TEXT NOT NULL DEFAULT 'open',
+        probability INTEGER NOT NULL DEFAULT 0 CHECK (probability BETWEEN 0 AND 100),
+        anticipated_fee NUMERIC(14,2) NOT NULL DEFAULT 0,
+        target_start_date DATE,
+        target_end_date DATE,
+        next_action TEXT,
+        converted_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS opportunities_organization_status_idx ON opportunities (organization_id, status, updated_at DESC);
+      CREATE TABLE IF NOT EXISTS proposals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        opportunity_id UUID NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        scope TEXT NOT NULL,
+        assumptions TEXT NOT NULL DEFAULT '',
+        exclusions TEXT NOT NULL DEFAULT '',
+        fee NUMERIC(14,2) NOT NULL DEFAULT 0,
+        initial_staffing JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (opportunity_id, version)
+      );
+      CREATE TABLE IF NOT EXISTS proposal_phases (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        proposal_id UUID NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        planned_fee NUMERIC(14,2) NOT NULL DEFAULT 0,
+        target_hours REAL NOT NULL DEFAULT 0,
+        position INTEGER NOT NULL,
+        UNIQUE (proposal_id, position)
+      );
+    `,
+  },
 ];
 
 @Injectable()
@@ -97,6 +153,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async query<T extends QueryResultRow>(text: string, values?: unknown[]) {
     await this.ready;
     return this.pool.query<T>(text, values);
+  }
+
+  async transaction<T>(work: (client: TransactionClient) => Promise<T>) {
+    await this.ready;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await work(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async onModuleDestroy() {

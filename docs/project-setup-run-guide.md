@@ -184,6 +184,28 @@ the development machine. Tap the `IN` avatar in Field work to sign in; after a
 successful sign-in it shows the selected project and a pending capture can be
 synced with **Sync now**.
 
+## P1.2a pipeline and proposal conversion
+
+Pipeline is tenant-scoped firm operations, separate from the project workspace.
+Only organization administrators, principals, and project managers can manage
+it. A conversion is transactional: it either creates the project, its initial
+phases, initial allocations, project-manager membership, and the winning
+opportunity link together, or persists none of them.
+
+| Endpoint                                                   | Purpose                                                                                             |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET /v1/pipeline`                                         | List the organization’s opportunities with proposal versions and proposal phases.                   |
+| `POST /v1/pipeline/opportunities`                          | Create a lead/opportunity with client, anticipated fee, probability, targets, and next action.      |
+| `POST /v1/pipeline/opportunities/:opportunityId/proposals` | Create a versioned proposal with scope, assumptions, exclusions, fee, phases, and initial staffing. |
+| `POST /v1/pipeline/opportunities/:opportunityId/convert`   | Convert a chosen proposal into a project without re-entering the client, fee phases, or staffing.   |
+
+`convert` accepts a `proposalId`, unique `projectCode`, optional `location`,
+and project `stage`. It marks the chosen proposal as accepted and the
+opportunity as won; the resulting project retains the client name for invoices
+and accounting mappings. The original proposal remains an immutable commercial
+record and all creation/conversion actions are captured in the organization
+audit trail.
+
 ## P1.3 commercial control API
 
 The commercial module is a provider-neutral project ledger. It is ready to map

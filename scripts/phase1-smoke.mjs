@@ -67,13 +67,48 @@ const person = await api('POST', '/v1/resources/people', {
   title: 'Project director',
   weeklyCapacityHours: 40,
 });
-const project = await api('POST', '/v1/workspace/projects', {
-  code: `SMK-${runId}`,
-  name: `Phase 1 smoke ${runId}`,
+const opportunity = await api('POST', '/v1/pipeline/opportunities', {
+  clientName: `Smoke client ${runId}`,
+  projectName: `Phase 1 smoke ${runId}`,
+  projectType: 'Residential',
+  stage: 'proposal',
+  probability: 75,
+  anticipatedFee: 120000,
+  targetStartDate: '2026-08-15',
+  targetEndDate: '2027-01-15',
+  nextAction: 'Approve proposal',
+});
+const proposal = await api('POST', `/v1/pipeline/opportunities/${opportunity.id}/proposals`, {
+  scope: 'Construction-administration scope for smoke verification.',
+  assumptions: 'Site access is available weekly.',
+  exclusions: 'Statutory fees are excluded.',
+  fee: 120000,
+  phases: [{ name: 'Proposal administration', plannedFee: 120000, targetHours: 320 }],
+  initialStaffing: [
+    {
+      staffId: person.user_id,
+      startsOn: '2026-08-15',
+      endsOn: '2027-01-15',
+      plannedHours: 80,
+      billable: true,
+    },
+  ],
+});
+const project = await api('POST', `/v1/pipeline/opportunities/${opportunity.id}/convert`, {
+  proposalId: proposal.id,
+  projectCode: `SMK-${runId}`,
   location: 'Dehradun',
   stage: 'construction_administration',
 });
-assert.ok(project.id, 'Project creation did not return an ID.');
+assert.ok(project.id, 'Opportunity conversion did not return a project ID.');
+const pipeline = await api('GET', '/v1/pipeline');
+const convertedOpportunity = pipeline.opportunities.find((item) => item.id === opportunity.id);
+assert.equal(convertedOpportunity.status, 'won', 'Winning opportunity was not closed.');
+assert.equal(
+  convertedOpportunity.converted_project_id,
+  project.id,
+  'Converted project link is missing.',
+);
 const projectPath = `/v1/workspace/projects/${project.id}`;
 const contractorTokenResponse = await fetch(`${issuer}/protocol/openid-connect/token`, {
   method: 'POST',
@@ -364,6 +399,11 @@ assert.equal(
   organizationAudit.some((event) => event.action === 'resource.person_saved'),
   true,
   'People directory change was not recorded in organization audit.',
+);
+assert.equal(
+  organizationAudit.some((event) => event.action === 'pipeline.opportunity_converted'),
+  true,
+  'Opportunity conversion was not recorded in organization audit.',
 );
 const closedProject = await api('POST', `${projectPath}/status`, { status: 'closed' });
 assert.equal(closedProject.status, 'closed', 'Project did not transition to closed.');

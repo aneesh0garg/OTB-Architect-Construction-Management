@@ -25,6 +25,8 @@ import { NotificationService } from './notification.service.js';
 import { ZohoBooksController } from './zoho-books.controller.js';
 import { ZohoBooksService } from './zoho-books.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
+import { PipelineController } from './pipeline.controller.js';
+import { PipelineService } from './pipeline.service.js';
 
 @Module({
   controllers: [
@@ -39,6 +41,7 @@ import { DocumentUploadService } from './document-upload.service.js';
     ResourceController,
     ProjectExportController,
     ZohoBooksController,
+    PipelineController,
   ],
   providers: [
     DatabaseService,
@@ -56,6 +59,7 @@ import { DocumentUploadService } from './document-upload.service.js';
     FinanceService,
     AiService,
     GmailService,
+    PipelineService,
   ],
 })
 export class AppModule {}
