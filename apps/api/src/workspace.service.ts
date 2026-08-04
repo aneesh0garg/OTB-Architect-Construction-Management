@@ -55,7 +55,6 @@ interface DocumentRow extends QueryResultRow {
   zone: string | null;
   content_sha256: string | null;
   has_original: boolean;
-  created_at: Date;
 }
 interface TransmittalRow extends QueryResultRow {
   id: string;
@@ -309,7 +308,7 @@ export class WorkspaceService {
         [project.id],
       ),
       this.pool.query<DocumentRow>(
-        'SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original, created_at FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
+        'SELECT id, document_number, document_type, title, revision, status, issue_date, discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
         [project.id],
       ),
       this.pool.query<CommunicationRow>(

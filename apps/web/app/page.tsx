@@ -1782,19 +1782,30 @@ function Overview({
 
 const documentNumberCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const documentStatusOrder: Record<string, number> = { issued: 0, draft: 1, superseded: 2 };
-type DocumentSort = 'number' | 'name' | 'date';
+type DocumentSort = 'number' | 'status' | 'type' | 'revision';
 const sortControlledDocuments = (
   documents: ProjectRecord['documents'],
   sort: DocumentSort = 'number',
 ) =>
   [...documents].sort((left, right) => {
-    if (sort === 'name') return documentNumberCollator.compare(left.title, right.title);
-    if (sort === 'date') return right.created_at.localeCompare(left.created_at);
+    if (sort === 'status') {
+      const statusComparison =
+        (documentStatusOrder[left.status] ?? 3) - (documentStatusOrder[right.status] ?? 3);
+      if (statusComparison !== 0) return statusComparison;
+    }
+    if (sort === 'type') {
+      const typeComparison = documentNumberCollator.compare(
+        left.document_type,
+        right.document_type,
+      );
+      if (typeComparison !== 0) return typeComparison;
+    }
     const numberComparison = documentNumberCollator.compare(
       left.document_number,
       right.document_number,
     );
     if (numberComparison !== 0) return numberComparison;
+    if (sort === 'revision') return documentNumberCollator.compare(right.revision, left.revision);
     const statusComparison =
       (documentStatusOrder[left.status] ?? 3) - (documentStatusOrder[right.status] ?? 3);
     if (statusComparison !== 0) return statusComparison;
@@ -2064,8 +2075,9 @@ function Documents({
             onChange={(event) => setDocumentSort(event.target.value as DocumentSort)}
           >
             <option value="number">Sort: document number</option>
-            <option value="name">Sort: name</option>
-            <option value="date">Sort: date</option>
+            <option value="status">Sort: status</option>
+            <option value="type">Sort: type</option>
+            <option value="revision">Sort: revision</option>
           </select>
           <span>{filteredDocuments.length} shown</span>
         </div>
@@ -2906,8 +2918,8 @@ function Drawings({
             onChange={(event) => setDrawingSort(event.target.value as DocumentSort)}
           >
             <option value="number">Sort: drawing number</option>
-            <option value="name">Sort: name</option>
-            <option value="date">Sort: date</option>
+            <option value="status">Sort: status</option>
+            <option value="revision">Sort: revision</option>
           </select>
           <button className="button-primary" onClick={() => onNavigate('documents')}>
             Upload drawing

@@ -75,7 +75,6 @@ export type ProjectRecord = {
     floor: string | null;
     zone: string | null;
     has_original: boolean;
-    created_at: string;
   }[];
   communications: {
     id: string;
