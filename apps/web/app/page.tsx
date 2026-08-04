@@ -35,6 +35,7 @@ import {
   fileProjectCommunication,
   reviewProjectBrainDraft,
   signOutLocal,
+  signOutKeycloakSession,
   transitionProjectTask,
   transitionProjectInvoice,
   transitionWorkspaceProjectStage,
@@ -1079,7 +1080,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 {saving ? 'Sending invitation…' : 'Send invitation'}
               </button>
             </form>
-            {inviteFeedback && <p className={`invite-feedback ${inviteFeedback.kind}`} role={inviteFeedback.kind === 'error' ? 'alert' : 'status'} aria-live="polite">{inviteFeedback.text}</p>}
+            {inviteFeedback && <div className={`invite-feedback ${inviteFeedback.kind}`} role={inviteFeedback.kind === 'error' ? 'alert' : 'status'} aria-live="polite"><p>{inviteFeedback.text}</p>{inviteFeedback.kind === 'success' && <><p className="invite-feedback-hint">To activate a different user on this device, open the mail link in a private window, or sign out of the current Keycloak session first.</p><button className="button-secondary" type="button" onClick={signOutKeycloakSession}>Sign out of Keycloak</button></>}</div>}
             </section>
             <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
               <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>

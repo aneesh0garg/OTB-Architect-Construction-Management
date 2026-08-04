@@ -1055,6 +1055,9 @@ small {
   font-size: 0.86rem;
   font-weight: 650;
 }
+.invite-feedback p { margin: 0; }
+.invite-feedback .invite-feedback-hint { margin-top: 7px; font-weight: 500; line-height: 1.4; }
+.invite-feedback .button-secondary { margin-top: 10px; }
 .invite-feedback.success { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: var(--primary-soft); color: var(--primary); }
 .invite-feedback.error { border-color: color-mix(in srgb, var(--danger, #b42318) 45%, var(--border)); background: #fef3f2; color: var(--danger, #b42318); }
 .task-record {

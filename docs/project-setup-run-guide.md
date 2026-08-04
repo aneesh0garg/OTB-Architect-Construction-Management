@@ -103,12 +103,17 @@ delivery controls.
 3. Enter a unique local email address (for example `new.member@local.orbita`),
    name, role, and weekly capacity, then select **Send invitation**.
 4. Open Mailpit at `http://localhost:8025`, open the newest Orbita message, and
-   use the activation link.
+   use the activation link in a private/incognito window or separate browser profile.
+   If using the same browser as `pilot-admin`, select **Sign out of Keycloak** in
+   the invitation confirmation before opening the link.
 5. Complete email verification and choose a password in Keycloak.
 6. Sign out and sign in as the invited member. Then assign the active directory
    member to a project from **Resource capacity**.
 
 Mailpit does not deliver externally; any syntactically valid test address is safe.
+Keycloak intentionally rejects an activation link when that browser has an SSO session
+for a different account; this prevents one user from accidentally activating another
+user’s credentials.
 
 Members can upload a JPEG, PNG, or WebP profile photo (maximum 5 MB) from their profile
 page. Uploads use a short-lived storage URL, are verified by the API, and are recorded in

@@ -439,6 +439,13 @@ export function signOutLocal() {
   sessionStorage.removeItem(verifierKey);
 }
 
+export function signOutKeycloakSession() {
+  signOutLocal();
+  const redirectUri = `${window.location.origin}${window.location.pathname}`;
+  const query = new URLSearchParams({ client_id: 'orbita-web', post_logout_redirect_uri: redirectUri });
+  window.location.assign(`${issuerUrl()}/protocol/openid-connect/logout?${query.toString()}`);
+}
+
 export async function loadConnectedWorkspace(): Promise<ConnectedWorkspace> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to load workspace data.');

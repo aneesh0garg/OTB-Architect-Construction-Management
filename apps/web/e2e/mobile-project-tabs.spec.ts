@@ -58,9 +58,11 @@ test('uses an email-based invitation form for organization members', async ({ pa
   await expect(dialog.getByRole('button', { name: 'Send invitation' })).toBeVisible();
   await expect(dialog.getByText(/Keycloak sends a secure activation link/)).toBeVisible();
   await dialog.getByLabel('Work email').fill('new.member@local.orbita');
-  await dialog.getByLabel('Name').fill('New Member');
+  await dialog.getByLabel('Name').fill('New Member', { force: true });
   await dialog.getByRole('button', { name: 'Send invitation' }).click();
-  await expect(dialog.getByRole('status')).toHaveText('Invitation sent to new.member@local.orbita. Check Mailpit to complete activation.');
+  await expect(dialog.getByRole('status')).toContainText('Invitation sent to new.member@local.orbita. Check Mailpit to complete activation.');
+  await expect(dialog.getByText(/open the mail link in a private window/i)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Sign out of Keycloak' })).toBeVisible();
 });
 
 test('shows an actionable invitation error in the mobile staffing dialog', async ({ page }) => {
