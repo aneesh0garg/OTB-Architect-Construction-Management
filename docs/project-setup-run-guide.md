@@ -201,10 +201,12 @@ locally; the mobile sync queue creates the observation first, then its pending
 comments.
 
 The mobile **Capture observation** sheet also stores the description, location,
-category, trade, priority, optional due date, and one local evidence/drawing
-reference before it attempts network sync. Photo, video, and voice selection
-are classified as evidence references today; binary media capture/upload is a
-separate device-permission and file-processing increment.
+category, trade, priority, optional due date, and evidence/drawing references
+before it attempts network sync. It can capture or select photos after the
+device permission is granted, retaining the device URI only on the phone. The
+current sync payload sends safe photo metadata (type, label, timestamp), not a
+local URI or image bytes. Controlled binary upload, malware scanning, and OCR
+remain a separate file-processing increment.
 
 | Endpoint                                                            | Purpose                                                                          |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |

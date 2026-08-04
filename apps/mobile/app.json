@@ -6,8 +6,27 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.orbita.aeco" },
-    "android": { "package": "com.orbita.aeco" },
-    "plugins": ["expo-router"]
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.orbita.aeco",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Orbita uses the camera to attach a site photo to an offline field observation.",
+        "NSPhotoLibraryUsageDescription": "Orbita uses your photo library to attach site evidence to an offline field observation."
+      }
+    },
+    "android": {
+      "package": "com.orbita.aeco",
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Orbita to select site evidence from your photo library.",
+          "cameraPermission": "Allow Orbita to capture a site photo as field evidence."
+        }
+      ]
+    ]
   }
 }

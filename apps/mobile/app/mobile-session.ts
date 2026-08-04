@@ -136,7 +136,15 @@ export async function submitObservation(
         ...(input.category ? { category: input.category } : {}),
         ...(input.trade ? { trade: input.trade } : {}),
         ...(input.dueDate ? { dueDate: input.dueDate } : {}),
-        ...(input.evidence?.length ? { evidence: input.evidence } : {}),
+        ...(input.evidence?.length
+          ? {
+              evidence: input.evidence.map(({ kind, label, capturedAt }) => ({
+                kind,
+                label,
+                capturedAt,
+              })),
+            }
+          : {}),
         priority: input.priority === 'High' ? 'high' : input.priority === 'Low' ? 'low' : 'normal',
         syncState: 'synced',
       }),

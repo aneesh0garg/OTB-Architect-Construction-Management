@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 import * as SQLite from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -47,6 +48,11 @@ type EvidenceReference = {
   kind: 'photo' | 'video' | 'voice_note' | 'drawing_reference';
   label: string;
   capturedAt: string;
+  localUri?: string;
+  mimeType?: string | null;
+  fileName?: string | null;
+  width?: number;
+  height?: number;
 };
 type FieldComment = {
   id: string;
@@ -223,6 +229,7 @@ export default function HomeScreen() {
   const [observationDueDate, setObservationDueDate] = useState('');
   const [evidenceReference, setEvidenceReference] = useState('');
   const [evidenceKind, setEvidenceKind] = useState<EvidenceReference['kind']>('photo');
+  const [photoEvidence, setPhotoEvidence] = useState<EvidenceReference[]>([]);
   const [visitDate, setVisitDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [visitLocation, setVisitLocation] = useState('Riverside site');
   const [visitAttendees, setVisitAttendees] = useState('');
@@ -316,15 +323,18 @@ export default function HomeScreen() {
       category: observationCategory.trim(),
       trade: observationTrade.trim(),
       dueDate: observationDueDate.trim(),
-      evidence: evidenceReference.trim()
-        ? [
-            {
-              kind: evidenceKind,
-              label: evidenceReference.trim(),
-              capturedAt: new Date().toISOString(),
-            },
-          ]
-        : [],
+      evidence: [
+        ...photoEvidence,
+        ...(evidenceReference.trim()
+          ? [
+              {
+                kind: evidenceKind,
+                label: evidenceReference.trim(),
+                capturedAt: new Date().toISOString(),
+              } as EvidenceReference,
+            ]
+          : []),
+      ],
       priority: observationPriority,
       state: 'Open',
       sync: 'local',
@@ -342,7 +352,52 @@ export default function HomeScreen() {
     setObservationDueDate('');
     setEvidenceReference('');
     setEvidenceKind('photo');
+    setPhotoEvidence([]);
     setCaptureOpen(false);
+  };
+  const addPhotoEvidence = async (source: 'camera' | 'library') => {
+    try {
+      const permission =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setAccountError(
+          `Grant ${source === 'camera' ? 'camera' : 'photo-library'} permission to attach site evidence.`,
+        );
+        return;
+      }
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              exif: false,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+            });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      setPhotoEvidence((current) => [
+        ...current,
+        {
+          kind: 'photo',
+          label: asset.fileName ?? `Site photo ${current.length + 1}`,
+          capturedAt: new Date().toISOString(),
+          localUri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
+          ...(asset.fileName !== undefined ? { fileName: asset.fileName } : {}),
+        },
+      ]);
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : 'Photo evidence could not be added.',
+      );
+    }
   };
   const addLocalComment = async (observation: Observation) => {
     const body = commentBody.trim();
@@ -885,6 +940,26 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
             </View>
+            <View style={styles.photoEvidenceActions}>
+              <Pressable
+                onPress={() => void addPhotoEvidence('camera')}
+                style={styles.photoEvidenceAction}
+              >
+                <Text style={styles.photoEvidenceActionText}>Take photo</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void addPhotoEvidence('library')}
+                style={styles.photoEvidenceAction}
+              >
+                <Text style={styles.photoEvidenceActionText}>Choose photo</Text>
+              </Pressable>
+            </View>
+            {photoEvidence.length > 0 && (
+              <Text style={styles.photoEvidenceCount}>
+                {photoEvidence.length} local {photoEvidence.length === 1 ? 'photo' : 'photos'}{' '}
+                attached
+              </Text>
+            )}
             <View style={styles.sheetActions}>
               <Pressable onPress={() => setCaptureOpen(false)} style={styles.cancelButton}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -1418,6 +1493,15 @@ const styles = StyleSheet.create({
   evidenceOptionSelected: { borderColor: '#176b58', backgroundColor: '#e8f4ee' },
   evidenceOptionText: { color: '#75827f', fontSize: 10, fontWeight: '700' },
   evidenceOptionTextSelected: { color: '#176b58' },
+  photoEvidenceActions: { flexDirection: 'row', gap: 8, marginTop: 9 },
+  photoEvidenceAction: {
+    borderRadius: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#e8f4ee',
+  },
+  photoEvidenceActionText: { color: '#176b58', fontSize: 11, fontWeight: '800' },
+  photoEvidenceCount: { marginTop: 7, color: '#176b58', fontSize: 10, fontWeight: '700' },
   notesInput: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
   sheetActions: { marginTop: 14, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   cancelButton: { paddingVertical: 11, paddingHorizontal: 13 },
