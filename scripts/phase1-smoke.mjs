@@ -319,6 +319,15 @@ const approvedDraft = await api(
   `/v1/projects/${project.id}/brain/drafts/${draft.id}/approve`,
 );
 assert.equal(approvedDraft.status, 'approved');
+const classificationDraft = await api('POST', `/v1/projects/${project.id}/brain/drafts`, {
+  intent: 'document_classification',
+  prompt: `Classify the smoke facade report ${runId}`,
+});
+const rejectedDraft = await api(
+  'POST',
+  `/v1/projects/${project.id}/brain/drafts/${classificationDraft.id}/reject`,
+);
+assert.equal(rejectedDraft.status, 'rejected');
 
 const projectRecord = await api('GET', `${projectPath}/record`);
 assert.equal(

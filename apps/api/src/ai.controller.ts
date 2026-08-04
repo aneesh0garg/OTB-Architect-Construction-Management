@@ -6,8 +6,23 @@ class AiSettingsDto {
   @IsBoolean() enabled!: boolean;
 }
 class AiDraftDto {
-  @IsIn(['rfi_draft', 'site_report', 'meeting_minutes', 'risk_summary']) intent!:
-    'rfi_draft' | 'site_report' | 'meeting_minutes' | 'risk_summary';
+  @IsIn([
+    'rfi_draft',
+    'site_report',
+    'meeting_minutes',
+    'risk_summary',
+    'submittal_review',
+    'document_classification',
+    'record_search',
+  ])
+  intent!:
+    | 'rfi_draft'
+    | 'site_report'
+    | 'meeting_minutes'
+    | 'risk_summary'
+    | 'submittal_review'
+    | 'document_classification'
+    | 'record_search';
   @IsString() @MinLength(2) @MaxLength(6000) prompt!: string;
 }
 @Controller('v1')
@@ -40,5 +55,12 @@ export class AiController {
     @Param('draftId') draftId: string,
   ) {
     return this.ai.approveDraft(request.actor!, projectId, draftId);
+  }
+  @Post('projects/:projectId/brain/drafts/:draftId/reject') reject(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.ai.rejectDraft(request.actor!, projectId, draftId);
   }
 }

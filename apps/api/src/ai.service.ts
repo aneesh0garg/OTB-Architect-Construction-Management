@@ -90,6 +90,16 @@ export class AiService {
     await this.audit(actor, projectId, 'ai.draft_approved', { draftId });
     return draft;
   }
+  async rejectDraft(actor: AuthenticatedActor, projectId: string, draftId: string) {
+    await this.authorizeProject(actor, projectId);
+    const result = await this.pool.query<DraftRow>(
+      'UPDATE ai_drafts SET status = $1 WHERE id = $2 AND project_id = $3 AND organization_id = $4 AND status = $5 RETURNING id, intent, content, citations, status, model',
+      ['rejected', draftId, projectId, actor.organizationId, 'review_required'],
+    );
+    const draft = row(result.rows, 'Draft is unavailable or already reviewed.');
+    await this.audit(actor, projectId, 'ai.draft_rejected', { draftId });
+    return draft;
+  }
   private async evidence(projectId: string, query: string) {
     const terms = query
       .toLocaleLowerCase()
@@ -134,7 +144,14 @@ export class AiService {
   }
 }
 export interface CreateDraftInput {
-  intent: 'rfi_draft' | 'site_report' | 'meeting_minutes' | 'risk_summary';
+  intent:
+    | 'rfi_draft'
+    | 'site_report'
+    | 'meeting_minutes'
+    | 'risk_summary'
+    | 'submittal_review'
+    | 'document_classification'
+    | 'record_search';
   prompt: string;
 }
 const row = <T extends QueryResultRow>(rows: T[], message: string) => {

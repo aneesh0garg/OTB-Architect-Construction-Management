@@ -261,11 +261,12 @@ curl -X POST http://localhost:3001/v1/ai/settings \
   -d '{"enabled":true}'
 ```
 
-| Endpoint                                                     | Purpose                                                                                                                                     |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/projects/:projectId/brain/search?q=...`             | Permission-aware retrieval from filed communications, document revisions, workflow records, observations, and tasks, with source citations. |
-| `POST /v1/projects/:projectId/brain/drafts`                  | Create an evidence-backed, review-required RFI, site report, meeting-minutes, or risk-summary draft.                                        |
-| `POST /v1/projects/:projectId/brain/drafts/:draftId/approve` | Record explicit human approval. Approval does not itself issue a contractual project record.                                                |
+| Endpoint                                                     | Purpose                                                                                                                                                        |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/projects/:projectId/brain/search?q=...`             | Permission-aware retrieval from filed communications, document revisions, workflow records, observations, and tasks, with source citations.                    |
+| `POST /v1/projects/:projectId/brain/drafts`                  | Create an evidence-backed, review-required RFI, site report, meeting-minutes, risk-summary, submittal-review, document-classification, or record-search draft. |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/approve` | Record explicit human approval. Approval does not itself issue a contractual project record.                                                                   |
+| `POST /v1/projects/:projectId/brain/drafts/:draftId/reject`  | Record explicit human rejection; a reviewed draft cannot be issued by this endpoint.                                                                           |
 
 The current local implementation produces cited review briefs without sending
 customer data to an external model provider. It records setting changes,
