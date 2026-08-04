@@ -79,4 +79,25 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByText('Invoice basis')).toBeVisible();
     await expect(page.getByText('Payments')).toBeVisible();
   });
+
+  test('builds an editable proposal for an opportunity', async ({ page }) => {
+    const suffix = Date.now();
+    const projectName = `UI proposal project ${suffix}`;
+    await page.getByRole('link', { name: '◫ Portfolio' }).click();
+    await page.getByLabel('Client').fill(`UI proposal client ${suffix}`);
+    await page.getByLabel('Project').fill(projectName);
+    await page.getByLabel('Anticipated fee').fill('42000');
+    await page.getByRole('button', { name: 'Create opportunity' }).click();
+
+    const opportunity = page.locator('article', { hasText: projectName });
+    await opportunity.getByRole('button', { name: 'Build proposal' }).click();
+    await opportunity.getByLabel('Scope').fill('Construction-administration services for the proposal project.');
+    await opportunity.getByLabel('Assumptions').fill('Weekly site access is available.');
+    await opportunity.getByLabel('Exclusions').fill('Statutory fees are excluded.');
+    await opportunity.getByLabel('Fee').fill('42000');
+    await opportunity.getByLabel('Phase').fill('Construction administration');
+    await opportunity.getByLabel('Phase hours').fill('120');
+    await opportunity.getByRole('button', { name: 'Create proposal' }).click();
+    await expect(opportunity.getByText('Proposal v1')).toBeVisible();
+  });
 });

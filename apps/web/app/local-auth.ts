@@ -483,12 +483,14 @@ export const createPipelineOpportunity = (input: {
 }) => apiPost('/v1/pipeline/opportunities', input);
 export const createPipelineProposal = (
   opportunityId: string,
-  input: { scope: string; fee: number },
-) =>
-  apiPost(`/v1/pipeline/opportunities/${opportunityId}/proposals`, {
-    ...input,
-    phases: [{ name: 'Base services', plannedFee: input.fee, targetHours: 1 }],
-  });
+  input: {
+    scope: string;
+    assumptions?: string;
+    exclusions?: string;
+    fee: number;
+    phases: Array<{ name: string; plannedFee: number; targetHours: number }>;
+  },
+) => apiPost(`/v1/pipeline/opportunities/${opportunityId}/proposals`, input);
 export const convertPipelineOpportunity = (
   opportunityId: string,
   input: { proposalId: string; projectCode: string; location?: string },

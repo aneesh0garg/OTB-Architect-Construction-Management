@@ -900,6 +900,13 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [projectCode, setProjectCode] = useState('');
+  const [proposalOpportunityId, setProposalOpportunityId] = useState<string>();
+  const [proposalScope, setProposalScope] = useState('');
+  const [proposalAssumptions, setProposalAssumptions] = useState('');
+  const [proposalExclusions, setProposalExclusions] = useState('');
+  const [proposalFee, setProposalFee] = useState('');
+  const [proposalPhase, setProposalPhase] = useState('Base services');
+  const [proposalHours, setProposalHours] = useState('1');
   const refresh = async () => {
     if (!signedIn) return;
     try {
@@ -931,15 +938,32 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
       setSaving(false);
     }
   };
-  const createProposal = async (opportunityId: string, project: string) => {
-    const proposalFee = Number(fee) || 0;
+  const createProposal = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!proposalOpportunityId) return;
     setSaving(true);
     setMessage(undefined);
     try {
-      await createPipelineProposal(opportunityId, {
-        scope: `${project} base services`,
-        fee: proposalFee,
+      await createPipelineProposal(proposalOpportunityId, {
+        scope: proposalScope.trim(),
+        ...(proposalAssumptions.trim() ? { assumptions: proposalAssumptions.trim() } : {}),
+        ...(proposalExclusions.trim() ? { exclusions: proposalExclusions.trim() } : {}),
+        fee: Number(proposalFee),
+        phases: [
+          {
+            name: proposalPhase.trim(),
+            plannedFee: Number(proposalFee),
+            targetHours: Number(proposalHours),
+          },
+        ],
       });
+      setProposalOpportunityId(undefined);
+      setProposalScope('');
+      setProposalAssumptions('');
+      setProposalExclusions('');
+      setProposalFee('');
+      setProposalPhase('Base services');
+      setProposalHours('1');
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Proposal could not be created.');
@@ -1068,10 +1092,46 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
                     <button
                       className="button-secondary record-action"
                       disabled={saving}
-                      onClick={() => createProposal(opportunity.id, opportunity.project_name)}
+                      onClick={() => {
+                        setProposalOpportunityId(opportunity.id);
+                        setProposalScope(`${opportunity.project_name} base services`);
+                        setProposalFee(String(opportunity.anticipated_fee));
+                      }}
                     >
-                      Build base proposal
+                      Build proposal
                     </button>
+                  )}
+                  {proposalOpportunityId === opportunity.id && (
+                    <form className="proposal-builder" onSubmit={createProposal}>
+                      <label>
+                        Scope
+                        <textarea value={proposalScope} onChange={(event) => setProposalScope(event.target.value)} required />
+                      </label>
+                      <label>
+                        Assumptions
+                        <textarea value={proposalAssumptions} onChange={(event) => setProposalAssumptions(event.target.value)} />
+                      </label>
+                      <label>
+                        Exclusions
+                        <textarea value={proposalExclusions} onChange={(event) => setProposalExclusions(event.target.value)} />
+                      </label>
+                      <label>
+                        Fee
+                        <input min="0" type="number" value={proposalFee} onChange={(event) => setProposalFee(event.target.value)} required />
+                      </label>
+                      <label>
+                        Phase
+                        <input value={proposalPhase} onChange={(event) => setProposalPhase(event.target.value)} required />
+                      </label>
+                      <label>
+                        Phase hours
+                        <input min="0" type="number" value={proposalHours} onChange={(event) => setProposalHours(event.target.value)} required />
+                      </label>
+                      <div className="detail-action-row">
+                        <button className="button-primary" disabled={saving} type="submit">Create proposal</button>
+                        <button className="button-secondary" type="button" onClick={() => setProposalOpportunityId(undefined)}>Cancel</button>
+                      </div>
+                    </form>
                   )}
                 </article>
               ))}
