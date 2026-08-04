@@ -73,6 +73,12 @@ const migrations: Migration[] = [
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS accounting_sync_error TEXT;
     `,
   },
+  {
+    id: '0007_controlled_document_uploads',
+    sql: `
+      CREATE TABLE IF NOT EXISTS document_uploads (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, storage_key TEXT NOT NULL UNIQUE, original_name TEXT NOT NULL, content_type TEXT NOT NULL, expected_size BIGINT NOT NULL, actual_size BIGINT, status TEXT NOT NULL DEFAULT 'pending', expires_at TIMESTAMPTZ NOT NULL, uploaded_by TEXT NOT NULL, completed_at TIMESTAMPTZ, attached_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+    `,
+  },
 ];
 
 @Injectable()

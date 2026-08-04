@@ -104,24 +104,26 @@ All endpoints below are tenant-scoped and require the same `Authorization`
 header used in the quick check. `PROJECT_ID` must be an ID returned from
 `GET /v1/workspace`.
 
-| Endpoint                                                | Purpose                                                                                                                                    |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /v1/workspace/projects/:projectId/record`          | Read project metadata, tasks, document revisions, and filed communications.                                                                |
-| `POST /v1/workspace/projects/:projectId/status`         | Transition a project through planning, active, on-hold, closed, and archived states; closing sets a seven-year retention date.             |
-| `GET /v1/projects/:projectId/search?q=:query`           | Search permitted documents, filed communications, tasks, field observations, and workflow records within a project.                        |
-| `GET /v1/projects/:projectId/exports/project.csv`       | Download an audit-recorded, spreadsheet-safe project-record CSV.                                                                           |
-| `GET /v1/projects/:projectId/exports/commercial.csv`    | Download an audit-recorded, spreadsheet-safe commercial and cost-control CSV.                                                              |
-| `POST /v1/workspace/projects/:projectId/tasks`          | Create a task; an assigned user receives an in-app notification.                                                                           |
-| `POST /v1/workspace/projects/:projectId/documents`      | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
-| `POST /v1/workspace/projects/:projectId/communications` | File an immutable inbound, outbound, or internal project message.                                                                          |
-| `GET /v1/workspace/notifications`                       | Read the current user’s in-app notification feed.                                                                                          |
-| `POST /v1/workspace/notifications/:notificationId/read` | Mark a notification as read.                                                                                                               |
+| Endpoint                                                                      | Purpose                                                                                                                                    |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/workspace/projects/:projectId/record`                                | Read project metadata, tasks, document revisions, and filed communications.                                                                |
+| `POST /v1/workspace/projects/:projectId/status`                               | Transition a project through planning, active, on-hold, closed, and archived states; closing sets a seven-year retention date.             |
+| `GET /v1/projects/:projectId/search?q=:query`                                 | Search permitted documents, filed communications, tasks, field observations, and workflow records within a project.                        |
+| `GET /v1/projects/:projectId/exports/project.csv`                             | Download an audit-recorded, spreadsheet-safe project-record CSV.                                                                           |
+| `GET /v1/projects/:projectId/exports/commercial.csv`                          | Download an audit-recorded, spreadsheet-safe commercial and cost-control CSV.                                                              |
+| `POST /v1/workspace/projects/:projectId/tasks`                                | Create a task; an assigned user receives an in-app notification.                                                                           |
+| `POST /v1/workspace/projects/:projectId/documents`                            | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
+| `POST /v1/workspace/projects/:projectId/documents/uploads`                    | Prepare a 15-minute direct S3/MinIO upload for a PDF, JPEG, or PNG.                                                                        |
+| `POST /v1/workspace/projects/:projectId/documents/uploads/:uploadId/complete` | Verify the uploaded object before it can be attached to a revision.                                                                        |
+| `POST /v1/workspace/projects/:projectId/communications`                       | File an immutable inbound, outbound, or internal project message.                                                                          |
+| `GET /v1/workspace/notifications`                                             | Read the current user’s in-app notification feed.                                                                                          |
+| `POST /v1/workspace/notifications/:notificationId/read`                       | Mark a notification as read.                                                                                                               |
+| `GET /v1/workspace/audit?projectId=:projectId`                                | Read up to 200 tenant audit events, optionally narrowed to a project; organization administrators and principals only.                     |
 
 Task assignments, issued construction workflows, invoice issuance, and payment
 receipts create in-app notifications for authorized project members. External
 email and push delivery remain explicitly opt-in integrations; notification
 contents never substitute for the underlying project record.
-| `GET /v1/workspace/audit?projectId=:projectId` | Read up to 200 tenant audit events, optionally narrowed to a project; organization administrators and principals only. |
 
 Example: create an issued drawing revision.
 
@@ -138,6 +140,11 @@ curl -X POST "http://localhost:3001/v1/workspace/projects/$PROJECT_ID/documents"
     "issueDate": "2026-03-12"
   }'
 ```
+
+For a file-backed revision, first prepare the upload, PUT the bytes to the
+returned `uploadUrl` with the declared `Content-Type`, complete the upload, and
+pass its `uploadId` to the document-revision endpoint. This prevents a caller
+from attaching an arbitrary storage key from another tenant or project.
 
 ## P1.2 field and execution API
 

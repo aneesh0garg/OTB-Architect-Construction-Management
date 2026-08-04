@@ -24,6 +24,7 @@ import { ProjectExportService } from './project-export.service.js';
 import { NotificationService } from './notification.service.js';
 import { ZohoBooksController } from './zoho-books.controller.js';
 import { ZohoBooksService } from './zoho-books.service.js';
+import { DocumentUploadService } from './document-upload.service.js';
 
 @Module({
   controllers: [
@@ -48,6 +49,7 @@ import { ZohoBooksService } from './zoho-books.service.js';
     ProjectExportService,
     NotificationService,
     ZohoBooksService,
+    DocumentUploadService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,

@@ -112,6 +112,31 @@ const task = await api('POST', `${projectPath}/tasks`, {
   assigneeId: 'pilot-admin',
 });
 assert.equal(task.title, `Verify facade coordination ${runId}`);
+const documentBytes = Buffer.from(`Orbita controlled document ${runId}`, 'utf8');
+const preparedUpload = await api('POST', `${projectPath}/documents/uploads`, {
+  fileName: `smoke-${runId}.pdf`,
+  contentType: 'application/pdf',
+  size: documentBytes.length,
+});
+const uploaded = await fetch(preparedUpload.uploadUrl, {
+  method: 'PUT',
+  headers: { 'content-type': 'application/pdf' },
+  body: documentBytes,
+});
+assert.equal(uploaded.ok, true, 'Signed MinIO upload failed.');
+const completedUpload = await api(
+  'POST',
+  `${projectPath}/documents/uploads/${preparedUpload.uploadId}/complete`,
+);
+assert.equal(completedUpload.status, 'uploaded', 'Upload was not verified.');
+await api('POST', `${projectPath}/documents`, {
+  documentNumber: `UP-${runId}`,
+  documentType: 'report',
+  title: `Uploaded smoke report ${runId}`,
+  revision: 'A',
+  status: 'draft',
+  uploadId: preparedUpload.uploadId,
+});
 await api('POST', `${projectPath}/documents`, {
   documentNumber: `A-${runId}`,
   documentType: 'drawing',
@@ -309,6 +334,7 @@ for (const action of [
   'project.search_performed',
   'export.project_csv_created',
   'export.commercial_csv_created',
+  'document.upload_attached',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),

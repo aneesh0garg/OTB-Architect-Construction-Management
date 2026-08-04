@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
+import { DocumentUploadService } from './document-upload.service.js';
 
 interface ProjectRow extends QueryResultRow {
   id: string;
@@ -68,7 +69,10 @@ interface AuditRow extends QueryResultRow {
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private readonly pool: DatabaseService) {}
+  constructor(
+    private readonly pool: DatabaseService,
+    private readonly uploads: DocumentUploadService,
+  ) {}
 
   async getWorkspace(actor: AuthenticatedActor) {
     await this.ensureOrganization(actor);
@@ -258,6 +262,9 @@ export class WorkspaceService {
     ]);
     const project = await this.projectForActor(actor, projectId);
     const number = this.requiredText(input.documentNumber, 'Document number').toUpperCase();
+    const storageKey = input.uploadId
+      ? await this.uploads.consume(actor, projectId, input.uploadId)
+      : null;
     if (input.status === 'issued')
       await this.pool.query(
         'UPDATE document_revisions SET status = $1 WHERE project_id = $2 AND document_number = $3 AND status = $4',
@@ -274,7 +281,7 @@ export class WorkspaceService {
         this.requiredText(input.revision, 'Revision'),
         input.status ?? 'draft',
         input.issueDate ?? null,
-        input.storageKey ?? null,
+        storageKey,
         actor.userId,
       ],
     );
@@ -438,7 +445,7 @@ export interface CreateDocumentInput {
   revision: string;
   status?: string;
   issueDate?: string;
-  storageKey?: string;
+  uploadId?: string;
 }
 export interface FileCommunicationInput {
   channel: string;

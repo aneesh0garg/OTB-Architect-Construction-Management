@@ -3,13 +3,16 @@ import {
   IsArray,
   IsIn,
   IsISO8601,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { WorkspaceService } from './workspace.service.js';
+import { DocumentUploadService } from './document-upload.service.js';
 class CreateOrganizationDto {
   @IsString() @MinLength(2) @MaxLength(120) name!: string;
 }
@@ -45,7 +48,12 @@ class CreateDocumentDto {
   @IsString() @MinLength(1) @MaxLength(24) revision!: string;
   @IsOptional() @IsIn(['draft', 'issued']) status?: string;
   @IsOptional() @IsISO8601() issueDate?: string;
-  @IsOptional() @IsString() @MaxLength(400) storageKey?: string;
+  @IsOptional() @IsString() @MaxLength(160) uploadId?: string;
+}
+class CreateDocumentUploadDto {
+  @IsString() @MinLength(1) @MaxLength(160) fileName!: string;
+  @IsString() @MinLength(3) @MaxLength(120) contentType!: string;
+  @IsNumber() @Min(1) size!: number;
 }
 class FileCommunicationDto {
   @IsIn(['email', 'whatsapp_business', 'manual_note']) channel!: string;
@@ -60,7 +68,10 @@ class FileCommunicationDto {
 @Controller('v1/workspace')
 @UseGuards(KeycloakAuthGuard)
 export class WorkspaceController {
-  constructor(private readonly workspace: WorkspaceService) {}
+  constructor(
+    private readonly workspace: WorkspaceService,
+    private readonly uploads: DocumentUploadService,
+  ) {}
   @Get() getWorkspace(@Req() request: AuthenticatedRequest) {
     return this.workspace.getWorkspace(request.actor!);
   }
@@ -112,6 +123,20 @@ export class WorkspaceController {
     @Body() body: CreateDocumentDto,
   ) {
     return this.workspace.addDocumentRevision(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/documents/uploads') createDocumentUpload(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: CreateDocumentUploadDto,
+  ) {
+    return this.uploads.create(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/documents/uploads/:uploadId/complete') completeDocumentUpload(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('uploadId') uploadId: string,
+  ) {
+    return this.uploads.complete(request.actor!, projectId, uploadId);
   }
   @Post('projects/:projectId/communications') fileCommunication(
     @Req() request: AuthenticatedRequest,
