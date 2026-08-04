@@ -158,13 +158,25 @@ export default function Home() {
         <div className="brand-mark" aria-label="Orbita">
           O
         </div>
-        <button className="rail-button active" aria-label="Workspace">
+        <button
+          className="rail-button active"
+          aria-label="Workspace"
+          onClick={() => setView('overview')}
+        >
           ▦
         </button>
-        <button className="rail-button" aria-label="Projects">
+        <button
+          className="rail-button"
+          aria-label="Projects"
+          onClick={() => setProjectMenuOpen((open) => !open)}
+        >
           ◫
         </button>
-        <button className="rail-button" aria-label="AI workspace">
+        <button
+          className="rail-button"
+          aria-label="AI workspace"
+          onClick={() => setBrainOpen(true)}
+        >
           ✦
         </button>
         <button
@@ -175,7 +187,11 @@ export default function Home() {
           ◔<span className="rail-dot" />
         </button>
         <div className="rail-spacer" />
-        <button className="avatar avatar-small" aria-label="Your profile">
+        <button
+          className="avatar avatar-small"
+          aria-label="Your profile"
+          onClick={() => setNotificationSettingsOpen(true)}
+        >
           {initials}
         </button>
       </aside>
@@ -380,7 +396,9 @@ export default function Home() {
                 <span title="Additional project members">+{projectMembers.length - 4}</span>
               )}
             </div>
-            <button className="button-secondary">Share</button>
+            <button className="button-secondary" onClick={() => setView('communications')}>
+              Share updates
+            </button>
             <button className="button-primary" onClick={() => setWorkspaceDialog('project')}>
               + New project
             </button>
@@ -421,7 +439,7 @@ export default function Home() {
               onOpenFeed={() => setNotificationFeedOpen(true)}
             />
           )}
-          {view === 'drawings' && <Drawings record={projectRecord} />}
+          {view === 'drawings' && <Drawings record={projectRecord} onNavigate={setView} />}
           {view === 'field' && <FieldMobile execution={executionRegister} />}
           {view === 'documents' && (
             <Documents
@@ -2227,7 +2245,13 @@ function CostContracts({
   );
 }
 
-function Drawings({ record }: { record: ProjectRecord | undefined }) {
+function Drawings({
+  record,
+  onNavigate,
+}: {
+  record: ProjectRecord | undefined;
+  onNavigate: (view: WorkspaceView) => void;
+}) {
   const [preview, setPreview] = useState<{
     title: string;
     documentNumber: string;
@@ -2286,7 +2310,9 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
         </div>
         <div>
           <button className="button-secondary">Filter</button>
-          <button className="button-primary">Upload drawing</button>
+          <button className="button-primary" onClick={() => onNavigate('documents')}>
+            Upload drawing
+          </button>
         </div>
       </div>
       <section className="content-card drawing-table-card">

@@ -48,6 +48,12 @@ test.describe('mobile project navigation', () => {
     await page.getByRole('button', { name: 'Close create project' }).click();
   });
 
+  test('routes drawing upload to the controlled document workflow', async ({ page }) => {
+    await page.getByTestId('project-tab-drawings').click();
+    await page.getByRole('button', { name: 'Upload drawing' }).click();
+    await expect(page.getByTestId('project-view-documents')).toBeVisible();
+  });
+
   test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {
     await page.getByTestId('notification-settings-trigger').click();
 

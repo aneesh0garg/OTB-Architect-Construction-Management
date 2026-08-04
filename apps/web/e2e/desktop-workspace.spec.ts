@@ -13,4 +13,23 @@ test.describe('desktop workspace controls', () => {
     const teamDialog = page.getByRole('dialog', { name: 'Create team' });
     await expect(teamDialog).toContainText('Sign in to create projects and teams');
   });
+
+  test('opens Pipeline, Staffing, and AI workspace controls', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByText('Portfolio', { exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Pipeline and proposals' })).toContainText(
+      'Sign in to manage opportunities and proposals',
+    );
+    await page.getByRole('button', { name: 'Close pipeline and proposals' }).click();
+
+    await page.getByText('My teams', { exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Staffing and capacity' })).toContainText(
+      'Sign in to manage people, teams, and capacity',
+    );
+    await page.getByRole('button', { name: 'Close staffing and capacity' }).click();
+
+    await page.getByRole('button', { name: 'AI workspace' }).click();
+    await expect(page.getByRole('dialog', { name: 'Evidence before answers' })).toBeVisible();
+  });
 });
