@@ -449,12 +449,21 @@ pnpm typecheck
 pnpm test
 ```
 
-## Web mobile UI checks
+## Web UI checks
 
-The web workspace has Playwright coverage for the project tabs at a phone
-viewport: Overview, Drawings, Field work, Documents, Tasks, Communications,
-and Cost & contracts. Every visible project tab must change to its matching
-view; a module must not be presented as an inert control.
+The Playwright suite covers the project tabs at a phone viewport: Overview,
+Drawings, Field work, Documents, Tasks, Communications, and Cost & contracts.
+It also verifies the mobile drawing-to-document upload route and demo work
+queue checkbox. Desktop coverage verifies project/team creation dialogs and
+the Pipeline, Staffing, and AI workspace entry controls. Every visible control
+must either complete a local action or open its matching product surface.
+
+Authenticated workflow controls—including controlled document uploads, task
+status transitions, communications filing, commercial records, invoice
+lifecycle, project lifecycle, opportunity conversion, and staffing—are backed
+by the local API and require a Keycloak account with the relevant role. The
+unauthenticated browser suite deliberately checks that those screens offer a
+clear sign-in boundary rather than simulating an authorized side effect.
 
 The top-bar settings control opens a responsive **Notification settings**
 sheet. Signed-in users can set a default or event-specific delivery preference
@@ -473,11 +482,19 @@ Task assignments, workflow issuance, invoice issuance, and payment receipts
 and observation-discussion comments all use the same event-preference and
 quiet-hours policy before an in-app notification is created.
 
-Install the mobile browser engines once, then run the suite:
+Install the browser engines once, then run the suite:
 
 ```bash
 pnpm --filter @orbita/web exec playwright install chromium webkit
 pnpm test:ui
+```
+
+For a focused local check, run one test file and project directly:
+
+```bash
+env -u CI apps/web/node_modules/.bin/playwright test \
+  -c apps/web/playwright.config.ts apps/web/e2e/mobile-project-tabs.spec.ts \
+  --project=mobile-chromium --workers=1
 ```
 
 The test runner starts the web app unless an instance is already serving on
