@@ -3,6 +3,7 @@ import type { AuthenticatedActor } from '@orbita/contracts';
 import type { QueryResultRow } from 'pg';
 import { AuditService } from './audit.service.js';
 import { DatabaseService } from './database.service.js';
+import { KeycloakProvisioningService } from './keycloak-provisioning.service.js';
 
 interface PersonRow extends QueryResultRow {
   user_id: string;
@@ -11,6 +12,8 @@ interface PersonRow extends QueryResultRow {
   weekly_capacity_hours: number;
   active: boolean;
   organization_role: string;
+  email: string | null;
+  invitation_status: string;
 }
 interface CapacityRow extends PersonRow {
   allocated_hours: number;
@@ -32,11 +35,12 @@ export class ResourceService {
   constructor(
     private readonly database: DatabaseService,
     private readonly audit: AuditService,
+    private readonly keycloak: KeycloakProvisioningService,
   ) {}
 
   async people(actor: AuthenticatedActor) {
     const result = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name',
+      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name',
       [actor.organizationId],
     );
     return result.rows;
@@ -44,7 +48,7 @@ export class ResourceService {
 
   async person(actor: AuthenticatedActor, userId: string) {
     const person = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role FROM people WHERE organization_id = $1 AND user_id = $2',
+      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND user_id = $2',
       [actor.organizationId, text(userId, 'User ID')],
     );
     const value = row(person.rows, 'Organization member is unavailable.');
@@ -135,6 +139,38 @@ export class ResourceService {
     return person;
   }
 
+  async invitePerson(actor: AuthenticatedActor, input: InvitePersonInput) {
+    this.requireManager(actor);
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.database.query<PersonRow>(
+      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND lower(email) = lower($2)',
+      [actor.organizationId, email],
+    );
+    const identity = await this.keycloak.invite({ email, displayName: text(input.displayName, 'Display name'), organizationId: actor.organizationId });
+    const result = await this.database.query<PersonRow>(
+      `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status)
+       VALUES ($1,$2,$3,$4,$5,true,$6,$7,'pending')
+       ON CONFLICT (organization_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, title = EXCLUDED.title, weekly_capacity_hours = EXCLUDED.weekly_capacity_hours, organization_role = EXCLUDED.organization_role, email = EXCLUDED.email, invitation_status = 'pending'
+       RETURNING user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status`,
+      [actor.organizationId, identity.userId, text(input.displayName, 'Display name'), input.title?.trim() || null, input.weeklyCapacityHours ?? 40, input.organizationRole, email],
+    );
+    const person = row(result.rows, 'Organization invitation could not be saved.');
+    await this.database.query(
+      `INSERT INTO organization_member_invitations (organization_id, email, keycloak_user_id, status, invited_by, expires_at)
+       VALUES ($1,$2,$3,'pending',$4,NOW() + INTERVAL '7 days')
+       ON CONFLICT (organization_id, lower(email)) DO UPDATE SET keycloak_user_id = EXCLUDED.keycloak_user_id, status = 'pending', invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at, created_at = NOW()`,
+      [actor.organizationId, email, identity.userId, actor.userId],
+    );
+    await this.audit.record(actor, 'organization.member_invited', 'person', person.user_id, {
+      email,
+      organizationRole: person.organization_role,
+      invitationStatus: 'pending',
+      isNewIdentity: identity.isNewIdentity,
+      reinvited: Boolean(existing.rows[0]),
+    });
+    return person;
+  }
+
   async addToTeam(actor: AuthenticatedActor, input: AddToTeamInput) {
     this.requireManager(actor);
     const team = await this.database.query<QueryResultRow>(
@@ -183,6 +219,13 @@ export interface UpsertPersonInput {
   title?: string;
   weeklyCapacityHours?: number;
   active?: boolean;
+  organizationRole: string;
+}
+export interface InvitePersonInput {
+  email: string;
+  displayName: string;
+  title?: string;
+  weeklyCapacityHours?: number;
   organizationRole: string;
 }
 export interface AddToTeamInput {

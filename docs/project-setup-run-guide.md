@@ -41,9 +41,35 @@ pnpm --filter @orbita/mobile start
 | Web workspace | `http://localhost:3000`        | Teams-like project delivery workspace |
 | API health    | `http://localhost:3001/health` | API liveness check                    |
 | Keycloak      | `http://localhost:8180`        | Local OIDC identity and authorization |
+| Mailpit       | `http://localhost:8025`        | Local-only Keycloak invitation inbox  |
 | MinIO console | `http://localhost:9001`        | Local S3-compatible document storage  |
 | PostgreSQL    | `localhost:5432`               | Tenant and project data               |
 | Redis         | `localhost:6379`               | Queue/cache foundation                |
+
+## Organization member invitations and profile photos
+
+From **Resource capacity**, an organization administrator invites a member using their
+work email, name, role, and weekly capacity. Orbita creates or reuses the Keycloak
+identity server-side, records a pending organization directory membership, and asks
+Keycloak to send a seven-day activation email. The recipient verifies their email and
+sets their own password; Orbita never creates, displays, or emails a password.
+
+Local Docker Compose includes **Mailpit**, a safe email catcher comparable to Mailtrap.
+Keycloak delivers local activation messages to `mailpit:1025`; open
+`http://localhost:8025` to read an invitation and finish onboarding. No invitation
+email leaves the development machine and no hosted email-account credentials are needed.
+
+The local realm includes an `orbita-provisioner` service account. After import, obtain
+its generated secret from **Keycloak Admin → Clients → orbita-provisioner → Credentials**
+and place it only in your untracked `.env` as `KEYCLOAK_PROVISIONER_CLIENT_SECRET`.
+Never commit that secret or expose it in the web or mobile app. The imported local realm
+already targets Mailpit. Production must use an approved transactional-email SMTP/API
+provider with equivalent delivery controls.
+
+Members can upload a JPEG, PNG, or WebP profile photo (maximum 5 MB) from their profile
+page. Uploads use a short-lived storage URL, are verified by the API, and are recorded in
+the audit trail. A member may update their own photo; organization managers may update a
+directory member’s photo.
 
 ## Pilot account
 

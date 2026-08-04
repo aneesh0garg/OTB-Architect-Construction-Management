@@ -2,6 +2,15 @@
   "realm": "orbita",
   "enabled": true,
   "displayName": "Orbita Local",
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@local.orbita",
+    "fromDisplayName": "Orbita Local",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
   "roles": {
     "realm": [
       { "name": "organization_admin" },
@@ -71,6 +80,16 @@
       "clientId": "orbita-api",
       "bearerOnly": true,
       "standardFlowEnabled": false
+    },
+    {
+      "clientId": "orbita-provisioner",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountClientRoles": {
+        "realm-management": ["manage-users", "view-users"]
+      }
     }
   ],
   "users": [

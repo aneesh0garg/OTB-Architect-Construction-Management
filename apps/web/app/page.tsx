@@ -17,7 +17,7 @@ import {
   markNotificationRead,
   restoreLocalLogin,
   saveNotificationPreference,
-  saveResourcePerson,
+  inviteOrganizationMember,
   searchProjectBrain,
   createProjectBrainDraft,
   createFieldObservation,
@@ -926,7 +926,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   const [people, setPeople] = useState<ResourcePerson[]>([]);
   const [teams, setTeams] = useState<ResourceTeam[]>([]);
   const [capacity, setCapacity] = useState<CapacityRegister>();
-  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [weeklyHours, setWeeklyHours] = useState('40');
   const [organizationRole, setOrganizationRole] = useState('project_member');
@@ -962,13 +962,13 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
     setSaving(true);
     setMessage(undefined);
     try {
-      await saveResourcePerson({
-        userId: userId.trim(),
+      await inviteOrganizationMember({
+        email: email.trim(),
         displayName: displayName.trim(),
         weeklyCapacityHours: Number(weeklyHours),
         organizationRole,
       });
-      setUserId('');
+      setEmail('');
       setDisplayName('');
       setWeeklyHours('40');
       setOrganizationRole('project_member');
@@ -1034,15 +1034,16 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
           <p className="settings-empty">Sign in to manage people, capacity groups, and staffing.</p>
         ) : (
           <>
-            <p className="people-dialog-copy">First add an organization member and set their organization role. Then assign that member to a project, where their project responsibility is chosen separately.</p>
+            <p className="people-dialog-copy">Invite a member by work email and choose their organization role. Keycloak sends a secure activation link; after sign-in, assign the active member to a project with a separate responsibility.</p>
             <section className="staffing-action-section" aria-labelledby="organization-member-heading">
-            <div className="staffing-action-heading"><p className="eyebrow">STEP 1 · ORGANIZATION DIRECTORY</p><h3 id="organization-member-heading">Add organization member</h3><p>This creates or updates a directory member and their organization role. It does not grant project access.</p></div>
+            <div className="staffing-action-heading"><p className="eyebrow">STEP 1 · ORGANIZATION DIRECTORY</p><h3 id="organization-member-heading">Invite organization member</h3><p>The invitation creates or links their Keycloak identity and sends an activation email. It does not grant project access.</p></div>
             <form className="inline-form staffing-form" onSubmit={savePerson}>
               <label>
-                User ID
+                Work email
                 <input
-                  value={userId}
-                  onChange={(event) => setUserId(event.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                 />
               </label>
@@ -1072,13 +1073,13 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 </select>
               </label>
               <button className="button-primary" disabled={saving} type="submit">
-                Save organization member
+                Send invitation
               </button>
             </form>
             </section>
             <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
               <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>
-              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Add your first organization member above.</p>}</div>
+              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.email ? `${person.email} · ` : ''}{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week{person.invitation_status === 'pending' ? ' · invitation pending' : ''}</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Invite your first organization member above.</p>}</div>
             </section>
             {record && <section className="staffing-action-section" aria-labelledby="project-staffing-heading"><div className="staffing-action-heading"><p className="eyebrow">STEP 2 · PROJECT STAFFING</p><h3 id="project-staffing-heading">Assign member to project</h3><p>Assign an existing active organization member to <b>{record.project.code} · {record.project.name}</b>. This grants project-team membership; it does not change their organization role.</p></div><form className="inline-form staffing-form project-staffing-form" onSubmit={assignToProject}>
               <label>

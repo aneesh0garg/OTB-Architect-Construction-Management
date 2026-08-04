@@ -262,6 +262,39 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS project_task_counters (project_id UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE, next_number INTEGER NOT NULL DEFAULT 1);
     `,
   },
+  {
+    id: '0023_organization_invites_and_profile_photos',
+    sql: `
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS email TEXT;
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS invitation_status TEXT NOT NULL DEFAULT 'active';
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS profile_photo_key TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS people_organization_email_uniq
+        ON people (organization_id, lower(email)) WHERE email IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS organization_member_invitations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        keycloak_user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        invited_by TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        accepted_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (organization_id, lower(email))
+      );
+      CREATE TABLE IF NOT EXISTS member_profile_photo_uploads (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        storage_key TEXT NOT NULL UNIQUE,
+        content_type TEXT NOT NULL,
+        expected_size BIGINT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `,
+  },
 ];
 
 @Injectable()

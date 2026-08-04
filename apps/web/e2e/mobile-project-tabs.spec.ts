@@ -41,6 +41,34 @@ test('keeps the Staffing and capacity dialog vertically scrollable', async ({ pa
   expect(canScroll).toBe(true);
 });
 
+test('uses an email-based invitation form for organization members', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
+  await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/people', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/teams', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: /Team/ }).click();
+  await page.getByRole('button', { name: 'Manage project team' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Staffing and capacity' });
+  await expect(dialog.getByLabel('Work email')).toHaveAttribute('type', 'email');
+  await expect(dialog.getByRole('button', { name: 'Send invitation' })).toBeVisible();
+  await expect(dialog.getByText(/Keycloak sends a secure activation link/)).toBeVisible();
+});
+
+test('shows the controlled profile-photo upload for the signed-in member', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/resources/people/admin-1/profile-photo', (route) => route.fulfill({ json: { profilePhotoUrl: null } }));
+  await page.route('**/v1/resources/people/admin-1', (route) => route.fulfill({ json: { user_id: 'admin-1', display_name: 'Admin One', title: 'Director', weekly_capacity_hours: 40, active: true, organization_role: 'organization_admin', projects: [] } }));
+  await page.goto('/organization/members/admin-1');
+  await expect(page.getByText('Profile photo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Upload profile photo', { exact: true })).toBeVisible();
+  await expect(page.locator('input[type="file"]')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+});
+
 test('exchanges a task deep-link Keycloak callback only once during React development rendering', async ({ page }) => {
   let tokenRequests = 0;
   await page.addInitScript(() => sessionStorage.setItem('orbita.pkce-verifier', 'test-verifier'));

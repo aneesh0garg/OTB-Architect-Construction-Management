@@ -26,6 +26,7 @@ npm exec --yes --package=pnpm@10.12.1 -- pnpm dev
 - Web: http://localhost:3000
 - API health: http://localhost:3001/health
 - Keycloak: http://localhost:8180 (local admin credentials are for development only)
+- Mailpit local invitation inbox: http://localhost:8025
 - MinIO console: http://localhost:9001
 
 The imported development realm includes `pilot-admin` / `pilot_local` for the

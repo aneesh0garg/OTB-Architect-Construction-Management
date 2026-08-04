@@ -28,6 +28,8 @@ export type ResourcePerson = {
   weekly_capacity_hours: number;
   active: boolean;
   organization_role?: string;
+  email?: string | null;
+  invitation_status?: string;
 };
 export type OrganizationMemberDetail = ResourcePerson & {
   projects: Array<{ id: string; code: string; name: string; role: string }>;
@@ -579,6 +581,15 @@ export const convertPipelineOpportunity = (
 export const loadResourcePeople = () => apiGet<ResourcePerson[]>('/v1/resources/people');
 export const loadOrganizationMember = (userId: string) =>
   apiGet<OrganizationMemberDetail>(`/v1/resources/people/${encodeURIComponent(userId)}`);
+export const loadMemberProfilePhoto = (userId: string) =>
+  apiGet<{ profilePhotoUrl: string | null }>(`/v1/resources/people/${encodeURIComponent(userId)}/profile-photo`);
+export async function uploadMemberProfilePhoto(userId: string, file: File) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Choose a JPEG, PNG, or WebP image.');
+  const prepared = await apiPost<{ uploadId: string; uploadUrl: string }>(`/v1/resources/people/${encodeURIComponent(userId)}/profile-photo/uploads`, { fileName: file.name, contentType: file.type, size: file.size });
+  const uploaded = await fetch(prepared.uploadUrl, { method: 'PUT', headers: { 'content-type': file.type }, body: file });
+  if (!uploaded.ok) throw new Error('Profile-photo upload could not reach storage.');
+  return apiPost<{ profilePhotoUrl: string | null }>(`/v1/resources/people/${encodeURIComponent(userId)}/profile-photo/uploads/${encodeURIComponent(prepared.uploadId)}/complete`, {});
+}
 export const loadResourceTeams = () => apiGet<ResourceTeam[]>('/v1/resources/teams');
 export const loadResourceCapacity = (from: string, to: string) =>
   apiGet<CapacityRegister>(
@@ -591,6 +602,13 @@ export const saveResourcePerson = (input: {
   weeklyCapacityHours?: number;
   organizationRole: string;
 }) => apiPost('/v1/resources/people', input);
+export const inviteOrganizationMember = (input: {
+  email: string;
+  displayName: string;
+  title?: string;
+  weeklyCapacityHours?: number;
+  organizationRole: string;
+}) => apiPost('/v1/resources/people/invitations', input);
 export const assignResourceTeamMember = (input: {
   teamId: string;
   userId: string;

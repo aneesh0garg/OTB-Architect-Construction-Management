@@ -29,6 +29,8 @@ import { PipelineController } from './pipeline.controller.js';
 import { PipelineService } from './pipeline.service.js';
 import { ContactController } from './contact.controller.js';
 import { ContactService } from './contact.service.js';
+import { KeycloakProvisioningService } from './keycloak-provisioning.service.js';
+import { ProfilePhotoService } from './profile-photo.service.js';
 
 @Module({
   controllers: [
@@ -64,6 +66,8 @@ import { ContactService } from './contact.service.js';
     GmailService,
     PipelineService,
     ContactService,
+    KeycloakProvisioningService,
+    ProfilePhotoService,
   ],
 })
 export class AppModule {}

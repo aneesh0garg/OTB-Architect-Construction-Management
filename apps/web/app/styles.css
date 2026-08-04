@@ -796,6 +796,9 @@ small {
   margin-top: 16px;
   padding: 20px;
 }
+.member-profile-photo { display: flex; align-items: center; gap: 16px; }
+.member-profile-photo img, .member-profile-photo > span { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 50%; object-fit: cover; background: var(--primary-soft); color: var(--primary); font-weight: 800; }
+.member-profile-photo h2, .member-profile-photo p { margin: 0 0 5px; }
 .auth-required {
   display: grid;
   gap: 10px;

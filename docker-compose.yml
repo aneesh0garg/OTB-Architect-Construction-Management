@@ -13,6 +13,9 @@ services:
     environment: { MINIO_ROOT_USER: orbita, MINIO_ROOT_PASSWORD: orbita_local_storage }
     ports: ['9000:9000', '9001:9001']
     volumes: ['minio_data:/data']
+  mailpit:
+    image: axllent/mailpit:v1.22
+    ports: ['1025:1025', '8025:8025']
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.0
     command: start-dev --import-realm
@@ -29,5 +32,5 @@ services:
       }
     ports: ['8180:8080']
     volumes: ['./infra/keycloak:/opt/keycloak/data/import:ro']
-    depends_on: [postgres]
+    depends_on: [postgres, mailpit]
 volumes: { postgres_data: {}, minio_data: {} }
