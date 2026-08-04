@@ -813,6 +813,77 @@ small {
   object-fit: contain;
   background: var(--raised-strong);
 }
+.drawing-visual-surface {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: var(--raised-strong);
+  cursor: crosshair;
+}
+.drawing-visual-surface img {
+  pointer-events: none;
+}
+.drawing-markup-pin {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--danger, #b42318);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 28%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  transform: translate(-50%, -50%);
+}
+.drawing-markup-preview {
+  background: var(--primary);
+  outline: 5px solid color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.markup-locator {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(260px, 1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border-top: 1px solid var(--border);
+  background: var(--raised);
+}
+.markup-locator p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.markup-map {
+  position: relative;
+  min-height: 190px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 10% 10%;
+  cursor: crosshair;
+}
+.markup-list-index {
+  float: left;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 8px 3px 0;
+  border-radius: 50%;
+  background: var(--danger, #b42318);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
 .evidence-preview {
   max-height: 280px;
   overflow: auto;
@@ -1197,6 +1268,9 @@ small {
   }
   .original-workspace iframe {
     display: none;
+  }
+  .markup-locator {
+    grid-template-columns: 1fr;
   }
 }
 .snapshot-grid {
