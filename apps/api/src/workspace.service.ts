@@ -311,7 +311,7 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications, transmittals, members] = await Promise.all([
       this.pool.query<TaskRow>(
-        'SELECT id, title, status, priority, due_date, assignee_id, created_by FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
       ),
       this.pool.query<DocumentRow>(
@@ -344,7 +344,7 @@ export class WorkspaceService {
   async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
     const task = await this.pool.query<TaskRow>(
-      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date, assignee_id, created_by',
+      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by',
       [
         actor.organizationId,
         project.id,
@@ -374,7 +374,7 @@ export class WorkspaceService {
   }
   async getMyTasks(actor: AuthenticatedActor) {
     const tasks = await this.pool.query<PersonalTaskRow>(
-      `SELECT t.id, t.title, t.status, t.priority, t.due_date, t.assignee_id, t.created_by,
+      `SELECT t.id, t.title, t.status, t.priority, t.due_date::text AS due_date, t.assignee_id, t.created_by,
           t.project_id, p.code AS project_code, p.name AS project_name
        FROM tasks t
        JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
@@ -393,7 +393,7 @@ export class WorkspaceService {
   ) {
     const project = await this.projectForActor(actor, projectId);
     const task = await this.pool.query<TaskRow>(
-      `SELECT id, title, status, priority, due_date, assignee_id, created_by
+      `SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by
        FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
       [taskId, project.id, actor.organizationId],
     );
@@ -422,7 +422,7 @@ export class WorkspaceService {
       );
     const result = await this.pool.query<TaskRow>(
       `UPDATE tasks SET status = $1 WHERE id = $2 AND project_id = $3
-       RETURNING id, title, status, priority, due_date, assignee_id, created_by`,
+       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by`,
       [status, current.id, project.id],
     );
     const updated = this.resultRow(result.rows, 'Task is unavailable.');
@@ -430,6 +430,52 @@ export class WorkspaceService {
       projectId: project.id,
       fromStatus: current.status,
       toStatus: updated.status,
+    });
+    return updated;
+  }
+  async updateTask(actor: AuthenticatedActor, projectId: string, taskId: string, input: UpdateTaskInput) {
+    const project = await this.projectForActor(actor, projectId);
+    const task = await this.pool.query<TaskRow>(
+      'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [taskId, project.id, actor.organizationId],
+    );
+    const current = this.resultRow(task.rows, 'Task is unavailable.');
+    const canManageTasks = actor.roles.some((role) =>
+      ['organization_admin', 'principal', 'project_manager'].includes(role),
+    );
+    if (!canManageTasks && current.created_by !== actor.userId)
+      throw new BadRequestException('Only the task creator or a project manager can update this task.');
+    if (!canManageTasks && input.assigneeId !== undefined && input.assigneeId !== current.assignee_id)
+      throw new BadRequestException('Only a project manager can reassign this task.');
+    const result = await this.pool.query<TaskRow>(
+      `UPDATE tasks SET title = $1, priority = $2, due_date = $3, assignee_id = $4
+       WHERE id = $5 AND project_id = $6 AND organization_id = $7
+       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by`,
+      [
+        input.title ? this.requiredText(input.title, 'Task title') : current.title,
+        input.priority ?? current.priority,
+        input.dueDate ?? current.due_date,
+        input.assigneeId ?? current.assignee_id,
+        current.id,
+        project.id,
+        actor.organizationId,
+      ],
+    );
+    const updated = this.resultRow(result.rows, 'Task is unavailable.');
+    if (updated.assignee_id && updated.assignee_id !== current.assignee_id)
+      await this.notifications.notifyUser(
+        actor.organizationId,
+        updated.assignee_id,
+        project.id,
+        'task.assigned',
+        'Project task assigned',
+        updated.title,
+      );
+    await this.audit(actor, 'task.updated', 'task', updated.id, {
+      projectId: project.id,
+      priorAssigneeId: current.assignee_id,
+      assigneeId: updated.assignee_id,
+      dueDate: updated.due_date,
     });
     return updated;
   }
@@ -960,6 +1006,12 @@ export interface CreateTaskInput {
 }
 export interface CreateTaskCommentInput {
   body: string;
+}
+export interface UpdateTaskInput {
+  title?: string;
+  priority?: string;
+  dueDate?: string;
+  assigneeId?: string;
 }
 export interface CreateDocumentInput {
   documentNumber?: string;

@@ -453,6 +453,20 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   if (!response.ok) throw new Error('Notification settings could not be saved.');
   return response.json() as Promise<T>;
 }
+async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to update project data.');
+  const response = await fetch(`${apiUrl()}${path}`, {
+    method: 'PATCH',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined);
+    throw new Error(payload?.message ?? 'Project data could not be updated.');
+  }
+  return response.json() as Promise<T>;
+}
 
 async function apiPost<T>(
   path: string,
@@ -609,6 +623,11 @@ export const transitionProjectTask = (
   taskId: string,
   status: 'in_progress' | 'blocked' | 'completed' | 'cancelled',
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
+export const updateProjectTask = (
+  projectId: string,
+  taskId: string,
+  input: { title?: string; priority?: string; dueDate?: string; assigneeId?: string },
+) => apiPatch(`/v1/workspace/projects/${projectId}/tasks/${taskId}`, input);
 export const loadTaskComments = (projectId: string, taskId: string) =>
   apiGet<TaskComment[]>(`/v1/workspace/projects/${projectId}/tasks/${taskId}/comments`);
 export const createTaskComment = (projectId: string, taskId: string, body: string) =>

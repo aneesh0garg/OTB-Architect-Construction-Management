@@ -210,6 +210,14 @@ const startedTask = await api('POST', `${projectPath}/tasks/${task.id}/status`, 
   status: 'in_progress',
 });
 assert.equal(startedTask.status, 'in_progress', 'Task did not transition to in progress.');
+const updatedTask = await api('PATCH', `${projectPath}/tasks/${task.id}`, {
+  title: `Verify facade coordination updated ${runId}`,
+  priority: 'critical',
+  dueDate: '2026-08-20',
+  assigneeId: identity.userId,
+});
+assert.equal(updatedTask.priority, 'critical', 'Task update did not retain priority.');
+assert.equal(updatedTask.due_date, '2026-08-20', 'Task update did not retain due date.');
 const taskComment = await api('POST', `${projectPath}/tasks/${task.id}/comments`, {
   body: 'Smoke-tested task discussion entry.',
 });

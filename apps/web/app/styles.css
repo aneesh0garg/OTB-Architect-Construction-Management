@@ -908,7 +908,8 @@ small {
   font-size: 0.78rem;
 }
 .proposal-builder input,
-.proposal-builder textarea {
+.proposal-builder textarea,
+.proposal-builder select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 7px;

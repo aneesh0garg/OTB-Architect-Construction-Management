@@ -53,6 +53,12 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks\/[^/]+$/);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
 
+    const updatedTitle = `${title} updated`;
+    await page.getByRole('button', { name: 'Edit task' }).click();
+    await page.getByLabel('Title').fill(updatedTitle);
+    await page.getByRole('button', { name: 'Save task' }).click();
+    await expect(page.getByRole('heading', { name: updatedTitle })).toBeVisible();
+
     const comment = 'Coordinate the decision with the site team.';
     await page.getByLabel('Add a comment').fill(comment);
     await page.getByRole('button', { name: 'Post comment' }).click();

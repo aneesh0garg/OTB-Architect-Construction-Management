@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Patch,
   Put,
   Query,
   Req,
@@ -63,6 +64,12 @@ class CreateTaskDto {
 }
 class TaskStatusDto {
   @IsIn(['in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
+}
+class UpdateTaskDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(240) title?: string;
+  @IsOptional() @IsIn(['low', 'normal', 'high', 'critical']) priority?: string;
+  @IsOptional() @IsISO8601() dueDate?: string;
+  @IsOptional() @IsString() @MaxLength(160) assigneeId?: string;
 }
 class CreateTaskCommentDto {
   @IsString() @MinLength(1) @MaxLength(4000) body!: string;
@@ -208,6 +215,14 @@ export class WorkspaceController {
     @Body() body: TaskStatusDto,
   ) {
     return this.workspace.transitionTaskStatus(request.actor!, projectId, taskId, body.status);
+  }
+  @Patch('projects/:projectId/tasks/:taskId') updateTask(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: UpdateTaskDto,
+  ) {
+    return this.workspace.updateTask(request.actor!, projectId, taskId, body);
   }
   @Get('projects/:projectId/tasks/:taskId/comments') getTaskComments(
     @Req() request: AuthenticatedRequest,

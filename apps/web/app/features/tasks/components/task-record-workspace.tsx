@@ -8,6 +8,7 @@ import {
   loadTaskComments,
   restoreLocalLogin,
   transitionProjectTask,
+  updateProjectTask,
   type ProjectRecord,
   type TaskComment,
 } from '../../../local-auth';
@@ -20,6 +21,11 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   const [commentBody, setCommentBody] = useState('');
   const [message, setMessage] = useState<string>();
   const [working, setWorking] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editPriority, setEditPriority] = useState('normal');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAssigneeId, setEditAssigneeId] = useState('');
 
   const refresh = async () => {
     const next = await loadProjectRecord(projectId);
@@ -67,6 +73,34 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
       setWorking(false);
     }
   };
+  const beginEdit = () => {
+    if (!task) return;
+    setEditTitle(task.title);
+    setEditPriority(task.priority);
+    setEditDueDate(task.due_date ?? '');
+    setEditAssigneeId(task.assignee_id ?? '');
+    setEditing(true);
+  };
+  const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!task) return;
+    setWorking(true);
+    setMessage(undefined);
+    try {
+      await updateProjectTask(projectId, task.id, {
+        title: editTitle.trim(),
+        priority: editPriority,
+        ...(editDueDate ? { dueDate: editDueDate } : {}),
+        ...(editAssigneeId ? { assigneeId: editAssigneeId } : {}),
+      });
+      await refresh();
+      setEditing(false);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task could not be updated.');
+    } finally {
+      setWorking(false);
+    }
+  };
 
   if (!task) return <main className="record-page"><p className="settings-empty">{message ?? 'Loading task…'}</p></main>;
   const canTransition = !['completed', 'cancelled'].includes(task.status);
@@ -95,6 +129,14 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
           {task.status === 'blocked' && <button className="button-secondary" disabled={working} onClick={() => void setStatus('in_progress')}>Resume work</button>}
           <button className="button-primary" disabled={working} onClick={() => void setStatus('completed')}>Complete task</button>
         </div>}
+        <div className="detail-action-row"><button className="button-secondary" disabled={working} onClick={beginEdit}>Edit task</button></div>
+        {editing && <form className="proposal-builder task-edit-form" onSubmit={saveEdit}>
+          <label>Title<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required /></label>
+          <label>Priority<select value={editPriority} onChange={(event) => setEditPriority(event.target.value)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+          <label>Due date<input type="date" value={editDueDate} onChange={(event) => setEditDueDate(event.target.value)} /></label>
+          <label>Assignee<select value={editAssigneeId} onChange={(event) => setEditAssigneeId(event.target.value)}><option value="">Keep current assignee</option>{record?.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select></label>
+          <div className="detail-action-row"><button className="button-primary" disabled={working} type="submit">Save task</button><button className="button-secondary" type="button" onClick={() => setEditing(false)}>Cancel</button></div>
+        </form>}
       </section>
       <section className="content-card record-page-card task-discussion" aria-label="Task discussion">
         <div className="card-header"><div><p className="eyebrow">DISCUSSION</p><h2>Project conversation</h2></div><span>{comments.length} comments</span></div>
