@@ -3186,15 +3186,11 @@ function Drawings({
               </span>
               <button
                 aria-label={`Open ${'document_number' in drawing ? drawing.document_number : drawing.number}`}
+                title="Open drawing details"
                 onClick={() => openDrawing(drawing)}
               >
                 →
               </button>
-              {'id' in drawing && (
-                <button className="button-secondary record-action" onClick={() => openDrawing(drawing)}>
-                  Details
-                </button>
-              )}
             </div>
           ))}
         </div>
