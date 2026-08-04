@@ -50,6 +50,24 @@ async function apiText(path) {
   return content;
 }
 
+async function apiWithExpectedStatus(method, path, expectedStatus, body) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${tokenPayload.access_token}`,
+      ...(body ? { 'content-type': 'application/json' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const payload = await response.json().catch(() => undefined);
+  assert.equal(
+    response.status,
+    expectedStatus,
+    `${method} ${path} returned ${response.status}: ${JSON.stringify(payload)}`,
+  );
+  return payload;
+}
+
 await api('GET', '/health');
 const identity = await api('GET', '/v1/me');
 assert.equal(identity.displayName, 'Pilot Administrator', 'Signed-in profile was not mapped.');
@@ -126,6 +144,17 @@ const project = await api('POST', `/v1/pipeline/opportunities/${opportunity.id}/
   stage: 'pursuit',
 });
 assert.ok(project.id, 'Opportunity conversion did not return a project ID.');
+const duplicateProject = await apiWithExpectedStatus('POST', '/v1/workspace/projects', 409, {
+  name: 'Duplicate smoke project',
+  code: project.code,
+  location: 'Dehradun',
+  stage: 'pursuit',
+});
+assert.match(
+  String(duplicateProject.message),
+  /already in use/i,
+  'Duplicate project code did not return an actionable conflict message.',
+);
 const pipeline = await api('GET', '/v1/pipeline');
 const convertedOpportunity = pipeline.opportunities.find((item) => item.id === opportunity.id);
 assert.equal(convertedOpportunity.status, 'won', 'Winning opportunity was not closed.');

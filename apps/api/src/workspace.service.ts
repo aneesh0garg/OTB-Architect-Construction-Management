@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
@@ -186,16 +186,24 @@ export class WorkspaceService {
   async createProject(actor: AuthenticatedActor, input: CreateProjectInput) {
     this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
     await this.ensureOrganization(actor);
-    const project = await this.pool.query<ProjectRow>(
-      'INSERT INTO projects (organization_id, code, name, location, stage) VALUES ($1, $2, $3, $4, $5) RETURNING id, code, name, status, location, stage, closed_at, retention_until',
-      [
-        actor.organizationId,
-        this.requiredText(input.code, 'Project code').toUpperCase(),
-        this.requiredText(input.name, 'Project name'),
-        input.location?.trim() || null,
-        this.projectStage(input.stage),
-      ],
-    );
+    const code = this.requiredText(input.code, 'Project code').toUpperCase();
+    let project;
+    try {
+      project = await this.pool.query<ProjectRow>(
+        'INSERT INTO projects (organization_id, code, name, location, stage) VALUES ($1, $2, $3, $4, $5) RETURNING id, code, name, status, location, stage, closed_at, retention_until',
+        [
+          actor.organizationId,
+          code,
+          this.requiredText(input.name, 'Project name'),
+          input.location?.trim() || null,
+          this.projectStage(input.stage),
+        ],
+      );
+    } catch (error) {
+      if (this.databaseErrorCode(error) === '23505')
+        throw new ConflictException(`Project code ${code} is already in use.`);
+      throw error;
+    }
     const created = this.resultRow(project.rows, 'Project could not be created.');
     await this.pool.query(
       'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3)',
@@ -957,6 +965,11 @@ export class WorkspaceService {
     const text = value?.trim();
     if (!text) throw new BadRequestException(`${label} is required.`);
     return text;
+  }
+  private databaseErrorCode(error: unknown) {
+    return typeof error === 'object' && error !== null && 'code' in error
+      ? (error as { code?: unknown }).code
+      : undefined;
   }
   private projectStage(value: string | undefined): ProjectStage {
     const stage = value?.trim() || 'pursuit';
