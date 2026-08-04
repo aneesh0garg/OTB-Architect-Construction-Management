@@ -27,6 +27,7 @@ import {
   createProjectInvoice,
   createPipelineOpportunity,
   createPipelineProposal,
+  convertPipelineOpportunity,
   assignResourceTeamMember,
   createWorkspaceProject,
   createWorkspaceTeam,
@@ -882,6 +883,7 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
   const [fee, setFee] = useState('');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [projectCode, setProjectCode] = useState('');
   const refresh = async () => {
     if (!signedIn) return;
     try {
@@ -925,6 +927,27 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Proposal could not be created.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const convert = async (opportunityId: string, proposalId: string) => {
+    if (!projectCode.trim()) {
+      setMessage('Enter a project code before converting this opportunity.');
+      return;
+    }
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await convertPipelineOpportunity(opportunityId, {
+        proposalId,
+        projectCode: projectCode.trim(),
+      });
+      setProjectCode('');
+      await refresh();
+      setMessage('Opportunity converted to a new project.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Opportunity could not be converted.');
     } finally {
       setSaving(false);
     }
@@ -987,6 +1010,15 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
                 Create opportunity
               </button>
             </form>
+            <label className="pipeline-conversion-code">
+              Project code for conversion
+              <input
+                value={projectCode}
+                onChange={(event) => setProjectCode(event.target.value.toUpperCase())}
+                maxLength={24}
+                placeholder="RR-25"
+              />
+            </label>
             {message && <p className="form-message">{message}</p>}
             <div className="simple-record-list pipeline-list">
               {(pipeline?.opportunities ?? []).map((opportunity) => (
@@ -1001,10 +1033,19 @@ function PipelineDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
                   <small>{opportunity.next_action ?? 'No next action'}</small>
                   <div>
                     {opportunity.proposals.map((proposal) => (
-                      <small key={proposal.id}>
-                        Proposal v{proposal.version} · ₹
-                        {Number(proposal.fee).toLocaleString('en-IN')} · {proposal.status}
-                      </small>
+                      <div className="proposal-row" key={proposal.id}>
+                        <small>
+                          Proposal v{proposal.version} · ₹
+                          {Number(proposal.fee).toLocaleString('en-IN')} · {proposal.status}
+                        </small>
+                        <button
+                          className="button-secondary record-action"
+                          disabled={saving}
+                          onClick={() => convert(opportunity.id, proposal.id)}
+                        >
+                          Convert to project
+                        </button>
+                      </div>
                     ))}
                   </div>
                   {!opportunity.proposals.length && (

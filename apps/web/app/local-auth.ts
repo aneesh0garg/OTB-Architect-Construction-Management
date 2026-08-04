@@ -349,6 +349,10 @@ export const createPipelineProposal = (
     ...input,
     phases: [{ name: 'Base services', plannedFee: input.fee, targetHours: 1 }],
   });
+export const convertPipelineOpportunity = (
+  opportunityId: string,
+  input: { proposalId: string; projectCode: string; location?: string },
+) => apiPost(`/v1/pipeline/opportunities/${opportunityId}/convert`, input);
 export const loadResourcePeople = () => apiGet<ResourcePerson[]>('/v1/resources/people');
 export const loadResourceTeams = () => apiGet<ResourceTeam[]>('/v1/resources/teams');
 export const loadResourceCapacity = (from: string, to: string) =>
