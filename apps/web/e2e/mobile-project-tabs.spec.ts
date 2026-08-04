@@ -106,36 +106,21 @@ test('uses an email-based invitation form for organization members', async ({ pa
   await expect(dialog.getByRole('button', { name: 'Sign out of Keycloak' })).toBeVisible();
 });
 
-test('paginates the organization directory in resource planning', async ({ page }) => {
+test('shows each organization member once in the capacity roster', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
   await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
   await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
   await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
-  await page.route('**/v1/resources/people?**', (route) => {
-    const pageNumber = Number(new URL(route.request().url()).searchParams.get('page') ?? '1');
-    const start = (pageNumber - 1) * 10;
-    const items = Array.from({ length: pageNumber === 1 ? 10 : 1 }, (_, index) => ({
-      user_id: `member-${start + index + 1}`,
-      display_name: `Directory Member ${start + index + 1}`,
-      title: null,
-      weekly_capacity_hours: 40,
-      active: true,
-      organization_role: 'project_member',
-      email: null,
-      invitation_status: 'active',
-    }));
-    return route.fulfill({ json: { items, page: pageNumber, pageSize: 10, total: 11, totalPages: 2 } });
-  });
-  await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [] } }));
+  await page.route('**/v1/resources/people?**', (route) => route.fulfill({ json: { items: [{ user_id: 'member-1', display_name: 'Capacity Member', title: null, weekly_capacity_hours: 40, active: true, organization_role: 'project_member', email: null, invitation_status: 'active' }], page: 1, pageSize: 10, total: 1, totalPages: 1 } }));
+  await page.route('**/v1/resources/capacity**', (route) => route.fulfill({ json: { from: '2026-01-01', to: '2026-01-28', people: [{ user_id: 'member-1', display_name: 'Capacity Member', title: null, weekly_capacity_hours: 40, active: true, organization_role: 'project_member', capacityHours: 40, allocatedHours: 12, availableHours: 28, utilization: 30 }] } }));
 
   await page.goto('/');
   await page.getByRole('button', { name: /Team/ }).click();
   await page.getByRole('button', { name: 'Manage project team' }).click();
   const dialog = page.getByRole('dialog', { name: 'Staffing and capacity' });
-  await expect(dialog.getByText('Showing 1–10 of 11')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Next' }).click();
-  await expect(dialog.getByText('Showing 11–11 of 11')).toBeVisible();
-  await expect(dialog.getByText('Directory Member 11', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Team availability' })).toBeVisible();
+  await expect(dialog.getByText('Capacity Member', { exact: false })).toHaveCount(1);
+  await expect(dialog.getByText('12h allocated · 28h available of 40h')).toBeVisible();
 });
 
 test('shows an actionable invitation error in the mobile staffing dialog', async ({ page }) => {
@@ -161,9 +146,10 @@ test('shows the controlled profile-photo upload for the signed-in member', async
   await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
   await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
   await page.route('**/v1/resources/people/admin-1/profile-photo', (route) => route.fulfill({ json: { profilePhotoUrl: null } }));
-  await page.route('**/v1/resources/people/admin-1', (route) => route.fulfill({ json: { user_id: 'admin-1', display_name: 'Admin One', title: 'Director', weekly_capacity_hours: 40, active: true, organization_role: 'organization_admin', projects: [] } }));
+  await page.route('**/v1/resources/people/admin-1', (route) => route.fulfill({ json: { user_id: 'admin-1', member_id: '10000000', display_name: 'Admin One', title: 'Director', weekly_capacity_hours: 40, active: true, organization_role: 'organization_admin', projects: [] } }));
   await page.goto('/organization/members/admin-1');
   await expect(page.getByText('Profile photo', { exact: true })).toBeVisible();
+  await expect(page.getByText('10000000', { exact: true })).toBeVisible();
   await expect(page.getByText('Upload profile photo', { exact: true })).toBeVisible();
   await expect(page.locator('input[type="file"]')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
 });
@@ -189,6 +175,61 @@ test('exchanges a task deep-link Keycloak callback only once during React develo
   await expect.poll(() => tokenRequests).toBe(1);
   await page.waitForTimeout(150);
   expect(tokenRequests).toBe(1);
+});
+
+test('renders team member full names for task assignees and task discussion authors', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace/projects/project-1/record', (route) => route.fulfill({ json: {
+    project: { id: 'project-1', code: 'TEST', name: 'Name test', status: 'active', location: null, stage: 'construction' },
+    tasks: [{ id: 'task-1', task_number: 'TEST-T-0001', title: 'Named task', status: 'open', priority: 'normal', due_date: null, assignee_id: 'member-1', assignee_name: 'Asha Patel', source_record_type: 'document_revision', source_record_id: 'document-1' }],
+    documents: [{ id: 'document-1', document_number: 'TEST-DRW-0001', document_type: 'drawing', title: 'Foundation plan', revision: 'A', status: 'draft', issue_date: null, discipline: null, building: null, floor: null, zone: null, has_original: false }], communications: [], members: [{ user_id: 'member-1', display_name: 'Asha Patel', title: null, role: 'project_member' }], transmittals: [],
+  } }));
+  await page.route('**/v1/workspace/projects/project-1/tasks/task-1/comments', (route) => route.fulfill({ json: [{ id: 'comment-1', body: 'Please coordinate the issue.', created_by: 'member-1', created_by_display_name: 'Asha Patel', created_at: '2026-08-04T10:00:00.000Z' }] }));
+  await page.goto('/projects/project-1/tasks/task-1');
+  await expect(page.getByText('Asha Patel', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('member-1', { exact: true })).toHaveCount(0);
+  const linkedDocument = page.getByRole('link', { name: 'TEST-DRW-0001 · Foundation plan' });
+  await expect(linkedDocument).toHaveAttribute('href', '/projects/project-1/documents/document-1');
+});
+
+test('renders a full name instead of an ID in document comments', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace/projects/project-1/record', (route) => route.fulfill({ json: { project: { id: 'project-1', code: 'TEST', name: 'Document name test', status: 'active', location: null, stage: 'construction' }, tasks: [], documents: [{ id: 'document-1', document_number: 'TEST-DRW-0001', document_type: 'drawing', title: 'Foundation plan', revision: 'A', status: 'draft', issue_date: null, discipline: null, building: null, floor: null, zone: null, has_original: false }], communications: [], members: [], transmittals: [] } }));
+  await page.route('**/v1/workspace/projects/project-1/documents/document-1/annotations', (route) => route.fulfill({ json: [{ id: 'annotation-1', page_number: 1, x_percent: null, y_percent: null, body: 'Confirm clearance.', created_by: 'member-1', created_by_display_name: 'Asha Patel', created_at: '2026-08-04T10:00:00.000Z' }] }));
+  await page.goto('/projects/project-1/documents/document-1');
+  await expect(page.getByText('Asha Patel', { exact: true })).toBeVisible();
+  await expect(page.getByText('member-1', { exact: true })).toHaveCount(0);
+});
+
+test('keeps a completed task accessible and lets a user reopen it', async ({ page }) => {
+  let status = 'completed';
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace/projects/project-1/record', (route) => route.fulfill({ json: { project: { id: 'project-1', code: 'TEST', name: 'Reopen test', status: 'active', location: null, stage: 'construction' }, tasks: [{ id: 'task-1', task_number: 'TEST-T-0001', title: 'Reopenable task', status, priority: 'normal', due_date: null, assignee_id: null, assignee_name: null, source_record_type: null, source_record_id: null }], documents: [], communications: [], members: [], transmittals: [] } }));
+  await page.route('**/v1/workspace/projects/project-1/tasks/task-1/comments', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/workspace/projects/project-1/tasks/task-1/status', (route) => { status = 'open'; return route.fulfill({ json: { id: 'task-1', status } }); });
+  await page.goto('/projects/project-1/tasks/task-1');
+  await expect(page.getByRole('heading', { name: 'Reopenable task' })).toBeVisible();
+  await page.getByRole('button', { name: 'Reopen task' }).click();
+  await expect(page.getByRole('button', { name: 'Complete task' })).toBeVisible();
+});
+
+test('gives an actionable error when task creation cannot reach the workspace API', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.access-token', 'test-access-token'));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [{ id: 'project-1', code: 'TEST', name: 'Task error test', status: 'active' }], teams: [] } }));
+  await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/notifications', (route) => route.fulfill({ json: [] }));
+  await page.route('**/v1/workspace/projects/project-1/record', (route) => route.fulfill({ json: { project: { id: 'project-1', code: 'TEST', name: 'Task error test', status: 'active', location: null, stage: 'construction' }, tasks: [], documents: [], communications: [], members: [], transmittals: [] } }));
+  await page.route('**/v1/workspace/projects/project-1/tasks', (route) => route.abort('failed'));
+  await page.goto('/');
+  await page.getByTestId('project-tab-tasks').click();
+  await page.getByRole('button', { name: 'Create task' }).click();
+  await page.getByLabel('New task').fill('Coordinate slab inspection');
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await expect(page.getByText('Could not reach the workspace server. Check your connection and API configuration, then try again.')).toBeVisible();
 });
 
 test('shows the signed-in workspace header after a successful Keycloak callback', async ({ page }) => {

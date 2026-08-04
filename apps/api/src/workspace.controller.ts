@@ -63,7 +63,7 @@ class CreateTaskDto {
   @IsOptional() @IsString() @MaxLength(160) sourceRecordId?: string;
 }
 class TaskStatusDto {
-  @IsIn(['in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
+  @IsIn(['open', 'in_progress', 'blocked', 'completed', 'cancelled']) status!: string;
 }
 class UpdateTaskDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(240) title?: string;

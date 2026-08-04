@@ -35,6 +35,7 @@ interface TaskRow extends QueryResultRow {
   priority: string;
   due_date: string | null;
   assignee_id: string | null;
+  assignee_name: string | null;
   created_by: string;
   source_record_type: string | null;
   source_record_id: string | null;
@@ -43,6 +44,7 @@ interface TaskCommentRow extends QueryResultRow {
   id: string;
   body: string;
   created_by: string;
+  created_by_display_name: string;
   created_at: Date;
 }
 interface PersonalTaskRow extends TaskRow {
@@ -81,6 +83,7 @@ interface DocumentAnnotationRow extends QueryResultRow {
   y_percent: number | null;
   body: string;
   created_by: string;
+  created_by_display_name: string;
   created_at: Date;
 }
 interface CommunicationRow extends QueryResultRow {
@@ -328,7 +331,11 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications, transmittals, members] = await Promise.all([
       this.pool.query<TaskRow>(
-        'SELECT id, task_number, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        `SELECT t.id, t.task_number, t.title, t.status, t.priority, t.due_date::text AS due_date,
+          t.assignee_id, assignee.display_name AS assignee_name, t.created_by, t.source_record_type, t.source_record_id
+         FROM tasks t
+         LEFT JOIN people assignee ON assignee.organization_id = t.organization_id AND assignee.user_id = t.assignee_id
+         WHERE t.project_id = $1 ORDER BY t.due_date NULLS LAST, t.created_at DESC`,
         [project.id],
       ),
       this.pool.query<DocumentRow>(
@@ -360,6 +367,7 @@ export class WorkspaceService {
   }
   async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
+    if (input.assigneeId) await this.projectMemberForAssignment(actor, project.id, input.assigneeId);
     if (input.sourceRecordType === 'document_revision') {
       if (!input.sourceRecordId) throw new BadRequestException('A linked document must be selected.');
       const document = await this.pool.query(
@@ -448,8 +456,8 @@ export class WorkspaceService {
       open: ['in_progress', 'blocked', 'completed', 'cancelled'],
       in_progress: ['blocked', 'completed', 'cancelled'],
       blocked: ['in_progress', 'completed', 'cancelled'],
-      completed: [],
-      cancelled: [],
+      completed: ['open'],
+      cancelled: ['open'],
     };
     if (!allowed[current.status]?.includes(status))
       throw new BadRequestException(
@@ -518,7 +526,9 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     await this.taskForActor(actor, project.id, taskId);
     const comments = await this.pool.query<TaskCommentRow>(
-      'SELECT id, body, created_by, created_at FROM task_comments WHERE organization_id = $1 AND project_id = $2 AND task_id = $3 ORDER BY created_at ASC',
+      `SELECT c.id, c.body, c.created_by, COALESCE(p.display_name, c.created_by) AS created_by_display_name, c.created_at
+       FROM task_comments c LEFT JOIN people p ON p.organization_id = c.organization_id AND p.user_id = c.created_by
+       WHERE c.organization_id = $1 AND c.project_id = $2 AND c.task_id = $3 ORDER BY c.created_at ASC`,
       [actor.organizationId, project.id, taskId],
     );
     return comments.rows;
@@ -532,7 +542,12 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     await this.taskForActor(actor, project.id, taskId);
     const result = await this.pool.query<TaskCommentRow>(
-      'INSERT INTO task_comments (organization_id, project_id, task_id, body, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, body, created_by, created_at',
+      `WITH inserted AS (
+         INSERT INTO task_comments (organization_id, project_id, task_id, body, created_by)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id, body, created_by, created_at
+       ) SELECT inserted.id, inserted.body, inserted.created_by,
+         COALESCE(p.display_name, inserted.created_by) AS created_by_display_name, inserted.created_at
+       FROM inserted LEFT JOIN people p ON p.organization_id = $1 AND p.user_id = inserted.created_by`,
       [
         actor.organizationId,
         project.id,
@@ -828,7 +843,10 @@ export class WorkspaceService {
   async getDocumentAnnotations(actor: AuthenticatedActor, projectId: string, documentId: string) {
     await this.documentForActor(actor, projectId, documentId);
     const annotations = await this.pool.query<DocumentAnnotationRow>(
-      'SELECT id, page_number, x_percent, y_percent, body, created_by, created_at FROM document_annotations WHERE organization_id = $1 AND project_id = $2 AND document_id = $3 ORDER BY created_at ASC',
+      `SELECT a.id, a.page_number, a.x_percent, a.y_percent, a.body, a.created_by,
+        COALESCE(p.display_name, a.created_by) AS created_by_display_name, a.created_at
+       FROM document_annotations a LEFT JOIN people p ON p.organization_id = a.organization_id AND p.user_id = a.created_by
+       WHERE a.organization_id = $1 AND a.project_id = $2 AND a.document_id = $3 ORDER BY a.created_at ASC`,
       [actor.organizationId, projectId, documentId],
     );
     return annotations.rows;
@@ -847,7 +865,12 @@ export class WorkspaceService {
     )
       throw new BadRequestException('Drawing pins require x and y coordinates between 0 and 100.');
     const result = await this.pool.query<DocumentAnnotationRow>(
-      'INSERT INTO document_annotations (organization_id, project_id, document_id, page_number, x_percent, y_percent, body, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, page_number, x_percent, y_percent, body, created_by, created_at',
+      `WITH inserted AS (
+         INSERT INTO document_annotations (organization_id, project_id, document_id, page_number, x_percent, y_percent, body, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, page_number, x_percent, y_percent, body, created_by, created_at
+       ) SELECT inserted.id, inserted.page_number, inserted.x_percent, inserted.y_percent, inserted.body, inserted.created_by,
+         COALESCE(p.display_name, inserted.created_by) AS created_by_display_name, inserted.created_at
+       FROM inserted LEFT JOIN people p ON p.organization_id = $1 AND p.user_id = inserted.created_by`,
       [
         actor.organizationId,
         projectId,
@@ -963,6 +986,15 @@ export class WorkspaceService {
       [projectId, organizationId],
     );
     return members.rows;
+  }
+  private async projectMemberForAssignment(actor: AuthenticatedActor, projectId: string, userId: string) {
+    const member = await this.pool.query<{ user_id: string }>(
+      `SELECT pm.user_id FROM project_members pm
+       JOIN people p ON p.organization_id = $1 AND p.user_id = pm.user_id AND p.active = true
+       WHERE pm.project_id = $2 AND pm.user_id = $3`,
+      [actor.organizationId, projectId, this.requiredText(userId, 'Task assignee')],
+    );
+    this.resultRow(member.rows, 'Choose an active member of this project as the task assignee.');
   }
   private async documentForActor(actor: AuthenticatedActor, projectId: string, documentId: string) {
     await this.projectForActor(actor, projectId);

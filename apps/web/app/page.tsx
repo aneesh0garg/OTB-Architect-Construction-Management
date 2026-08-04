@@ -34,7 +34,6 @@ import {
   reviewProjectBrainDraft,
   signOutLocal,
   signOutKeycloakSession,
-  transitionProjectTask,
   transitionProjectInvoice,
   transitionWorkspaceProjectStage,
   transitionWorkspaceProjectStatus,
@@ -550,11 +549,6 @@ export default function Home() {
               onOpenBrain={() => setBrainOpen(true)}
               onNavigate={setView}
               onOpenFeed={() => setNotificationFeedOpen(true)}
-              onCompleteTask={async (taskId) => {
-                if (!projectRecord) return;
-                await transitionProjectTask(projectRecord.project.id, taskId, 'completed');
-                await loadProjectViews(projectRecord.project.id);
-              }}
             />
           )}
           {view === 'drawings' && <Drawings record={projectRecord} onNavigate={setView} />}
@@ -802,7 +796,7 @@ function MobileWorkspaceDirectory({
             <p className="mobile-directory-copy">One delivery team is associated with each project. Its members have project-specific roles and access.</p>
             <div className="mobile-directory-list">
               <button onClick={onOpenTeams} type="button"><span>#</span><strong>{projectCode} delivery team</strong><span>{projectMembers.length} members</span></button>
-              {projectMembers.map((member) => <button key={member.user_id} onClick={onOpenTeams} type="button"><span>◉</span><strong>{member.display_name ?? member.user_id}</strong><span>{member.role.replaceAll('_', ' ')}</span></button>)}
+              {projectMembers.map((member) => <a key={member.user_id} href={`/organization/members/${encodeURIComponent(member.user_id)}`}><span>◉</span><strong>{member.display_name ?? member.user_id}</strong><span>{member.role.replaceAll('_', ' ')}</span></a>)}
               {!projectMembers.length && <p className="settings-empty">No members have been associated with this project yet.</p>}
             </div>
             <button className="button-secondary mobile-directory-action" onClick={onOpenTeams} type="button">Manage project team</button>
@@ -875,7 +869,7 @@ function ProjectPeopleDialog({
                 <article key={member.user_id}>
                   <span className="person-avatar">{(member.display_name ?? 'Project member').slice(0, 2).toUpperCase()}</span>
                   <div>
-                    <strong>{member.display_name ?? 'Unnamed collaborator'}</strong>
+                    <strong><a href={`/organization/members/${encodeURIComponent(member.user_id)}`}>{member.display_name ?? 'Unnamed collaborator'}</a></strong>
                     <small>{member.title ? `${member.title} · ` : ''}{member.role.replaceAll('_', ' ')}</small>
                   </div>
                   <button className="button-secondary" disabled={saving} onClick={() => remove(member.user_id)} type="button">Remove</button>
@@ -974,7 +968,6 @@ function WorkspaceCreationDialog({
 
 function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { record: ProjectRecord | undefined; signedIn: boolean; onClose: () => void; onProjectChanged: () => Promise<void> }) {
   const [peoplePage, setPeoplePage] = useState<ResourcePeoplePage>();
-  const [directoryPage, setDirectoryPage] = useState(1);
   const [capacity, setCapacity] = useState<CapacityRegister>();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -986,11 +979,11 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; text: string }>();
   const [saving, setSaving] = useState(false);
   const people = peoplePage?.items ?? [];
-  const refresh = async (page = directoryPage) => {
+  const refresh = async () => {
     if (!signedIn) return;
     try {
       const [nextPeople, nextCapacity] = await Promise.all([
-        loadResourcePeople(page),
+        loadResourcePeople(1),
         loadResourceCapacity(
           new Date().toISOString().slice(0, 10),
           new Date(Date.now() + 27 * 86400000).toISOString().slice(0, 10),
@@ -1004,7 +997,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   };
   useEffect(() => {
     void refresh();
-  }, [directoryPage, signedIn]);
+  }, [signedIn]);
   const savePerson = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -1021,8 +1014,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
       setDisplayName('');
       setWeeklyHours('40');
       setOrganizationRole('project_member');
-      setDirectoryPage(1);
-      await refresh(1);
+      await refresh();
       setInviteFeedback({ kind: 'success', text: `Invitation sent to ${email.trim()}. Check Mailpit to complete activation.` });
     } catch (error) {
       setInviteFeedback({ kind: 'error', text: error instanceof Error ? error.message : 'The invitation could not be sent. Please try again.' });
@@ -1131,17 +1123,14 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               </label>
               <button className="button-primary" disabled={saving} type="submit">Assign to project team</button>
             </form></section>}
-            <section className="staffing-action-section organization-member-list" aria-labelledby="organization-members-heading">
-              <div className="staffing-action-heading"><p className="eyebrow">ORGANIZATION DIRECTORY</p><h3 id="organization-members-heading">Organization members</h3></div>
-              <div className="people-list">{people.map((person) => <article key={person.user_id}><span className="person-avatar">{person.display_name.slice(0, 2).toUpperCase()}</span><div><strong>{person.display_name}</strong><small>{person.email ? `${person.email} · ` : ''}{person.title ? `${person.title} · ` : ''}{organizationRoleLabel(person.organization_role)} · {person.weekly_capacity_hours}h/week{person.invitation_status === 'pending' ? ' · invitation pending' : ''}</small></div><button className="button-secondary" type="button" onClick={() => window.location.assign(`/organization/members/${encodeURIComponent(person.user_id)}`)}>Open</button></article>)}{!people.length && <p className="settings-empty">Invite your first organization member above.</p>}</div>
-              {peoplePage && peoplePage.total > 0 && <nav className="directory-pagination" aria-label="Organization directory pages"><span>Showing {(peoplePage.page - 1) * peoplePage.pageSize + 1}–{Math.min(peoplePage.page * peoplePage.pageSize, peoplePage.total)} of {peoplePage.total}</span><button className="button-secondary" type="button" disabled={peoplePage.page === 1} onClick={() => setDirectoryPage((page) => page - 1)}>Previous</button><span>Page {peoplePage.page} of {peoplePage.totalPages}</span><button className="button-secondary" type="button" disabled={peoplePage.page === peoplePage.totalPages} onClick={() => setDirectoryPage((page) => page + 1)}>Next</button></nav>}
-            </section>
             {message && <p className="form-message">{message}</p>}
-            <div className="simple-record-list">
+            <section className="staffing-action-section" aria-labelledby="capacity-heading">
+              <div className="staffing-action-heading"><p className="eyebrow">RESOURCE CAPACITY</p><h3 id="capacity-heading">Team availability</h3><p>Allocated and available hours for active organization members.</p></div>
+              <div className="simple-record-list">
               {(capacity?.people ?? []).map((person) => (
                 <article key={person.user_id}>
                   <strong>
-                    {person.display_name} · {organizationRoleLabel(person.organization_role)} · {person.utilization}% allocated
+                    <a href={`/organization/members/${encodeURIComponent(person.user_id)}`}>{person.display_name}</a> · {organizationRoleLabel(person.organization_role)} · {person.utilization}% allocated
                   </strong>
                   <span>
                     {person.allocatedHours}h allocated · {person.availableHours}h available of{' '}
@@ -1150,7 +1139,8 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 </article>
               ))}
               {capacity && !capacity.people.length && <p>No people have been added.</p>}
-            </div>
+              </div>
+            </section>
           </>
         )}
       </section>
@@ -1876,7 +1866,6 @@ function Overview({
   onOpenBrain,
   onNavigate,
   onOpenFeed,
-  onCompleteTask,
 }: {
   record: ProjectRecord | undefined;
   finance: FinanceControl | undefined;
@@ -1884,11 +1873,11 @@ function Overview({
   onOpenBrain: () => void;
   onNavigate: (view: WorkspaceView) => void;
   onOpenFeed: () => void;
-  onCompleteTask: (taskId: string) => Promise<void>;
 }) {
   const project = workspaceData.activeProject;
-  const [demoCompletedTasks, setDemoCompletedTasks] = useState<Set<string>>(new Set());
-  const [updatingTaskId, setUpdatingTaskId] = useState<string>();
+  const queueTasks = (record?.tasks ?? []).filter(
+    (task) => !['completed', 'cancelled'].includes(task.status),
+  );
   return (
     <div className="workspace-content overview-view">
       <section className="snapshot-grid">
@@ -1911,56 +1900,19 @@ function Overview({
             <button onClick={() => onNavigate('tasks')}>View all →</button>
           </div>
           <div className="task-list">
-            {(record?.tasks ?? project.tasks).map((task) => (
-              <article className="task-row" key={task.title}>
-                {'id' in task ? (
-                  <input
-                    className="task-check"
-                    aria-label={`Mark ${task.title} complete`}
-                    checked={task.status === 'completed'}
-                    disabled={task.status === 'completed' || updatingTaskId === task.id}
-                    onChange={async (event) => {
-                      if (!event.target.checked) return;
-                      setUpdatingTaskId(task.id);
-                      try {
-                        await onCompleteTask(task.id);
-                      } finally {
-                        setUpdatingTaskId(undefined);
-                      }
-                    }}
-                    type="checkbox"
-                  />
-                ) : (
-                  <input
-                    className="task-check"
-                    aria-label={`Mark ${task.title} complete`}
-                    checked={demoCompletedTasks.has(task.title)}
-                    onChange={(event) =>
-                      setDemoCompletedTasks((current) => {
-                        const next = new Set(current);
-                        if (event.target.checked) next.add(task.title);
-                        else next.delete(task.title);
-                        return next;
-                      })
-                    }
-                    type="checkbox"
-                  />
-                )}
+            {queueTasks.length ? queueTasks.map((task) => (
+              <article className="task-row" key={task.id}>
                 <div>
-                  <strong>{task.title}</strong>
+                  <strong><a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.title}</a></strong>
                   <span>
-                    {'state' in task
-                      ? `${task.state} · Due ${task.due}`
-                      : `${task.status} · ${task.due_date ? `Due ${task.due_date}` : 'No due date'}`}
+                    <a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.task_number}</a> · {task.status} · {task.due_date ? `Due ${task.due_date}` : 'No due date'}
                   </span>
                 </div>
                 <span className="task-owner">
-                  {'owner' in task
-                    ? task.owner
-                    : (task.assignee_id?.slice(0, 2).toUpperCase() ?? '—')}
+                  {task.assignee_name ?? task.assignee_id ?? '—'}
                 </span>
               </article>
-            ))}
+            )) : <p className="settings-empty">No active tasks in this project’s work queue.</p>}
           </div>
         </section>
         <section className="content-card">
@@ -2282,9 +2234,13 @@ function Documents({
             sortControlledDocuments(filteredDocuments, documentSort).map((document) => (
               <article key={document.id}>
                 <strong>
-                  {document.document_number} · Rev {document.revision}
+                  <a href={`/projects/${record!.project.id}/documents/${document.id}`}>
+                    {document.document_number} · Rev {document.revision}
+                  </a>
                 </strong>
-                <span>{document.title}</span>
+                <span>
+                  <a href={`/projects/${record!.project.id}/documents/${document.id}`}>{document.title}</a>
+                </span>
                 <small>
                   {document.document_type} · {document.status} · {document.issue_date ?? 'Unissued'}
                 </small>
@@ -2457,14 +2413,17 @@ function Tasks({
             tasks.map((task) => (
               <article className="task-list-item" key={task.id}>
                 <div className="task-record">
-                  <strong>{task.title}</strong>
+                  <strong>
+                    <a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.title}</a>
+                  </strong>
                 </div>
                 <span>
-                  {task.task_number} · {task.status.replaceAll('_', ' ')} · {task.priority}
+                  <a href={`/projects/${record!.project.id}/tasks/${task.id}`}>{task.task_number}</a> ·{' '}
+                  {task.status.replaceAll('_', ' ')} · {task.priority}
                 </span>
                 <small>
                   {task.due_date ? `Due ${task.due_date}` : 'No due date'} ·{' '}
-                  {task.assignee_id ?? 'Unassigned'}
+                  {task.assignee_name ?? task.assignee_id ?? 'Unassigned'}
                 </small>
                 <button
                   className="document-record-arrow"
@@ -2507,11 +2466,11 @@ function TaskCreationDialog({ record, onClose, onCompleted }: { record: ProjectR
   };
   return <div className="dialog-backdrop" role="presentation"><section className="modal-card" aria-label="Create task" role="dialog" aria-modal="true">
     <div className="card-header"><div><p className="eyebrow">PROJECT WORK</p><h2>Create task</h2><p>Link a controlled document when the task is part of a review or issue workflow.</p></div><button className="button-secondary" type="button" onClick={onClose}>Close</button></div>
-    <form className="document-form" onSubmit={submit}>
+    <form className="document-form task-creation-form" onSubmit={submit}>
       <label>New task<input value={title} onChange={(event) => setTitle(event.target.value)} minLength={2} required /></label>
       <label>Priority<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
       <label>Due date<input aria-label="Task due date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label>
-      <label>Assignee<select aria-label="Task assignee" value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Unassigned</option>{record.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select></label>
+      <label>Assignee<select aria-label="Task assignee" value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Unassigned</option>{record.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name?.trim() || member.user_id}</option>)}</select></label>
       <label>Linked document (optional)<select value={documentId} onChange={(event) => setDocumentId(event.target.value)}><option value="">No document link</option>{record.documents.map((document) => <option key={document.id} value={document.id}>{document.document_number} · Rev {document.revision} · {document.title}</option>)}</select></label>
       {message && <p className="form-message">{message}</p>}
       <div className="detail-action-row"><button className="button-primary" disabled={saving} type="submit">{saving ? 'Creating…' : 'Add task'}</button><button className="button-secondary" disabled={saving} type="button" onClick={onClose}>Cancel</button></div>
@@ -3115,7 +3074,9 @@ function Drawings({
               key={'document_number' in drawing ? drawing.id : drawing.number}
             >
               <strong>
-                {'document_number' in drawing ? drawing.document_number : drawing.number}
+                {'document_number' in drawing ? (
+                  record ? <a href={`/projects/${record.project.id}/documents/${drawing.id}`}>{drawing.document_number}</a> : drawing.document_number
+                ) : drawing.number}
               </strong>
               <span>{drawing.title}</span>
               <span>{drawing.revision}</span>

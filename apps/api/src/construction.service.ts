@@ -31,6 +31,7 @@ interface ObservationDetailRow extends ObservationRow {
   trade: string | null;
   evidence: unknown[];
   assignee_id: string | null;
+  assignee_name: string | null;
   due_date: string | null;
   created_at: Date;
 }
@@ -38,6 +39,7 @@ interface ObservationCommentRow extends QueryResultRow {
   id: string;
   body: string;
   created_by: string;
+  created_by_display_name: string;
   created_at: Date;
 }
 interface WorkflowRow extends QueryResultRow {
@@ -149,7 +151,9 @@ export class ConstructionService {
   ) {
     await this.observationForActor(actor, projectId, observationId);
     const comments = await this.pool.query<ObservationCommentRow>(
-      'SELECT id, body, created_by, created_at FROM observation_comments WHERE organization_id = $1 AND project_id = $2 AND observation_id = $3 ORDER BY created_at ASC',
+      `SELECT c.id, c.body, c.created_by, COALESCE(p.display_name, c.created_by) AS created_by_display_name, c.created_at
+       FROM observation_comments c LEFT JOIN people p ON p.organization_id = c.organization_id AND p.user_id = c.created_by
+       WHERE c.organization_id = $1 AND c.project_id = $2 AND c.observation_id = $3 ORDER BY c.created_at ASC`,
       [actor.organizationId, projectId, observationId],
     );
     return comments.rows;
@@ -157,7 +161,12 @@ export class ConstructionService {
   async getObservation(actor: AuthenticatedActor, projectId: string, observationId: string) {
     await this.authorizeProject(actor, projectId);
     const result = await this.pool.query<ObservationDetailRow>(
-      'SELECT id, observation_number, title, description, category, location, floor, zone, trade, priority, status, evidence, sync_state, assignee_id, due_date, created_at FROM observations WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      `SELECT o.id, o.observation_number, o.title, o.description, o.category, o.location, o.floor, o.zone,
+        o.trade, o.priority, o.status, o.evidence, o.sync_state, o.assignee_id,
+        assignee.display_name AS assignee_name, o.due_date, o.created_at
+       FROM observations o
+       LEFT JOIN people assignee ON assignee.organization_id = o.organization_id AND assignee.user_id = o.assignee_id
+       WHERE o.id = $1 AND o.project_id = $2 AND o.organization_id = $3`,
       [observationId, projectId, actor.organizationId],
     );
     return row(result.rows, 'Observation is unavailable.');
@@ -170,11 +179,15 @@ export class ConstructionService {
   ) {
     await this.observationForActor(actor, projectId, observationId);
     const result = await this.pool.query<ObservationCommentRow>(
-      `INSERT INTO observation_comments (
-        organization_id, project_id, observation_id, body, client_comment_id, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (organization_id, client_comment_id) DO UPDATE SET body = EXCLUDED.body
-      RETURNING id, body, created_by, created_at`,
+      `WITH inserted AS (
+        INSERT INTO observation_comments (
+          organization_id, project_id, observation_id, body, client_comment_id, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (organization_id, client_comment_id) DO UPDATE SET body = EXCLUDED.body
+        RETURNING id, body, created_by, created_at
+      ) SELECT inserted.id, inserted.body, inserted.created_by,
+        COALESCE(p.display_name, inserted.created_by) AS created_by_display_name, inserted.created_at
+      FROM inserted LEFT JOIN people p ON p.organization_id = $1 AND p.user_id = inserted.created_by`,
       [
         actor.organizationId,
         projectId,

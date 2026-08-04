@@ -23,6 +23,7 @@ export type PipelineOpportunity = {
 export type PipelineRegister = { opportunities: PipelineOpportunity[] };
 export type ResourcePerson = {
   user_id: string;
+  member_id: string;
   display_name: string;
   title: string | null;
   weekly_capacity_hours: number;
@@ -75,6 +76,7 @@ export type ProjectRecord = {
     priority: string;
     due_date: string | null;
     assignee_id: string | null;
+    assignee_name: string | null;
     source_record_type: string | null;
     source_record_id: string | null;
   }[];
@@ -194,10 +196,11 @@ export type ObservationDetail = {
   evidence: unknown[];
   sync_state: string;
   assignee_id: string | null;
+  assignee_name: string | null;
   due_date: string | null;
   created_at: string;
 };
-export type ObservationComment = { id: string; body: string; created_by: string; created_at: string };
+export type ObservationComment = { id: string; body: string; created_by: string; created_by_display_name: string; created_at: string };
 export type DocumentDownload = {
   downloadUrl: string;
   expiresAt: string;
@@ -250,12 +253,14 @@ export type DocumentAnnotation = {
   y_percent: number | null;
   body: string;
   created_by: string;
+  created_by_display_name: string;
   created_at: string;
 };
 export type TaskComment = {
   id: string;
   body: string;
   created_by: string;
+  created_by_display_name: string;
   created_at: string;
 };
 
@@ -541,14 +546,19 @@ async function apiPost<T>(
 ): Promise<T> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to use Project Brain.');
-  const response = await fetch(`${apiUrl()}${path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      ...(body ? { 'content-type': 'application/json' } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl()}${path}`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(body ? { 'content-type': 'application/json' } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw new Error('Could not reach the workspace server. Check your connection and API configuration, then try again.');
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => undefined);
     throw new Error(payload?.message ?? failureMessage);
@@ -742,11 +752,11 @@ export const createProjectTransmittal = (
 export const createProjectTask = (
   projectId: string,
   input: { title: string; priority?: string; dueDate?: string; assigneeId?: string; sourceRecordType?: string; sourceRecordId?: string },
-) => apiPost(`/v1/workspace/projects/${projectId}/tasks`, input);
+) => apiPost(`/v1/workspace/projects/${projectId}/tasks`, input, 'Task could not be created.');
 export const transitionProjectTask = (
   projectId: string,
   taskId: string,
-  status: 'in_progress' | 'blocked' | 'completed' | 'cancelled',
+  status: 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled',
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks/${taskId}/status`, { status });
 export const updateProjectTask = (
   projectId: string,

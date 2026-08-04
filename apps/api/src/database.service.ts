@@ -295,6 +295,18 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    id: '0024_eight_digit_member_ids',
+    sql: `
+      CREATE SEQUENCE IF NOT EXISTS member_id_sequence MINVALUE 10000000 MAXVALUE 99999999 START WITH 10000000;
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS member_id TEXT;
+      UPDATE people SET member_id = LPAD(nextval('member_id_sequence')::text, 8, '0') WHERE member_id IS NULL;
+      ALTER TABLE people ALTER COLUMN member_id SET DEFAULT LPAD(nextval('member_id_sequence')::text, 8, '0');
+      ALTER TABLE people ALTER COLUMN member_id SET NOT NULL;
+      ALTER TABLE people ADD CONSTRAINT people_member_id_format_check CHECK (member_id ~ '^[0-9]{8}$');
+      CREATE UNIQUE INDEX IF NOT EXISTS people_member_id_uniq ON people (member_id);
+    `,
+  },
 ];
 
 @Injectable()

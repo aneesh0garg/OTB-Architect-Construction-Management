@@ -967,6 +967,10 @@ small {
   margin: 0 0 16px;
 }
 
+.task-creation-form {
+  grid-template-columns: minmax(180px, 1.3fr) minmax(130px, 0.7fr) minmax(150px, 0.8fr) minmax(240px, 1.4fr) minmax(220px, 1.4fr);
+}
+
 .document-form label {
   display: grid;
   gap: 6px;
@@ -2225,7 +2229,8 @@ small {
     display: grid;
     gap: 8px;
   }
-  .mobile-directory-list button {
+.mobile-directory-list button,
+.mobile-directory-list a {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;

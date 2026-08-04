@@ -7,6 +7,7 @@ import { KeycloakProvisioningService } from './keycloak-provisioning.service.js'
 
 interface PersonRow extends QueryResultRow {
   user_id: string;
+  member_id: string;
   display_name: string;
   title: string | null;
   weekly_capacity_hours: number;
@@ -43,7 +44,7 @@ export class ResourceService {
     const pageSize = positiveInteger(pageSizeInput, 10, 1, 100);
     const [people, count] = await Promise.all([
       this.database.query<PersonRow>(
-        `SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status
+        `SELECT user_id, member_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status
          FROM people WHERE organization_id = $1 ORDER BY active DESC, display_name LIMIT $2 OFFSET $3`,
         [actor.organizationId, pageSize, (page - 1) * pageSize],
       ),
@@ -58,7 +59,7 @@ export class ResourceService {
 
   async person(actor: AuthenticatedActor, userId: string) {
     const person = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND user_id = $2',
+      'SELECT user_id, member_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND user_id = $2',
       [actor.organizationId, text(userId, 'User ID')],
     );
     const value = row(person.rows, 'Organization member is unavailable.');
@@ -94,13 +95,13 @@ export class ResourceService {
   async capacity(actor: AuthenticatedActor, from: string, to: string) {
     const range = this.dateRange(from, to);
     const result = await this.database.query<CapacityRow>(
-      `SELECT p.user_id, p.display_name, p.title, p.weekly_capacity_hours, p.active,
+      `SELECT p.user_id, p.member_id, p.display_name, p.title, p.weekly_capacity_hours, p.active, p.organization_role,
        COALESCE(SUM(a.planned_hours), 0)::real AS allocated_hours
        FROM people p
        LEFT JOIN staff_allocations a ON a.organization_id = p.organization_id
          AND a.staff_id = p.user_id AND a.starts_on <= $3::date AND a.ends_on >= $2::date
        WHERE p.organization_id = $1
-       GROUP BY p.organization_id, p.user_id, p.display_name, p.title, p.weekly_capacity_hours, p.active
+       GROUP BY p.organization_id, p.user_id, p.member_id, p.display_name, p.title, p.weekly_capacity_hours, p.active, p.organization_role
        ORDER BY p.active DESC, p.display_name`,
       [actor.organizationId, range.from, range.to],
     );
@@ -128,7 +129,7 @@ export class ResourceService {
       `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active, organization_role)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (organization_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, title = EXCLUDED.title, weekly_capacity_hours = EXCLUDED.weekly_capacity_hours, active = EXCLUDED.active, organization_role = EXCLUDED.organization_role
-       RETURNING user_id, display_name, title, weekly_capacity_hours, active, organization_role`,
+       RETURNING user_id, member_id, display_name, title, weekly_capacity_hours, active, organization_role`,
       [
         actor.organizationId,
         text(input.userId, 'User ID'),
@@ -153,7 +154,7 @@ export class ResourceService {
     this.requireManager(actor);
     const email = input.email.trim().toLowerCase();
     const existing = await this.database.query<PersonRow>(
-      'SELECT user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND lower(email) = lower($2)',
+      'SELECT user_id, member_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status FROM people WHERE organization_id = $1 AND lower(email) = lower($2)',
       [actor.organizationId, email],
     );
     const identity = await this.keycloak.invite({ email, displayName: text(input.displayName, 'Display name'), organizationId: actor.organizationId, organizationRole: input.organizationRole });
@@ -161,7 +162,7 @@ export class ResourceService {
       `INSERT INTO people (organization_id, user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status)
        VALUES ($1,$2,$3,$4,$5,true,$6,$7,'pending')
        ON CONFLICT (organization_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, title = EXCLUDED.title, weekly_capacity_hours = EXCLUDED.weekly_capacity_hours, organization_role = EXCLUDED.organization_role, email = EXCLUDED.email, invitation_status = 'pending'
-       RETURNING user_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status`,
+       RETURNING user_id, member_id, display_name, title, weekly_capacity_hours, active, organization_role, email, invitation_status`,
       [actor.organizationId, identity.userId, text(input.displayName, 'Display name'), input.title?.trim() || null, input.weeklyCapacityHours ?? 40, input.organizationRole, email],
     );
     const person = row(result.rows, 'Organization invitation could not be saved.');
