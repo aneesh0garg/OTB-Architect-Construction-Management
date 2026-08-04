@@ -1,11 +1,10 @@
 'use client';
 
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import {
   beginLocalLogin,
   loadCostControl,
   loadExecutionRegister,
-  prepareDocumentDownload,
   loadFinanceControl,
   loadConnectedWorkspace,
   loadProjectRecord,
@@ -21,7 +20,6 @@ import {
   saveResourcePerson,
   searchProjectBrain,
   createProjectBrainDraft,
-  createDocumentAnnotation,
   createTaskComment,
   createFieldObservation,
   createProjectTask,
@@ -36,7 +34,6 @@ import {
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
-  loadDocumentAnnotations,
   loadTaskComments,
   reviewProjectBrainDraft,
   signOutLocal,
@@ -57,7 +54,6 @@ import {
   type AiDraft,
   type NotificationPreference,
   type WorkspaceNotification,
-  type DocumentAnnotation,
   type TaskComment,
   type ProjectRecord,
   type PipelineRegister,
@@ -1830,6 +1826,21 @@ const nextRevision = (revision: string) => {
   return `A${characters.join('')}`;
 };
 
+const newClientRequestId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const values = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(values);
+    values[6] = ((values[6] ?? 0) & 0x0f) | 0x40;
+    values[8] = ((values[8] ?? 0) & 0x3f) | 0x80;
+    const hex = Array.from(values, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 function Documents({
   record,
   signedIn,
@@ -1862,28 +1873,16 @@ function Documents({
     'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
   >('drawing');
   const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
-  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID());
+  const [clientRequestId, setClientRequestId] = useState(newClientRequestId);
   const [transmittalPurpose, setTransmittalPurpose] = useState('Construction issue');
   const [transmittalRecipients, setTransmittalRecipients] = useState('');
   const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string>();
   const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
-  const selectedDocument = documents.find((document) => document.id === selectedDocumentId);
   const revision = selectedPrior ? nextRevision(selectedPrior.revision) : 'A';
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
   const [reviewingId, setReviewingId] = useState<string>();
-  const [preview, setPreview] = useState<{
-    title: string;
-    url: string;
-    expiresAt: string;
-  }>();
-  const [openingId, setOpeningId] = useState<string>();
-  const previewRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (preview) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [preview]);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!record || !file) return;
@@ -1900,7 +1899,7 @@ function Documents({
       setFile(undefined);
       setTitle('');
       setSupersedesDocumentId('');
-      setClientRequestId(crypto.randomUUID());
+      setClientRequestId(newClientRequestId());
       await onChanged();
       setMessage('Document revision uploaded and added to the controlled record.');
     } catch (error) {
@@ -1947,22 +1946,9 @@ function Documents({
       setReviewingId(undefined);
     }
   };
-  const openDocument = async (document: ProjectRecord['documents'][number]) => {
+  const openDocumentRecord = (documentId: string) => {
     if (!record) return;
-    setOpeningId(document.id);
-    setMessage(undefined);
-    try {
-      const download = await prepareDocumentDownload(record.project.id, document.id);
-      setPreview({
-        title: document.title,
-        url: download.downloadUrl,
-        expiresAt: download.expiresAt,
-      });
-    } catch {
-      setMessage('This revision has no downloadable original, or your access has changed.');
-    } finally {
-      setOpeningId(undefined);
-    }
+    window.location.assign(`/projects/${record.project.id}/documents/${documentId}`);
   };
   const submitTransmittal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2208,10 +2194,9 @@ function Documents({
                 {signedIn && document.has_original && (
                   <button
                     className="button-secondary record-action"
-                    disabled={openingId === document.id}
-                    onClick={() => void openDocument(document)}
+                    onClick={() => openDocumentRecord(document.id)}
                   >
-                    {openingId === document.id ? 'Opening…' : 'Open original'}
+                    Open original
                   </button>
                 )}
                 {document.document_type === 'drawing' && (
@@ -2224,7 +2209,7 @@ function Documents({
                 )}
                 <button
                   className="button-secondary record-action"
-                  onClick={() => setSelectedDocumentId(document.id)}
+                  onClick={() => openDocumentRecord(document.id)}
                 >
                   View details
                 </button>
@@ -2235,96 +2220,7 @@ function Documents({
           )}
         </div>
       </section>
-      {preview && (
-        <div ref={previewRef} tabIndex={-1}>
-          <DocumentPreview preview={preview} onClose={() => setPreview(undefined)} />
-        </div>
-      )}
-      {selectedDocument && (
-        <section
-          className="content-card detail-workspace"
-          aria-label={`Document details for ${selectedDocument.document_number}`}
-        >
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">DOCUMENT DETAIL</p>
-              <h2>
-                {selectedDocument.document_number} · Rev {selectedDocument.revision}
-              </h2>
-            </div>
-            <button onClick={() => setSelectedDocumentId(undefined)}>Close</button>
-          </div>
-          <p>{selectedDocument.title}</p>
-          <div className="record-grid">
-            <div>
-              <span>Status</span>
-              <strong>{selectedDocument.status.replaceAll('_', ' ')}</strong>
-            </div>
-            <div>
-              <span>Type</span>
-              <strong>{selectedDocument.document_type}</strong>
-            </div>
-            <div>
-              <span>Issued</span>
-              <strong>{selectedDocument.issue_date ?? 'Not issued'}</strong>
-            </div>
-            <div>
-              <span>Original</span>
-              <strong>{selectedDocument.has_original ? 'Retained' : 'Metadata only'}</strong>
-            </div>
-          </div>
-          <p className="settings-empty">
-            Linked transmittals:{' '}
-            {record?.transmittals.filter((item) => item.document_ids.includes(selectedDocument.id))
-              .length ?? 0}
-            . Review actions and discussion are available from this controlled record.
-          </p>
-        </section>
-      )}
     </div>
-  );
-}
-
-function DocumentPreview({
-  preview,
-  onClose,
-}: {
-  preview: { title: string; url: string; expiresAt: string };
-  onClose: () => void;
-}) {
-  const pathname = new URL(preview.url).pathname.toLowerCase();
-  const isImage = /\.(jpe?g|png)$/.test(pathname);
-  return (
-    <section
-      className="drawing-viewer document-viewer"
-      aria-label={`Document viewer for ${preview.title}`}
-    >
-      <header>
-        <div>
-          <p className="eyebrow">CONTROLLED ORIGINAL</p>
-          <h3>{preview.title}</h3>
-        </div>
-        <div>
-          <small>Access link expires {new Date(preview.expiresAt).toLocaleTimeString()}</small>
-          <a href={preview.url} target="_blank" rel="noreferrer">
-            Open original ↗
-          </a>
-          <button onClick={onClose} aria-label="Close document viewer">
-            ×
-          </button>
-        </div>
-      </header>
-      {isImage ? (
-        <img src={preview.url} alt={preview.title} />
-      ) : (
-        <>
-          <a className="mobile-pdf-open" href={preview.url} target="_blank" rel="noreferrer">
-            Open full PDF — all pages ↗
-          </a>
-          <iframe title={preview.title} src={preview.url} />
-        </>
-      )}
-    </section>
   );
 }
 
@@ -3073,23 +2969,9 @@ function Drawings({
   record: ProjectRecord | undefined;
   onNavigate: (view: WorkspaceView) => void;
 }) {
-  const [preview, setPreview] = useState<{
-    title: string;
-    documentNumber: string;
-    url: string;
-    expiresAt: string;
-    documentId: string;
-    isImage: boolean;
-  }>();
-  const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([]);
-  const [annotationBody, setAnnotationBody] = useState('');
-  const [annotationX, setAnnotationX] = useState(50);
-  const [annotationY, setAnnotationY] = useState(50);
   const [openError, setOpenError] = useState<string>();
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [drawingSort, setDrawingSort] = useState<DocumentSort>('number');
-  const [selectedDrawingId, setSelectedDrawingId] = useState<string>();
-  const selectedDrawing = record?.documents.find((document) => document.id === selectedDrawingId);
   const drawings = record
     ? sortControlledDocuments(record.documents, drawingSort).filter(
         (document) => document.document_type === 'drawing',
@@ -3098,41 +2980,12 @@ function Drawings({
   const filteredDrawings = showCurrentOnly
     ? drawings.filter((drawing) => ['issued', 'Current'].includes(drawing.status))
     : drawings;
-  const openDrawing = async (drawing: (typeof drawings)[number]) => {
+  const openDrawing = (drawing: (typeof drawings)[number]) => {
     if (!record || !('id' in drawing)) {
       setOpenError('Sign in to open a controlled drawing original.');
       return;
     }
-    setOpenError(undefined);
-    try {
-      const download = await prepareDocumentDownload(record.project.id, drawing.id);
-      setPreview({
-        title: drawing.title,
-        documentNumber: drawing.document_number,
-        url: download.downloadUrl,
-        expiresAt: download.expiresAt,
-        documentId: drawing.id,
-        isImage: /\.(jpe?g|png)$/i.test(new URL(download.downloadUrl).pathname),
-      });
-      setAnnotations(await loadDocumentAnnotations(record.project.id, drawing.id));
-    } catch {
-      setOpenError('This revision has no downloadable original, or your access has changed.');
-    }
-  };
-  const addAnnotation = async () => {
-    if (!record || !preview || !annotationBody.trim()) return;
-    try {
-      const annotation = await createDocumentAnnotation(record.project.id, preview.documentId, {
-        body: annotationBody.trim(),
-        pageNumber: 1,
-        xPercent: annotationX,
-        yPercent: annotationY,
-      });
-      setAnnotations((current) => [...current, annotation]);
-      setAnnotationBody('');
-    } catch {
-      setOpenError('The drawing comment could not be saved.');
-    }
+    window.location.assign(`/projects/${record.project.id}/documents/${drawing.id}`);
   };
   return (
     <div className="workspace-content drawings-view">
@@ -3203,10 +3056,7 @@ function Drawings({
                 →
               </button>
               {'id' in drawing && (
-                <button
-                  className="button-secondary record-action"
-                  onClick={() => setSelectedDrawingId(drawing.id)}
-                >
+                <button className="button-secondary record-action" onClick={() => openDrawing(drawing)}>
                   Details
                 </button>
               )}
@@ -3214,136 +3064,7 @@ function Drawings({
           ))}
         </div>
       </section>
-      {selectedDrawing && (
-        <section
-          className="content-card detail-workspace"
-          aria-label={`Drawing details for ${selectedDrawing.document_number}`}
-        >
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">DRAWING DETAIL</p>
-              <h2>
-                {selectedDrawing.document_number} · Rev {selectedDrawing.revision}
-              </h2>
-            </div>
-            <button onClick={() => setSelectedDrawingId(undefined)}>Close</button>
-          </div>
-          <p>{selectedDrawing.title}</p>
-          <div className="record-grid">
-            <div>
-              <span>Status</span>
-              <strong>{selectedDrawing.status.replaceAll('_', ' ')}</strong>
-            </div>
-            <div>
-              <span>Issued</span>
-              <strong>{selectedDrawing.issue_date ?? 'Not issued'}</strong>
-            </div>
-            <div>
-              <span>Discipline</span>
-              <strong>{selectedDrawing.discipline ?? 'Unspecified'}</strong>
-            </div>
-            <div>
-              <span>Original</span>
-              <strong>{selectedDrawing.has_original ? 'Retained' : 'Metadata only'}</strong>
-            </div>
-          </div>
-          <p className="settings-empty">
-            Linked transmittals:{' '}
-            {record?.transmittals.filter((item) => item.document_ids.includes(selectedDrawing.id))
-              .length ?? 0}
-            .
-          </p>
-          {selectedDrawing.has_original && (
-            <button className="button-primary" onClick={() => openDrawing(selectedDrawing)}>
-              Open review &amp; markup
-            </button>
-          )}
-        </section>
-      )}
       {openError && <p className="drawing-open-error">{openError}</p>}
-      {preview && (
-        <section
-          className="drawing-viewer"
-          aria-label={`Drawing viewer for ${preview.documentNumber}`}
-        >
-          <header>
-            <div>
-              <p className="eyebrow">CONTROLLED ORIGINAL</p>
-              <h3>
-                {preview.documentNumber} · {preview.title}
-              </h3>
-            </div>
-            <div>
-              <small>Access link expires {new Date(preview.expiresAt).toLocaleTimeString()}</small>
-              <a href={preview.url} target="_blank" rel="noreferrer">
-                Open original ↗
-              </a>
-              <button onClick={() => setPreview(undefined)} aria-label="Close drawing viewer">
-                ×
-              </button>
-            </div>
-          </header>
-          {preview.isImage ? (
-            <img className="drawing-original-image" src={preview.url} alt={preview.title} />
-          ) : (
-            <>
-              <a className="mobile-pdf-open" href={preview.url} target="_blank" rel="noreferrer">
-                Open full PDF — all pages ↗
-              </a>
-              <iframe title={preview.title} src={preview.url} />
-            </>
-          )}
-          <div className="drawing-annotations">
-            <strong>Comments &amp; pins</strong>
-            {annotations.map((annotation) => (
-              <p key={annotation.id}>
-                <b>
-                  Page {annotation.page_number}
-                  {annotation.x_percent !== null && annotation.y_percent !== null
-                    ? ` · Pin ${annotation.x_percent}%, ${annotation.y_percent}%`
-                    : ''}
-                </b>
-                {annotation.body}
-              </p>
-            ))}
-            <div>
-              <label>
-                Horizontal pin · {annotationX}%
-                <input
-                  aria-label="Horizontal drawing pin"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={annotationX}
-                  onChange={(event) => setAnnotationX(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                Vertical pin · {annotationY}%
-                <input
-                  aria-label="Vertical drawing pin"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={annotationY}
-                  onChange={(event) => setAnnotationY(Number(event.target.value))}
-                />
-              </label>
-            </div>
-            <div>
-              <input
-                aria-label="Drawing comment"
-                value={annotationBody}
-                onChange={(event) => setAnnotationBody(event.target.value)}
-                placeholder="Add a review comment"
-              />
-              <button onClick={addAnnotation} disabled={!annotationBody.trim()}>
-                Add pin comment
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

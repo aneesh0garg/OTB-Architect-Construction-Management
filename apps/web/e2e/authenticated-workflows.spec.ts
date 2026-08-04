@@ -22,6 +22,22 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   });
 
+  test('opens a task detail workspace and persists its discussion', async ({ page }) => {
+    await page.getByTestId('project-tab-tasks').click();
+    const title = `UI task discussion ${Date.now()}`;
+    await page.getByLabel('New task').fill(title);
+    await page.getByRole('button', { name: 'Add task' }).click();
+
+    const task = page.locator('article', { hasText: title });
+    await task.getByRole('button', { name: 'View details' }).click();
+    await expect(page.getByLabel(`Task details for ${title}`)).toBeVisible();
+
+    const comment = 'Coordinate the decision with the site team.';
+    await page.getByLabel('Add a comment').fill(comment);
+    await page.getByRole('button', { name: 'Post comment' }).click();
+    await expect(page.getByText(comment, { exact: true })).toBeVisible();
+  });
+
   test('exposes controlled document and commercial write workflows', async ({ page }) => {
     await page.getByTestId('project-tab-documents').click();
     await expect(page.getByRole('button', { name: 'Upload revision' })).toBeVisible();

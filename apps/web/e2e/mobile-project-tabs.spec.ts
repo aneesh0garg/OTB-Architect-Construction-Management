@@ -72,6 +72,18 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByLabel('Sort documents')).toBeVisible();
   });
 
+  test('opens Documents when randomUUID is unavailable in a mobile browser', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window.crypto, 'randomUUID', { configurable: true, value: undefined });
+    });
+    const pageErrors: Error[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error));
+    await page.goto('/');
+    await page.getByTestId('project-tab-documents').click();
+    await expect(page.getByTestId('project-view-documents')).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
   test('keeps project creation reachable on a phone viewport', async ({ page }) => {
     await page.getByRole('button', { name: '+ New project' }).click();
     await expect(page.getByRole('dialog', { name: 'Create project' })).toContainText(

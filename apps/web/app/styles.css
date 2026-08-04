@@ -745,6 +745,54 @@ small {
   padding: 25px 32px 40px;
   margin: 0 auto;
 }
+.record-page {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 34px 0 56px;
+}
+.record-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.record-page-header h1 {
+  margin: 8px 0;
+  letter-spacing: -0.035em;
+}
+.record-page-header > div > p:last-child {
+  margin: 0;
+  color: var(--muted);
+}
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--primary);
+  font-weight: 650;
+  text-decoration: none;
+}
+.record-page-card {
+  margin-top: 16px;
+  padding: 20px;
+}
+.original-workspace {
+  margin-top: 16px;
+  overflow: hidden;
+}
+.original-workspace > header,
+.original-workspace > .card-header {
+  padding: 18px 20px;
+}
+.original-workspace img,
+.original-workspace iframe {
+  display: block;
+  width: 100%;
+  min-height: min(72vh, 860px);
+  border: 0;
+  object-fit: contain;
+  background: var(--raised-strong);
+}
 .simple-record-list {
   display: grid;
   gap: 2px;
@@ -844,6 +892,12 @@ small {
   padding-top: 18px;
   border-top: 1px solid var(--border);
 }
+.detail-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+}
 .task-discussion h3 {
   margin: 2px 0 0;
   font-size: 1rem;
@@ -894,6 +948,27 @@ small {
 }
 .task-comment-form button {
   justify-self: start;
+}
+.pin-position-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pin-position-controls label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.pin-position-controls input {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.comment-list small {
+  grid-column: 1 / -1;
+  color: var(--muted);
 }
 
 .dialog-backdrop {
@@ -968,6 +1043,25 @@ small {
   .communication-form,
   .document-form {
     grid-template-columns: 1fr;
+  }
+  .record-page {
+    width: min(100% - 24px, 1120px);
+    padding-top: 20px;
+  }
+  .record-page-header {
+    display: grid;
+  }
+  .record-page-header .status-pill {
+    justify-self: start;
+  }
+  .record-page-card {
+    padding: 15px;
+  }
+  .pin-position-controls {
+    grid-template-columns: 1fr;
+  }
+  .original-workspace iframe {
+    display: none;
   }
 }
 .snapshot-grid {
