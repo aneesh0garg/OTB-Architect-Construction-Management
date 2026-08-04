@@ -483,10 +483,47 @@ for (const eventType of ['workflow.issued', 'invoice.issued', 'payment.recorded'
     `Notification ${eventType} was not created.`,
   );
 }
+const paymentNotificationCount = notifications.filter(
+  (notification) => notification.event_type === 'payment.recorded',
+).length;
+const mutedPaymentPreference = await api('PUT', '/v1/workspace/notification-preferences', {
+  eventType: 'payment.recorded',
+  inAppEnabled: false,
+  emailEnabled: false,
+  quietHoursStart: '18:00',
+  quietHoursEnd: '08:00',
+  digestFrequency: 'none',
+});
+assert.equal(
+  mutedPaymentPreference.in_app_enabled,
+  false,
+  'Notification preference did not save the in-app setting.',
+);
+const notificationPreferences = await api('GET', '/v1/workspace/notification-preferences');
+assert.equal(
+  notificationPreferences.some(
+    (preference) => preference.event_type === 'payment.recorded' && !preference.in_app_enabled,
+  ),
+  true,
+  'Saved notification preference is not returned to its owner.',
+);
+await api('POST', `/v1/projects/${project.id}/finance/invoices/${invoice.id}/payments`, {
+  amount: 1,
+  paidDate: '2026-08-06',
+  reference: `SMOKE-MUTED-${runId}`,
+});
+const notificationsAfterMutedPayment = await api('GET', '/v1/workspace/notifications');
+assert.equal(
+  notificationsAfterMutedPayment.filter(
+    (notification) => notification.event_type === 'payment.recorded',
+  ).length,
+  paymentNotificationCount,
+  'A muted payment notification was delivered in-app.',
+);
 const finance = await api('GET', `/v1/projects/${project.id}/finance`);
 assert.equal(
-  finance.health.paid,
-  Number(issuedInvoice.total),
+  finance.health.paid >= Number(issuedInvoice.total),
+  true,
   'Payment was not reflected in finance health.',
 );
 

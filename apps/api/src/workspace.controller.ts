@@ -1,6 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   IsArray,
+  IsBoolean,
   ArrayMaxSize,
   ArrayMinSize,
   IsIn,
@@ -9,6 +21,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Matches,
   Min,
   MinLength,
   ValidateNested,
@@ -92,6 +105,14 @@ class FileCommunicationDto {
   @IsArray() @IsString({ each: true }) recipients!: string[];
   @IsOptional() @IsString() @MaxLength(240) threadId?: string;
   @IsOptional() @IsString() @MaxLength(240) sourceMessageId?: string;
+}
+class UpdateNotificationPreferenceDto {
+  @IsString() @MinLength(1) @MaxLength(80) eventType!: string;
+  @IsOptional() @IsBoolean() inAppEnabled?: boolean;
+  @IsOptional() @IsBoolean() emailEnabled?: boolean;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) quietHoursStart?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) quietHoursEnd?: string;
+  @IsOptional() @IsIn(['immediate', 'daily', 'weekly', 'none']) digestFrequency?: string;
 }
 @Controller('v1/workspace')
 @UseGuards(KeycloakAuthGuard)
@@ -224,6 +245,17 @@ export class WorkspaceController {
   }
   @Get('notifications') getNotifications(@Req() request: AuthenticatedRequest) {
     return this.workspace.getNotifications(request.actor!);
+  }
+  @Get('notification-preferences') getNotificationPreferences(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.workspace.getNotificationPreferences(request.actor!);
+  }
+  @Put('notification-preferences') updateNotificationPreference(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: UpdateNotificationPreferenceDto,
+  ) {
+    return this.workspace.updateNotificationPreference(request.actor!, body);
   }
   @Get('audit') getAuditEvents(
     @Req() request: AuthenticatedRequest,

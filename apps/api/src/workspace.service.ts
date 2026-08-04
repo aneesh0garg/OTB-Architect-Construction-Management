@@ -76,6 +76,23 @@ interface NotificationRow extends QueryResultRow {
   read_at: Date | null;
   created_at: Date;
 }
+interface NotificationPreferenceRow extends QueryResultRow {
+  event_type: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  digest_frequency: string;
+  updated_at: Date;
+}
+interface UpdateNotificationPreferenceInput {
+  eventType: string;
+  inAppEnabled?: boolean;
+  emailEnabled?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  digestFrequency?: string;
+}
 interface AuditRow extends QueryResultRow {
   id: string;
   actor_id: string;
@@ -512,6 +529,68 @@ export class WorkspaceService {
       [actor.organizationId, actor.userId],
     );
     return notifications.rows;
+  }
+  async getNotificationPreferences(actor: AuthenticatedActor) {
+    const preferences = await this.pool.query<NotificationPreferenceRow>(
+      'SELECT event_type, in_app_enabled, email_enabled, quiet_hours_start::text, quiet_hours_end::text, digest_frequency, updated_at FROM notification_preferences WHERE organization_id = $1 AND user_id = $2 ORDER BY event_type',
+      [actor.organizationId, actor.userId],
+    );
+    return preferences.rows;
+  }
+  async updateNotificationPreference(
+    actor: AuthenticatedActor,
+    input: UpdateNotificationPreferenceInput,
+  ) {
+    const eventType = this.requiredText(input.eventType, 'Event type');
+    const quietHoursStart = input.quietHoursStart?.trim() || null;
+    const quietHoursEnd = input.quietHoursEnd?.trim() || null;
+    if (Boolean(quietHoursStart) !== Boolean(quietHoursEnd)) {
+      throw new BadRequestException('Quiet hours require both a start and end time.');
+    }
+    if (quietHoursStart && quietHoursStart === quietHoursEnd) {
+      throw new BadRequestException('Quiet-hours start and end must differ.');
+    }
+    const preference = await this.pool.query<NotificationPreferenceRow>(
+      `INSERT INTO notification_preferences (
+        organization_id, user_id, event_type, in_app_enabled, email_enabled,
+        quiet_hours_start, quiet_hours_end, digest_frequency
+      ) VALUES ($1, $2, $3, $4, $5, $6::time, $7::time, $8)
+      ON CONFLICT (organization_id, user_id, event_type) DO UPDATE SET
+        in_app_enabled = EXCLUDED.in_app_enabled,
+        email_enabled = EXCLUDED.email_enabled,
+        quiet_hours_start = EXCLUDED.quiet_hours_start,
+        quiet_hours_end = EXCLUDED.quiet_hours_end,
+        digest_frequency = EXCLUDED.digest_frequency,
+        updated_at = NOW()
+      RETURNING event_type, in_app_enabled, email_enabled, quiet_hours_start::text,
+        quiet_hours_end::text, digest_frequency, updated_at`,
+      [
+        actor.organizationId,
+        actor.userId,
+        eventType,
+        input.inAppEnabled ?? true,
+        input.emailEnabled ?? false,
+        quietHoursStart,
+        quietHoursEnd,
+        input.digestFrequency ?? 'immediate',
+      ],
+    );
+    const saved = this.resultRow(preference.rows, 'Notification preference could not be saved.');
+    await this.audit(
+      actor,
+      'notification.preference_updated',
+      'notification_preference',
+      eventType,
+      {
+        eventType,
+        inAppEnabled: saved.in_app_enabled,
+        emailEnabled: saved.email_enabled,
+        digestFrequency: saved.digest_frequency,
+        quietHoursStart: saved.quiet_hours_start,
+        quietHoursEnd: saved.quiet_hours_end,
+      },
+    );
+    return saved;
   }
   async markNotificationRead(actor: AuthenticatedActor, notificationId: string) {
     const notification = await this.pool.query<NotificationRow>(
