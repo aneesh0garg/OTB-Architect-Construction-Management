@@ -208,6 +208,21 @@ const preparedUpload = await api('POST', `${projectPath}/documents/uploads`, {
   contentType: 'application/pdf',
   size: documentBytes.length,
 });
+const preparedBatch = await api('POST', `${projectPath}/documents/uploads/batch`, {
+  files: [
+    {
+      fileName: `smoke-batch-a-${runId}.pdf`,
+      contentType: 'application/pdf',
+      size: documentBytes.length,
+    },
+    {
+      fileName: `smoke-batch-b-${runId}.pdf`,
+      contentType: 'application/pdf',
+      size: documentBytes.length,
+    },
+  ],
+});
+assert.equal(preparedBatch.uploads.length, 2, 'Bulk upload preparation did not return every file.');
 const uploaded = await fetch(preparedUpload.uploadUrl, {
   method: 'PUT',
   headers: { 'content-type': 'application/pdf' },
@@ -454,6 +469,7 @@ for (const action of [
   'export.commercial_csv_created',
   'document.upload_attached',
   'document.download_prepared',
+  'document.upload_batch_prepared',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),

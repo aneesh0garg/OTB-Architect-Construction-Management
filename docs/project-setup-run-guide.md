@@ -118,6 +118,7 @@ header used in the quick check. `PROJECT_ID` must be an ID returned from
 | `POST /v1/workspace/projects/:projectId/tasks/:taskId/status`                 | Move a task from open through in-progress/blocked to completed or cancelled; every valid transition is audited.                            |
 | `POST /v1/workspace/projects/:projectId/documents`                            | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
 | `POST /v1/workspace/projects/:projectId/documents/uploads`                    | Prepare a 15-minute direct S3/MinIO upload for a PDF, JPEG, or PNG.                                                                        |
+| `POST /v1/workspace/projects/:projectId/documents/uploads/batch`              | Prepare up to 20 controlled direct uploads in one request; each file receives its own verified upload ID and signed URL.                   |
 | `POST /v1/workspace/projects/:projectId/documents/uploads/:uploadId/complete` | Verify the uploaded object before it can be attached to a revision.                                                                        |
 | `GET /v1/workspace/projects/:projectId/documents/:documentId/download`        | Prepare a five-minute, permission-checked signed download for an uploaded original.                                                        |
 | `POST /v1/workspace/projects/:projectId/communications`                       | File an immutable inbound, outbound, or internal project message.                                                                          |
@@ -157,6 +158,12 @@ For a file-backed revision, first prepare the upload, PUT the bytes to the
 returned `uploadUrl` with the declared `Content-Type`, complete the upload, and
 pass its `uploadId` to the document-revision endpoint. This prevents a caller
 from attaching an arbitrary storage key from another tenant or project.
+
+For a batch, post `{"files":[{"fileName":"A-101.pdf","contentType":"application/pdf","size":123}]}`
+to the batch endpoint. All file descriptors are validated before any signed URLs
+are prepared; the response has one upload ID and URL per file. Each uploaded
+file still must be completed and attached individually, preserving size/type
+verification and a separate immutable revision record.
 
 Document revisions support optional `discipline`, `building`, `floor`, and
 `zone` fields alongside their stable number, type, title, revision, status, and

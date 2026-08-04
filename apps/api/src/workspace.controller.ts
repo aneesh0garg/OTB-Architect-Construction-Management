@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   IsArray,
+  ArrayMaxSize,
+  ArrayMinSize,
   IsIn,
   IsISO8601,
   IsNumber,
@@ -9,7 +11,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { projectStages, WorkspaceService } from './workspace.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
@@ -64,6 +68,14 @@ class CreateDocumentUploadDto {
   @IsString() @MinLength(1) @MaxLength(160) fileName!: string;
   @IsString() @MinLength(3) @MaxLength(120) contentType!: string;
   @IsNumber() @Min(1) size!: number;
+}
+class CreateDocumentUploadBatchDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => CreateDocumentUploadDto)
+  files!: CreateDocumentUploadDto[];
 }
 class FileCommunicationDto {
   @IsIn(['email', 'whatsapp_business', 'manual_note']) channel!: string;
@@ -168,6 +180,13 @@ export class WorkspaceController {
     @Body() body: CreateDocumentUploadDto,
   ) {
     return this.uploads.create(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/documents/uploads/batch') createDocumentUploadBatch(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: CreateDocumentUploadBatchDto,
+  ) {
+    return this.uploads.createBatch(request.actor!, projectId, body.files);
   }
   @Post('projects/:projectId/documents/uploads/:uploadId/complete') completeDocumentUpload(
     @Req() request: AuthenticatedRequest,

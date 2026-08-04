@@ -50,11 +50,29 @@ export class DocumentUploadService {
 
   async create(actor: AuthenticatedActor, projectId: string, input: CreateUploadInput) {
     await this.projectAccess.requireAccess(actor, projectId);
-    if (!Number.isInteger(input.size) || input.size < 1 || input.size > 200 * 1024 * 1024)
-      throw new BadRequestException('Upload size must be between 1 byte and 200 MB.');
+    this.validate(input);
+    return this.prepare(actor, projectId, input);
+  }
+
+  async createBatch(actor: AuthenticatedActor, projectId: string, inputs: CreateUploadInput[]) {
+    await this.projectAccess.requireAccess(actor, projectId);
+    inputs.forEach((input) => this.validate(input));
+    const uploads = await Promise.all(inputs.map((input) => this.prepare(actor, projectId, input)));
+    await this.audit.record(
+      actor,
+      'document.upload_batch_prepared',
+      'document_upload_batch',
+      projectId,
+      {
+        projectId,
+        count: uploads.length,
+      },
+    );
+    return { uploads, expiresInSeconds: 900 };
+  }
+
+  private async prepare(actor: AuthenticatedActor, projectId: string, input: CreateUploadInput) {
     const contentType = input.contentType?.trim().toLocaleLowerCase();
-    if (!contentType || !['application/pdf', 'image/jpeg', 'image/png'].includes(contentType))
-      throw new BadRequestException('Only PDF, JPEG, and PNG uploads are allowed in Phase 1.');
     const originalName = safeName(input.fileName);
     const key = `organizations/${actor.organizationId}/projects/${projectId}/uploads/${randomUUID()}/${originalName}`;
     await this.ensureBucket();
@@ -148,6 +166,14 @@ export class DocumentUploadService {
       [uploadId, actor.organizationId, projectId, status],
     );
     return row(result.rows, 'Upload is unavailable.');
+  }
+  private validate(input: CreateUploadInput) {
+    if (!Number.isInteger(input.size) || input.size < 1 || input.size > 200 * 1024 * 1024)
+      throw new BadRequestException('Upload size must be between 1 byte and 200 MB.');
+    const contentType = input.contentType?.trim().toLocaleLowerCase();
+    if (!contentType || !['application/pdf', 'image/jpeg', 'image/png'].includes(contentType))
+      throw new BadRequestException('Only PDF, JPEG, and PNG uploads are allowed in Phase 1.');
+    safeName(input.fileName);
   }
   private async ensureBucket() {
     this.bucketReady ??= (async () => {
