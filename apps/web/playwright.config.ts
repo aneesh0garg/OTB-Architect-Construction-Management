@@ -33,5 +33,13 @@ export default defineConfig({
         browserName: 'webkit',
       },
     },
+    {
+      name: 'mobile-loopback-chromium',
+      use: {
+        ...devices['iPhone 13'],
+        baseURL: 'http://127.0.0.1:3000',
+        browserName: 'chromium',
+      },
+    },
   ],
 });

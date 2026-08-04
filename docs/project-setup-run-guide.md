@@ -428,6 +428,23 @@ pnpm test:ui
 The test runner starts the web app unless an instance is already serving on
 port 3000. Set `PLAYWRIGHT_BASE_URL` to test a different local deployment.
 
+## Testing from a phone on the local network
+
+Next development mode protects its JavaScript assets from unapproved origins.
+Without configuration, a phone can receive the initial HTML but its client
+bundle is blocked; controls such as project tabs then appear inert. Add the
+Mac's LAN address to `.env` before starting the web app:
+
+```bash
+ORBITA_WEB_ALLOWED_DEV_ORIGINS=192.168.1.25
+```
+
+Replace the example address with the machine's current LAN address (on macOS,
+`ipconfig getifaddr en0` commonly prints it). With the phone and Mac on the
+same network, open `http://192.168.1.25:3000` on the phone. The web dev server
+binds to the local network, but only the configured host is permitted to fetch
+its development assets.
+
 Before committing, run `git diff --check`. CI repeats formatting, linting,
 type-checking, and tests for each change.
 
