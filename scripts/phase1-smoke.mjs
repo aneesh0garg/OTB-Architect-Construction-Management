@@ -543,6 +543,11 @@ assert.equal(deletedDraft.deleted, true, 'AI draft deletion was not confirmed.')
 
 const projectRecord = await api('GET', `${projectPath}/record`);
 assert.equal(
+  projectRecord.transmittals.some((item) => item.id === transmittal.id),
+  true,
+  'Project record does not include the transmittal receipt.',
+);
+assert.equal(
   projectRecord.documents.find((item) => item.revision === 'A')?.status,
   'superseded',
   'Issued document revision was not superseded.',

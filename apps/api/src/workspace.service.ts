@@ -268,7 +268,7 @@ export class WorkspaceService {
   }
   async getProjectRecord(actor: AuthenticatedActor, projectId: string) {
     const project = await this.projectForActor(actor, projectId);
-    const [tasks, documents, communications, members] = await Promise.all([
+    const [tasks, documents, communications, transmittals, members] = await Promise.all([
       this.pool.query<TaskRow>(
         'SELECT id, title, status, priority, due_date, assignee_id, created_by FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
@@ -281,6 +281,10 @@ export class WorkspaceService {
         'SELECT id, channel, direction, subject, body, sender, recipients, filed_at FROM communications WHERE project_id = $1 AND filing_status = $2 ORDER BY filed_at DESC',
         [project.id, 'filed'],
       ),
+      this.pool.query<TransmittalRow>(
+        'SELECT id, transmittal_number, purpose, issue_note, recipients, document_ids, created_at FROM document_transmittals WHERE project_id = $1 ORDER BY created_at DESC',
+        [project.id],
+      ),
       this.projectMembers(project.id, actor.organizationId),
     ]);
     return {
@@ -288,6 +292,7 @@ export class WorkspaceService {
       tasks: tasks.rows,
       documents: documents.rows,
       communications: communications.rows,
+      transmittals: transmittals.rows,
       members,
     };
   }
