@@ -62,6 +62,14 @@ test.describe('mobile project navigation', () => {
     await expect(checkbox).toBeChecked();
   });
 
+  test('keeps field observation capture reachable on a phone viewport', async ({ page }) => {
+    await page.getByTestId('project-tab-field').click();
+    await page.getByRole('button', { name: '＋ Capture observation' }).click();
+    await expect(page.getByRole('dialog', { name: 'Capture field observation' })).toContainText(
+      'Sign in to capture a project observation',
+    );
+  });
+
   test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {
     await page.getByTestId('notification-settings-trigger').click();
 
