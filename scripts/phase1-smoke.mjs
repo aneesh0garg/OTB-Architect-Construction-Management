@@ -53,6 +53,19 @@ async function apiText(path) {
 await api('GET', '/health');
 const identity = await api('GET', '/v1/me');
 assert.equal(identity.displayName, 'Pilot Administrator', 'Signed-in profile was not mapped.');
+for (const eventType of [
+  'payment.recorded',
+  'task.assigned',
+  'workflow.issued',
+  'observation.comment_added',
+]) {
+  await api('PUT', '/v1/workspace/notification-preferences', {
+    eventType,
+    inAppEnabled: true,
+    emailEnabled: false,
+    digestFrequency: 'immediate',
+  });
+}
 await api('POST', '/v1/workspace/organization', { name: 'Orbita Phase 1 Smoke' });
 const zohoConnections = await api('GET', '/v1/integrations/zoho-books');
 assert.equal(Array.isArray(zohoConnections), true, 'Zoho connection list is unavailable.');
