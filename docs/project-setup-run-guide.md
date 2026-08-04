@@ -200,6 +200,33 @@ baseline budgets, approved commitments, and approved change events produce an
 explicit forecast-at-completion and variance. This keeps Phase 1 useful for
 project cost control without becoming a payroll or general-contractor ERP.
 
+## Zoho Books connection and invoice sync
+
+Zoho Books is the India-first accounting connector. It is opt-in and remains
+disabled until its OAuth client and Zoho organization ID are configured in
+`.env`:
+
+```bash
+ZOHO_CLIENT_ID=...
+ZOHO_CLIENT_SECRET=...
+ZOHO_REDIRECT_URI=http://localhost:3001/v1/integrations/zoho-books/callback
+ZOHO_ORGANIZATION_ID=...
+INTEGRATION_TOKEN_KEY=<long random secret>
+```
+
+| Endpoint                                                                   | Purpose                                                        |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `GET /v1/integrations/zoho-books`                                          | List authorized accounting connections without credentials.    |
+| `POST /v1/integrations/zoho-books/connect`                                 | Start the Zoho OAuth consent flow.                             |
+| `GET /v1/integrations/zoho-books/callback`                                 | Complete OAuth and store the encrypted refresh token.          |
+| `POST /v1/projects/:projectId/finance/invoices/:invoiceId/accounting-sync` | Sync an invoice to a Zoho customer using `{"customerId":"…"}`. |
+| `POST /v1/integrations/zoho-books/:connectionId/disconnect`                | Disconnect future accounting synchronization.                  |
+
+Invoice sync records an external invoice ID on success. On failure it leaves the
+application ledger intact, marks its accounting sync status as failed, stores a
+bounded error message, and writes an audit event so an authorized user can retry
+after resolving the connection or customer mapping.
+
 ## P1.3 people and capacity API
 
 | Endpoint                                                   | Purpose                                                                             |

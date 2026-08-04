@@ -22,6 +22,8 @@ import { ResourceService } from './resource.service.js';
 import { ProjectExportController } from './project-export.controller.js';
 import { ProjectExportService } from './project-export.service.js';
 import { NotificationService } from './notification.service.js';
+import { ZohoBooksController } from './zoho-books.controller.js';
+import { ZohoBooksService } from './zoho-books.service.js';
 
 @Module({
   controllers: [
@@ -35,6 +37,7 @@ import { NotificationService } from './notification.service.js';
     ProjectSearchController,
     ResourceController,
     ProjectExportController,
+    ZohoBooksController,
   ],
   providers: [
     DatabaseService,
@@ -44,6 +47,7 @@ import { NotificationService } from './notification.service.js';
     ResourceService,
     ProjectExportService,
     NotificationService,
+    ZohoBooksService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,

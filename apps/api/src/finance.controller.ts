@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FinanceService } from './finance.service.js';
+import { ZohoBooksService } from './zoho-books.service.js';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 class PhaseDto {
   @IsString() @MinLength(2) @MaxLength(120) name!: string;
@@ -91,10 +92,16 @@ class ChangeEventDto {
 class ChangeEventStatusDto {
   @IsIn(['submitted', 'approved', 'rejected']) status!: string;
 }
+class AccountingSyncDto {
+  @IsString() @MinLength(1) @MaxLength(160) customerId!: string;
+}
 @Controller('v1/projects/:projectId/finance')
 @UseGuards(KeycloakAuthGuard)
 export class FinanceController {
-  constructor(private readonly finance: FinanceService) {}
+  constructor(
+    private readonly finance: FinanceService,
+    private readonly zohoBooks: ZohoBooksService,
+  ) {}
   @Get() getControl(@Req() request: AuthenticatedRequest, @Param('projectId') projectId: string) {
     return this.finance.getControl(request.actor!, projectId);
   }
@@ -184,5 +191,13 @@ export class FinanceController {
     @Body() body: PaymentDto,
   ) {
     return this.finance.recordPayment(request.actor!, projectId, invoiceId, body);
+  }
+  @Post('invoices/:invoiceId/accounting-sync') syncInvoice(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('invoiceId') invoiceId: string,
+    @Body() body: AccountingSyncDto,
+  ) {
+    return this.zohoBooks.syncInvoice(request.actor!, projectId, invoiceId, body.customerId);
   }
 }

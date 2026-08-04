@@ -66,6 +66,13 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS team_members (team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE, organization_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (team_id, user_id));
     `,
   },
+  {
+    id: '0006_accounting_sync_fields',
+    sql: `
+      ALTER TABLE invoices ADD COLUMN IF NOT EXISTS accounting_external_id TEXT;
+      ALTER TABLE invoices ADD COLUMN IF NOT EXISTS accounting_sync_error TEXT;
+    `,
+  },
 ];
 
 @Injectable()

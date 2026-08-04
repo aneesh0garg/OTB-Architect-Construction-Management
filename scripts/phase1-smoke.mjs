@@ -52,6 +52,13 @@ async function apiText(path) {
 
 await api('GET', '/health');
 await api('POST', '/v1/workspace/organization', { name: 'Orbita Phase 1 Smoke' });
+const zohoConnections = await api('GET', '/v1/integrations/zoho-books');
+assert.equal(Array.isArray(zohoConnections), true, 'Zoho connection list is unavailable.');
+const unconfiguredZoho = await fetch(`${apiUrl}/v1/integrations/zoho-books/connect`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${tokenPayload.access_token}` },
+});
+assert.equal(unconfiguredZoho.status, 400, 'Unconfigured Zoho connection was not safely blocked.');
 const person = await api('POST', '/v1/resources/people', {
   userId: `smoke-person-${runId}`,
   displayName: `Smoke resource ${runId}`,
