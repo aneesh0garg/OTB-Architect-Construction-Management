@@ -67,7 +67,7 @@ test.describe('authenticated workspace workflows', () => {
     await page.getByRole('button', { name: 'Add task' }).click();
 
     const task = page.locator('article', { hasText: title });
-    await task.getByRole('button', { name: 'View details' }).click();
+    await task.getByRole('button', { name: /Open .* details/ }).click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks\/[^/]+$/);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
 

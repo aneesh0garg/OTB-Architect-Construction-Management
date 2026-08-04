@@ -2446,24 +2446,6 @@ function Tasks({
   const tasks = record?.tasks ?? [];
   const [createOpen, setCreateOpen] = useState(false);
   const [message, setMessage] = useState<string>();
-  const [saving, setSaving] = useState(false);
-  const completeTask = async (taskId: string, completed: boolean) => {
-    if (!record) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await transitionProjectTask(
-        record.project.id,
-        taskId,
-        completed ? 'completed' : 'in_progress',
-      );
-      await onChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Task status could not be updated.');
-    } finally {
-      setSaving(false);
-    }
-  };
   const openTaskDetail = (taskId: string) => {
     if (!record) return;
     window.location.assign(`/projects/${record.project.id}/tasks/${taskId}`);
@@ -2482,15 +2464,8 @@ function Tasks({
         <div className="simple-record-list">
           {tasks.length ? (
             tasks.map((task) => (
-              <article key={task.id}>
+              <article className="task-list-item" key={task.id}>
                 <div className="task-record">
-                  <input
-                    aria-label={`Mark ${task.title} complete`}
-                    checked={task.status === 'completed'}
-                    disabled={!signedIn || saving || ['cancelled'].includes(task.status)}
-                    onChange={(event) => completeTask(task.id, event.target.checked)}
-                    type="checkbox"
-                  />
                   <strong>{task.title}</strong>
                 </div>
                 <span>
@@ -2501,10 +2476,12 @@ function Tasks({
                   {task.assignee_id ?? 'Unassigned'}
                 </small>
                 <button
-                  className="button-secondary record-action"
+                  className="document-record-arrow"
+                  aria-label={`Open ${task.task_number} details`}
+                  title="Open task details"
                   onClick={() => openTaskDetail(task.id)}
                 >
-                  View details
+                  →
                 </button>
               </article>
             ))
