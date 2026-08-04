@@ -319,16 +319,36 @@ const observation = await api('POST', `/v1/projects/${project.id}/observations`,
   clientCaptureId: captureId,
   title: `Facade observation ${runId}`,
   description: 'Captured by the Phase 1 smoke workflow.',
+  category: 'Quality',
+  trade: 'Waterproofing',
   location: 'Level 2',
   priority: 'high',
+  dueDate: '2026-08-12',
+  evidence: [
+    {
+      kind: 'drawing_reference',
+      label: `A-502 parapet detail ${runId}`,
+      capturedAt: '2026-08-04T09:30:00.000Z',
+    },
+  ],
   syncState: 'synced',
 });
 const repeatedObservation = await api('POST', `/v1/projects/${project.id}/observations`, {
   clientCaptureId: captureId,
   title: `Facade observation ${runId}`,
   description: 'Captured by the Phase 1 smoke workflow.',
+  category: 'Quality',
+  trade: 'Waterproofing',
   location: 'Level 2',
   priority: 'high',
+  dueDate: '2026-08-12',
+  evidence: [
+    {
+      kind: 'drawing_reference',
+      label: `A-502 parapet detail ${runId}`,
+      capturedAt: '2026-08-04T09:30:00.000Z',
+    },
+  ],
   syncState: 'synced',
 });
 assert.equal(repeatedObservation.id, observation.id, 'Mobile capture retry was not idempotent.');
@@ -639,6 +659,13 @@ assert.equal(
   projectPackage.transmittals.some((item) => item.id === transmittal.id),
   true,
   'Project package does not include the transmittal receipt.',
+);
+assert.equal(
+  projectPackage.observations.some((item) =>
+    item.evidence.some((evidence) => evidence.label === `A-502 parapet detail ${runId}`),
+  ),
+  true,
+  'Project package does not retain structured observation evidence.',
 );
 assert.equal(
   projectPackage.documents.some((item) => item.storage_key !== undefined),

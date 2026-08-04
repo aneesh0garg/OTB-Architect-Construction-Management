@@ -112,6 +112,11 @@ export async function submitObservation(
     title: string;
     area: string;
     priority: 'High' | 'Medium' | 'Low';
+    description?: string;
+    category?: string;
+    trade?: string;
+    dueDate?: string;
+    evidence?: Array<{ kind: string; label: string; capturedAt: string }>;
   },
 ) {
   const response = await fetch(
@@ -127,6 +132,11 @@ export async function submitObservation(
         title: input.title,
         description: 'Captured from the Orbita field mobile application.',
         location: input.area,
+        ...(input.description ? { description: input.description } : {}),
+        ...(input.category ? { category: input.category } : {}),
+        ...(input.trade ? { trade: input.trade } : {}),
+        ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+        ...(input.evidence?.length ? { evidence: input.evidence } : {}),
         priority: input.priority === 'High' ? 'high' : input.priority === 'Low' ? 'low' : 'normal',
         syncState: 'synced',
       }),

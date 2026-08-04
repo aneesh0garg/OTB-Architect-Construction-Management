@@ -29,6 +29,11 @@ type Observation = {
   id: string;
   title: string;
   area: string;
+  description: string;
+  category: string;
+  trade: string;
+  dueDate: string;
+  evidence: EvidenceReference[];
   priority: 'High' | 'Medium' | 'Low';
   state: 'Open' | 'In review' | 'Closed';
   sync: SyncState;
@@ -37,6 +42,11 @@ type Observation = {
   rfiId?: string;
   siteInstructionId?: string;
   comments: FieldComment[];
+};
+type EvidenceReference = {
+  kind: 'photo' | 'video' | 'voice_note' | 'drawing_reference';
+  label: string;
+  capturedAt: string;
 };
 type FieldComment = {
   id: string;
@@ -88,7 +98,17 @@ async function loadLocalObservations() {
     try {
       const observation = JSON.parse(row.payload) as Partial<Observation>;
       if (!observation.id || !observation.title) return [];
-      return [{ ...observation, comments: observation.comments ?? [] } as Observation];
+      return [
+        {
+          ...observation,
+          description: observation.description ?? '',
+          category: observation.category ?? '',
+          trade: observation.trade ?? '',
+          dueDate: observation.dueDate ?? '',
+          evidence: observation.evidence ?? [],
+          comments: observation.comments ?? [],
+        } as Observation,
+      ];
     } catch {
       return [];
     }
@@ -134,6 +154,11 @@ const initialObservations: Observation[] = [
     id: 'SO-018',
     title: 'Parapet waterproofing continuity',
     area: 'Roof level',
+    description: 'Confirm continuous waterproofing at the parapet upstand.',
+    category: 'Quality',
+    trade: 'Waterproofing',
+    dueDate: '',
+    evidence: [],
     priority: 'High',
     state: 'Open',
     sync: 'synced',
@@ -143,6 +168,11 @@ const initialObservations: Observation[] = [
     id: 'SO-017',
     title: 'Window sill level at unit 2B',
     area: 'Level 2',
+    description: 'Coordinate sill level with the approved façade detail.',
+    category: 'Coordination',
+    trade: 'Windows',
+    dueDate: '',
+    evidence: [],
     priority: 'Medium',
     state: 'In review',
     sync: 'synced',
@@ -152,6 +182,11 @@ const initialObservations: Observation[] = [
     id: 'SO-016',
     title: 'Temporary edge protection',
     area: 'Level 4',
+    description: 'Close-out record for corrected temporary protection.',
+    category: 'Safety',
+    trade: 'General',
+    dueDate: '',
+    evidence: [],
     priority: 'High',
     state: 'Closed',
     sync: 'synced',
@@ -180,6 +215,14 @@ export default function HomeScreen() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [visitCaptureOpen, setVisitCaptureOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [observationDescription, setObservationDescription] = useState('');
+  const [observationLocation, setObservationLocation] = useState('Current location');
+  const [observationCategory, setObservationCategory] = useState('Quality');
+  const [observationTrade, setObservationTrade] = useState('');
+  const [observationPriority, setObservationPriority] = useState<Observation['priority']>('Medium');
+  const [observationDueDate, setObservationDueDate] = useState('');
+  const [evidenceReference, setEvidenceReference] = useState('');
+  const [evidenceKind, setEvidenceKind] = useState<EvidenceReference['kind']>('photo');
   const [visitDate, setVisitDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [visitLocation, setVisitLocation] = useState('Riverside site');
   const [visitAttendees, setVisitAttendees] = useState('');
@@ -268,8 +311,21 @@ export default function HomeScreen() {
     const localRecord: Observation = {
       id: `SO-${String(19 + observations.length).padStart(3, '0')}`,
       title: cleanTitle,
-      area: 'Current location',
-      priority: 'Medium',
+      area: observationLocation.trim() || 'Current location',
+      description: observationDescription.trim(),
+      category: observationCategory.trim(),
+      trade: observationTrade.trim(),
+      dueDate: observationDueDate.trim(),
+      evidence: evidenceReference.trim()
+        ? [
+            {
+              kind: evidenceKind,
+              label: evidenceReference.trim(),
+              capturedAt: new Date().toISOString(),
+            },
+          ]
+        : [],
+      priority: observationPriority,
       state: 'Open',
       sync: 'local',
       comments: [],
@@ -278,6 +334,14 @@ export default function HomeScreen() {
     await persistObservation(localRecord);
     setSyncState('local');
     setTitle('');
+    setObservationDescription('');
+    setObservationLocation('Current location');
+    setObservationCategory('Quality');
+    setObservationTrade('');
+    setObservationPriority('Medium');
+    setObservationDueDate('');
+    setEvidenceReference('');
+    setEvidenceKind('photo');
     setCaptureOpen(false);
   };
   const addLocalComment = async (observation: Observation) => {
@@ -721,6 +785,106 @@ export default function HomeScreen() {
               placeholderTextColor="#758181"
               style={styles.input}
             />
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              value={observationDescription}
+              onChangeText={setObservationDescription}
+              multiline
+              placeholder="Describe the condition or requested action"
+              placeholderTextColor="#758181"
+              style={[styles.input, styles.notesInput]}
+            />
+            <Text style={styles.inputLabel}>Location</Text>
+            <TextInput
+              value={observationLocation}
+              onChangeText={setObservationLocation}
+              placeholder="Building, level, room, or zone"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Category and trade</Text>
+            <View style={styles.fieldRow}>
+              <TextInput
+                value={observationCategory}
+                onChangeText={setObservationCategory}
+                placeholder="Category"
+                placeholderTextColor="#758181"
+                style={[styles.input, styles.fieldHalf]}
+              />
+              <TextInput
+                value={observationTrade}
+                onChangeText={setObservationTrade}
+                placeholder="Trade"
+                placeholderTextColor="#758181"
+                style={[styles.input, styles.fieldHalf]}
+              />
+            </View>
+            <Text style={styles.inputLabel}>Priority</Text>
+            <View style={styles.priorityPicker}>
+              {(['Low', 'Medium', 'High'] as const).map((priority) => (
+                <Pressable
+                  key={priority}
+                  onPress={() => setObservationPriority(priority)}
+                  style={[
+                    styles.priorityOption,
+                    observationPriority === priority && styles.priorityOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.priorityOptionText,
+                      observationPriority === priority && styles.priorityOptionTextSelected,
+                    ]}
+                  >
+                    {priority}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.inputLabel}>Due date (optional)</Text>
+            <TextInput
+              value={observationDueDate}
+              onChangeText={setObservationDueDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Evidence or drawing reference (optional)</Text>
+            <TextInput
+              value={evidenceReference}
+              onChangeText={setEvidenceReference}
+              placeholder="e.g. Detail A-502 / parapet junction photo"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <View style={styles.evidencePicker}>
+              {(
+                [
+                  ['photo', 'Photo'],
+                  ['video', 'Video'],
+                  ['voice_note', 'Voice'],
+                  ['drawing_reference', 'Drawing'],
+                ] as const
+              ).map(([kind, label]) => (
+                <Pressable
+                  key={kind}
+                  onPress={() => setEvidenceKind(kind)}
+                  style={[
+                    styles.evidenceOption,
+                    evidenceKind === kind && styles.evidenceOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.evidenceOptionText,
+                      evidenceKind === kind && styles.evidenceOptionTextSelected,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <View style={styles.sheetActions}>
               <Pressable onPress={() => setCaptureOpen(false)} style={styles.cancelButton}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -897,6 +1061,19 @@ function ObservationCard({
         <Text style={styles.recordSync}>{observation.sync === 'synced' ? '✓' : '○'}</Text>
       </View>
       <Text style={styles.observationTitle}>{observation.title}</Text>
+      {(observation.category || observation.trade || observation.evidence.length > 0) && (
+        <Text style={styles.observationDetails}>
+          {[
+            observation.category,
+            observation.trade,
+            observation.evidence.length
+              ? `${observation.evidence.length} evidence reference${observation.evidence.length === 1 ? '' : 's'}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+      )}
       <View style={styles.observationFooter}>
         <Text style={styles.priorityText}>{observation.priority}</Text>
         {observation.taskId ? (
@@ -1116,6 +1293,7 @@ const styles = StyleSheet.create({
     color: '#22302c',
     fontWeight: '700',
   },
+  observationDetails: { marginTop: 4, fontSize: 10, color: '#75827f', lineHeight: 15 },
   observationFooter: {
     marginTop: 11,
     paddingTop: 10,
@@ -1214,6 +1392,32 @@ const styles = StyleSheet.create({
     color: '#1d2b27',
     fontSize: 14,
   },
+  fieldRow: { flexDirection: 'row', gap: 8 },
+  fieldHalf: { flex: 1 },
+  priorityPicker: { flexDirection: 'row', gap: 7 },
+  priorityOption: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dce8e4',
+    borderRadius: 7,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  priorityOptionSelected: { borderColor: '#176b58', backgroundColor: '#e8f4ee' },
+  priorityOptionText: { color: '#75827f', fontSize: 11, fontWeight: '700' },
+  priorityOptionTextSelected: { color: '#176b58' },
+  evidencePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  evidenceOption: {
+    borderWidth: 1,
+    borderColor: '#dce8e4',
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  evidenceOptionSelected: { borderColor: '#176b58', backgroundColor: '#e8f4ee' },
+  evidenceOptionText: { color: '#75827f', fontSize: 10, fontWeight: '700' },
+  evidenceOptionTextSelected: { color: '#176b58' },
   notesInput: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
   sheetActions: { marginTop: 14, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   cancelButton: { paddingVertical: 11, paddingHorizontal: 13 },

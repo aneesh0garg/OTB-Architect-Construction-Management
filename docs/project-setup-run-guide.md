@@ -200,6 +200,12 @@ an offline client using a `clientCommentId`. Field users can add a comment
 locally; the mobile sync queue creates the observation first, then its pending
 comments.
 
+The mobile **Capture observation** sheet also stores the description, location,
+category, trade, priority, optional due date, and one local evidence/drawing
+reference before it attempts network sync. Photo, video, and voice selection
+are classified as evidence references today; binary media capture/upload is a
+separate device-permission and file-processing increment.
+
 | Endpoint                                                            | Purpose                                                                          |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `GET /v1/projects/:projectId/observations/:observationId/comments`  | Return the permitted observation discussion in chronological order.              |
