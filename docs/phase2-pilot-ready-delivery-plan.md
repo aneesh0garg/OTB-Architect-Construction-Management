@@ -35,10 +35,10 @@ copying their scope.
 ### Product decisions
 
 - The organization is the tenant boundary; a project is the delivery boundary.
-- An **organization team** is reusable for staffing. A **project team** is an
-  explicit project roster with roles and record permissions. An organization
-  team may be added to a project, but changes to it do not silently alter a
-  project roster.
+- An **organization team** is reusable for staffing. A project has one
+  explicit **delivery team** with many members, project roles, and record
+  permissions. Changing the assigned delivery team is an explicit, auditable
+  action; it does not silently alter the project roster.
 - Practice financials and owner construction costs remain separate views.
 - Field capture stays mobile-first; formal review, administration, cost, and
   document control stay web-first.
@@ -93,8 +93,8 @@ copying their scope.
 | P2-ORG-003 | Show names, titles, and avatars—not internal identity identifiers—in user-facing surfaces. | Must | Project rosters, assignments, notifications, and record activity show a directory name. Stable IDs remain internal/auditable. |
 | P2-ORG-004 | Provide Users, roles, teams, offices, and project access administration. | Must | An organization administrator can inspect effective access, set a role, assign an organization team, and add/remove a project member. A project manager cannot grant privileges above their own authorization. |
 | P2-PROJ-001 | Deliver a Projects index with list and filtered views. | Must | Users can find permitted projects by status, lifecycle stage, manager, team, client, and health. Opening a project preserves the selected organization context. |
-| P2-PROJ-002 | Deliver a dedicated Project team & staffing page. | Must | A manager can add an individual or reusable organization team, set project role and responsibility, plan allocations by phase/date, see capacity conflicts, and remove project access. |
-| P2-PROJ-003 | Protect project membership from organization-team drift. | Should | Adding a team copies its current named members to the project roster. Later team changes display a suggested sync; no access changes occur without confirmation. |
+| P2-PROJ-002 | Deliver a dedicated Project team & staffing page. | Must | A manager can select one delivery team for a project, see all of its named members, set project role and responsibility, plan allocations by phase/date, see capacity conflicts, and remove project access. |
+| P2-PROJ-003 | Protect project membership from team drift. | Should | Selecting or replacing the one delivery team copies or reconciles its named members through a confirmation step. Later team changes display a suggested sync; no access changes occur without confirmation. |
 | P2-UX-001 | Make global navigation feel like a workspace, not a dashboard. | Must | Header: organization switcher, project switcher, search, create, AI, notifications, profile. Left navigation: Home, Firm, Projects, Administration. Mobile exposes equivalent destinations through an intentional compact navigation. |
 
 ### 5.2 2B — Controlled delivery

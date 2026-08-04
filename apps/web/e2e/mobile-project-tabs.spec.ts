@@ -92,6 +92,19 @@ test.describe('mobile project navigation', () => {
     await page.getByRole('button', { name: 'Close create project' }).click();
   });
 
+  test('keeps projects and teams visible in mobile workspace navigation', async ({ page }) => {
+    const projects = page.getByRole('button', { name: '◫ Projects' });
+    await expect(projects).toBeVisible();
+    await projects.click();
+    await expect(page.getByRole('dialog', { name: 'Projects' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close projects' }).click();
+
+    const teams = page.getByRole('button', { name: '◉ Teams' });
+    await expect(teams).toBeVisible();
+    await teams.click();
+    await expect(page.getByRole('dialog', { name: 'Teams' })).toBeVisible();
+  });
+
   test('keeps named project people and roles reachable on a phone viewport', async ({ page }) => {
     await page.getByRole('button', { name: 'Manage project people and roles' }).click();
     await expect(page.getByRole('dialog', { name: 'Project people and roles' })).toContainText(

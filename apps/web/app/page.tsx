@@ -93,6 +93,7 @@ export default function Home() {
   const [brainOpen, setBrainOpen] = useState(false);
   const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
   const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
+  const [mobileWorkspaceOpen, setMobileWorkspaceOpen] = useState<'projects' | 'teams'>();
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [staffingOpen, setStaffingOpen] = useState(false);
   const [projectPeopleOpen, setProjectPeopleOpen] = useState(false);
@@ -567,6 +568,13 @@ export default function Home() {
           )}
         </div>
       </section>
+      <MobileWorkspaceNavigation
+        activeView={view}
+        onHome={() => setView('overview')}
+        onOpenProjects={() => setMobileWorkspaceOpen('projects')}
+        onOpenTeams={() => setMobileWorkspaceOpen('teams')}
+        onCreateProject={() => setWorkspaceDialog('project')}
+      />
       {notificationSettingsOpen && (
         <NotificationSettings
           preferences={notificationPreferences}
@@ -604,6 +612,28 @@ export default function Home() {
           }}
         />
       )}
+      {mobileWorkspaceOpen && (
+        <MobileWorkspaceDirectory
+          kind={mobileWorkspaceOpen}
+          projects={projects}
+          activeProjectCode={project.code}
+          teams={teams}
+          signedIn={Boolean(viewer)}
+          onClose={() => setMobileWorkspaceOpen(undefined)}
+          onCreate={() => {
+            setMobileWorkspaceOpen(undefined);
+            setWorkspaceDialog(mobileWorkspaceOpen === 'projects' ? 'project' : 'team');
+          }}
+          onOpenProject={(projectId) => {
+            setMobileWorkspaceOpen(undefined);
+            return loadProjectViews(projectId);
+          }}
+          onOpenTeams={() => {
+            setMobileWorkspaceOpen(undefined);
+            setStaffingOpen(true);
+          }}
+        />
+      )}
       {pipelineOpen && (
         <PipelineDialog signedIn={Boolean(viewer)} onClose={() => setPipelineOpen(false)} />
       )}
@@ -621,6 +651,126 @@ export default function Home() {
         />
       )}
     </main>
+  );
+}
+
+function MobileWorkspaceNavigation({
+  activeView,
+  onHome,
+  onOpenProjects,
+  onOpenTeams,
+  onCreateProject,
+}: {
+  activeView: WorkspaceView;
+  onHome: () => void;
+  onOpenProjects: () => void;
+  onOpenTeams: () => void;
+  onCreateProject: () => void;
+}) {
+  return (
+    <nav className="mobile-workspace-nav" aria-label="Mobile workspace navigation">
+      <button
+        aria-current={activeView === 'overview' ? 'page' : undefined}
+        onClick={onHome}
+        type="button"
+      >
+        <span>⌂</span>Home
+      </button>
+      <button onClick={onOpenProjects} type="button">
+        <span>◫</span>Projects
+      </button>
+      <button onClick={onOpenTeams} type="button">
+        <span>◉</span>Teams
+      </button>
+      <button className="mobile-create-button" onClick={onCreateProject} type="button">
+        <span>＋</span>Create
+      </button>
+    </nav>
+  );
+}
+
+function MobileWorkspaceDirectory({
+  kind,
+  projects,
+  activeProjectCode,
+  teams,
+  signedIn,
+  onClose,
+  onCreate,
+  onOpenProject,
+  onOpenTeams,
+}: {
+  kind: 'projects' | 'teams';
+  projects: Array<{ id?: string; code: string; name: string; status: string }>;
+  activeProjectCode: string;
+  teams: string[];
+  signedIn: boolean;
+  onClose: () => void;
+  onCreate: () => void;
+  onOpenProject: (projectId: string) => Promise<void>;
+  onOpenTeams: () => void;
+}) {
+  const isProjects = kind === 'projects';
+  return (
+    <div className="mobile-directory-backdrop" role="presentation">
+      <section
+        className="mobile-directory-sheet"
+        aria-label={isProjects ? 'Projects' : 'Teams'}
+        aria-modal="true"
+        role="dialog"
+      >
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">WORKSPACE</p>
+            <h2>{isProjects ? 'Projects' : 'Teams'}</h2>
+          </div>
+          <button aria-label={`Close ${kind}`} className="icon-button" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        {isProjects ? (
+          <>
+            <p className="mobile-directory-copy">
+              {signedIn
+                ? 'Open a project or create a new delivery workspace.'
+                : 'Sign in to open your portfolio and create projects.'}
+            </p>
+            <div className="mobile-directory-list">
+              {projects.map((item) => (
+                <button
+                  aria-current={item.code === activeProjectCode ? 'page' : undefined}
+                  disabled={!item.id}
+                  key={item.code}
+                  onClick={() => item.id && void onOpenProject(item.id)}
+                  type="button"
+                >
+                  <span className="project-dot" />
+                  <span>
+                    <strong>{item.name}</strong>
+                    <small>{item.code} · {item.status}</small>
+                  </span>
+                  {item.code === activeProjectCode && <span>Current</span>}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mobile-directory-copy">
+              Organization teams are reusable staffing groups. Project membership and roles are managed within each project.
+            </p>
+            <div className="mobile-directory-list">
+              {teams.map((team) => <button key={team} onClick={onOpenTeams} type="button"><span>#</span><strong>{team}</strong><span>Open</span></button>)}
+              {!teams.length && <p className="settings-empty">No teams yet.</p>}
+            </div>
+            <button className="button-secondary mobile-directory-action" onClick={onOpenTeams} type="button">Manage people &amp; capacity</button>
+          </>
+        )}
+        <button className="button-primary mobile-directory-action" onClick={onCreate} type="button">
+          + New {isProjects ? 'project' : 'team'}
+        </button>
+      </section>
+    </div>
   );
 }
 
@@ -646,19 +796,14 @@ function ProjectPeopleDialog({
 }) {
   const [userId, setUserId] = useState('');
   const [people, setPeople] = useState<ResourcePerson[]>([]);
-  const [teams, setTeams] = useState<ResourceTeam[]>([]);
-  const [teamId, setTeamId] = useState('');
   const [role, setRole] = useState<ProjectCollaboratorRole>('project_member');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const members = record?.members ?? [];
   useEffect(() => {
     if (!signedIn) return;
-    Promise.all([loadResourcePeople(), loadResourceTeams()])
-      .then(([nextPeople, nextTeams]) => {
-        setPeople(nextPeople);
-        setTeams(nextTeams);
-      })
+    loadResourcePeople()
+      .then(setPeople)
       .catch((error: unknown) =>
         setMessage(error instanceof Error ? error.message : 'People directory could not be loaded.'),
       );
@@ -691,29 +836,6 @@ function ProjectPeopleDialog({
       setSaving(false);
     }
   };
-  const addTeam = async () => {
-    if (!record || !teamId) return;
-    const team = teams.find((item) => item.id === teamId);
-    if (!team || !team.members.length) {
-      setMessage('Choose a team with at least one person.');
-      return;
-    }
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await Promise.all(
-        team.members.map((member) =>
-          addProjectCollaborator(record.project.id, { userId: member.user_id, role }),
-        ),
-      );
-      setTeamId('');
-      await onChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Project team could not be assigned.');
-    } finally {
-      setSaving(false);
-    }
-  };
   return (
     <div className="dialog-backdrop" role="presentation">
       <section className="modal-card people-dialog" aria-label="Project people and roles" role="dialog" aria-modal="true">
@@ -728,7 +850,7 @@ function ProjectPeopleDialog({
           <p className="settings-empty">Sign in and select a connected project to manage its people and roles.</p>
         ) : (
           <>
-            <p className="people-dialog-copy">Project people are independent of organization teams. Add one person or bring in a reusable team; adding an existing member updates their role.</p>
+            <p className="people-dialog-copy">Project people have project-specific roles. Adding an existing member updates their role.</p>
             <form className="inline-form people-form" onSubmit={submit}>
               <label>
                 Person
@@ -745,18 +867,6 @@ function ProjectPeopleDialog({
               </label>
               <button className="button-primary" disabled={saving} type="submit">{saving ? 'Saving…' : 'Add person'}</button>
             </form>
-            {teams.length > 0 && (
-              <div className="team-assignment">
-                <label>
-                  Add organization team
-                  <select value={teamId} onChange={(event) => setTeamId(event.target.value)}>
-                    <option value="">Choose a team</option>
-                    {teams.map((team) => <option key={team.id} value={team.id}>{team.name} · {team.members.length} people</option>)}
-                  </select>
-                </label>
-                <button className="button-secondary" disabled={saving || !teamId} onClick={addTeam} type="button">Add team with selected role</button>
-              </div>
-            )}
             {message && <p className="form-message">{message}</p>}
             <div className="people-list">
               {members.map((member) => (
