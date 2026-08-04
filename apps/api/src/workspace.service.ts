@@ -495,8 +495,8 @@ export class WorkspaceService {
       [documentId, project.id, actor.organizationId],
     );
     const draft = this.resultRow(existing.rows, 'Document revision is unavailable.');
-    if (draft.status !== 'draft')
-      throw new BadRequestException('Only a draft document revision can be issued.');
+    if (!['draft', 'approved'].includes(draft.status))
+      throw new BadRequestException('Only a draft or approved document revision can be issued.');
     await this.pool.query(
       `UPDATE document_revisions SET status = 'superseded'
        WHERE project_id = $1 AND organization_id = $2 AND document_number = $3 AND status = 'issued'`,
@@ -517,6 +517,56 @@ export class WorkspaceService {
       revision: document.revision,
     });
     return document;
+  }
+  async reviewDocumentRevision(
+    actor: AuthenticatedActor,
+    projectId: string,
+    documentId: string,
+    input: { action: 'submit' | 'approve' | 'reject'; comment?: string },
+  ) {
+    const project = await this.projectForActor(actor, projectId);
+    const documentResult = await this.pool.query<DocumentRow>(
+      `SELECT id, document_number, document_type, title, revision, status, issue_date,
+        discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original
+       FROM document_revisions WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
+      [documentId, project.id, actor.organizationId],
+    );
+    const document = this.resultRow(documentResult.rows, 'Document revision is unavailable.');
+    const transitions = {
+      submit: { from: 'draft', to: 'internal_review' },
+      approve: { from: 'internal_review', to: 'approved' },
+      reject: { from: 'internal_review', to: 'draft' },
+    } as const;
+    const transition = transitions[input.action];
+    if (document.status !== transition.from)
+      throw new BadRequestException(`Document cannot be ${input.action}d from ${document.status}.`);
+    if (input.action !== 'submit')
+      this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
+    const updated = await this.pool.query<DocumentRow>(
+      `UPDATE document_revisions SET status = $1 WHERE id = $2 AND project_id = $3 AND organization_id = $4
+       RETURNING id, document_number, document_type, title, revision, status, issue_date,
+         discipline, building, floor, zone, content_sha256, storage_key IS NOT NULL AS has_original`,
+      [transition.to, document.id, project.id, actor.organizationId],
+    );
+    const reviewed = this.resultRow(updated.rows, 'Document review could not be recorded.');
+    await this.pool.query(
+      'INSERT INTO document_review_events (organization_id, project_id, document_id, action, comment, actor_id) VALUES ($1,$2,$3,$4,$5,$6)',
+      [
+        actor.organizationId,
+        project.id,
+        document.id,
+        input.action,
+        input.comment?.trim() || null,
+        actor.userId,
+      ],
+    );
+    await this.audit(actor, `document.review_${input.action}`, 'document_revision', document.id, {
+      projectId: project.id,
+      documentNumber: document.document_number,
+      revision: document.revision,
+      comment: input.comment?.trim() || null,
+    });
+    return reviewed;
   }
   async createTransmittal(
     actor: AuthenticatedActor,

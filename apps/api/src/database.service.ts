@@ -223,6 +223,13 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS document_annotations_document_idx ON document_annotations (document_id, created_at);
     `,
   },
+  {
+    id: '0018_document_review_events',
+    sql: `
+      CREATE TABLE IF NOT EXISTS document_review_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, document_id UUID NOT NULL REFERENCES document_revisions(id) ON DELETE CASCADE, action TEXT NOT NULL, comment TEXT, actor_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE INDEX IF NOT EXISTS document_review_events_document_idx ON document_review_events (document_id, created_at DESC);
+    `,
+  },
 ];
 
 @Injectable()

@@ -83,6 +83,10 @@ class CreateDocumentAnnotationDto {
   @IsOptional() @IsNumber() @Min(0) xPercent?: number;
   @IsOptional() @IsNumber() @Min(0) yPercent?: number;
 }
+class DocumentReviewDto {
+  @IsIn(['submit', 'approve', 'reject']) action!: 'submit' | 'approve' | 'reject';
+  @IsOptional() @IsString() @MaxLength(2000) comment?: string;
+}
 class CreateTransmittalDto {
   @IsString() @MinLength(2) @MaxLength(240) purpose!: string;
   @IsOptional() @IsString() @MaxLength(2000) issueNote?: string;
@@ -213,6 +217,14 @@ export class WorkspaceController {
     @Param('documentId') documentId: string,
   ) {
     return this.workspace.issueDocumentRevision(request.actor!, projectId, documentId);
+  }
+  @Post('projects/:projectId/documents/:documentId/review') reviewDocumentRevision(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Body() body: DocumentReviewDto,
+  ) {
+    return this.workspace.reviewDocumentRevision(request.actor!, projectId, documentId, body);
   }
   @Post('projects/:projectId/transmittals') createTransmittal(
     @Req() request: AuthenticatedRequest,

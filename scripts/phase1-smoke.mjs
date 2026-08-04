@@ -262,6 +262,20 @@ const uploadedDocument = await api('POST', `${projectPath}/documents`, {
   status: 'draft',
   uploadId: preparedUpload.uploadId,
 });
+const submittedDocument = await api(
+  'POST',
+  `${projectPath}/documents/${uploadedDocument.id}/review`,
+  { action: 'submit', comment: 'Ready for controlled issue.' },
+);
+assert.equal(submittedDocument.status, 'internal_review', 'Document was not submitted for review.');
+const approvedDocument = await api(
+  'POST',
+  `${projectPath}/documents/${uploadedDocument.id}/review`,
+  { action: 'approve', comment: 'Approved for issue.' },
+);
+assert.equal(approvedDocument.status, 'approved', 'Document was not approved.');
+const issuedDocument = await api('POST', `${projectPath}/documents/${uploadedDocument.id}/issue`);
+assert.equal(issuedDocument.status, 'issued', 'Approved document was not issued.');
 const download = await api('GET', `${projectPath}/documents/${uploadedDocument.id}/download`);
 const downloadedBody = await (await fetch(download.downloadUrl)).text();
 assert.equal(

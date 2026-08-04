@@ -45,6 +45,7 @@ import {
   recordProjectPayment,
   uploadProjectDocument,
   issueProjectDocument,
+  reviewProjectDocument,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
@@ -1816,6 +1817,7 @@ function Documents({
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
+  const [reviewingId, setReviewingId] = useState<string>();
   const [preview, setPreview] = useState<{
     title: string;
     url: string;
@@ -1866,6 +1868,26 @@ function Documents({
       setMessage(error instanceof Error ? error.message : 'Document revision could not be issued.');
     } finally {
       setIssuingId(undefined);
+    }
+  };
+  const review = async (
+    document: ProjectRecord['documents'][number],
+    action: 'submit' | 'approve' | 'reject',
+  ) => {
+    if (!record) return;
+    setReviewingId(document.id);
+    setMessage(undefined);
+    try {
+      await reviewProjectDocument(record.project.id, document.id, action);
+      await onChanged();
+      const label = { submit: 'submitted', approve: 'approved', reject: 'returned to draft' }[
+        action
+      ];
+      setMessage(`${document.document_number} · Rev ${document.revision} was ${label}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Document review could not be recorded.');
+    } finally {
+      setReviewingId(undefined);
     }
   };
   const openDocument = async (document: ProjectRecord['documents'][number]) => {
@@ -1965,6 +1987,33 @@ function Documents({
                   {document.document_type} · {document.status} · {document.issue_date ?? 'Unissued'}
                 </small>
                 {signedIn && document.status === 'draft' && (
+                  <button
+                    className="button-secondary record-action"
+                    disabled={reviewingId === document.id}
+                    onClick={() => void review(document, 'submit')}
+                  >
+                    {reviewingId === document.id ? 'Submitting…' : 'Submit for review'}
+                  </button>
+                )}
+                {signedIn && document.status === 'internal_review' && (
+                  <>
+                    <button
+                      className="button-secondary record-action"
+                      disabled={reviewingId === document.id}
+                      onClick={() => void review(document, 'approve')}
+                    >
+                      {reviewingId === document.id ? 'Approving…' : 'Approve'}
+                    </button>
+                    <button
+                      className="button-secondary record-action"
+                      disabled={reviewingId === document.id}
+                      onClick={() => void review(document, 'reject')}
+                    >
+                      Return to draft
+                    </button>
+                  </>
+                )}
+                {signedIn && ['draft', 'approved'].includes(document.status) && (
                   <button
                     className="button-secondary record-action"
                     disabled={issuingId === document.id}

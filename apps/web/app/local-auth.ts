@@ -532,6 +532,16 @@ export async function uploadProjectDocument(
 }
 export const issueProjectDocument = (projectId: string, documentId: string) =>
   apiPost(`/v1/workspace/projects/${projectId}/documents/${documentId}/issue`);
+export const reviewProjectDocument = (
+  projectId: string,
+  documentId: string,
+  action: 'submit' | 'approve' | 'reject',
+  comment?: string,
+) =>
+  apiPost(`/v1/workspace/projects/${projectId}/documents/${documentId}/review`, {
+    action,
+    comment,
+  });
 export const createProjectTask = (
   projectId: string,
   input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },
