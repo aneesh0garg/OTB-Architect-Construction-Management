@@ -13,7 +13,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'pnpm dev',
+    command: './node_modules/.bin/next dev --hostname 0.0.0.0',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

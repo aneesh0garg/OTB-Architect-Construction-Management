@@ -24,19 +24,20 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByTestId('project-tab-overview')).toHaveAttribute('aria-current', 'page');
   });
 
-  test('makes unavailable modules explicit rather than treating them as mobile navigation', async ({
-    page,
-  }) => {
+  test('keeps project record modules reachable on a phone viewport', async ({ page }) => {
     const documents = page.getByTestId('project-tab-documents');
     const tasks = page.getByTestId('project-tab-tasks');
     const communications = page.getByTestId('project-tab-communications');
     const costAndContracts = page.getByTestId('project-tab-cost-&-contracts');
 
-    await expect(documents).toBeDisabled();
-    await expect(documents).toHaveAttribute('title', 'Documents is planned for a later release');
-    await expect(tasks).toBeDisabled();
-    await expect(communications).toBeDisabled();
-    await expect(costAndContracts).toBeDisabled();
+    await documents.click();
+    await expect(page.getByTestId('project-view-documents')).toBeVisible();
+    await tasks.click();
+    await expect(page.getByTestId('project-view-tasks')).toBeVisible();
+    await communications.click();
+    await expect(page.getByTestId('project-view-communications')).toBeVisible();
+    await costAndContracts.click();
+    await expect(page.getByTestId('project-view-cost')).toBeVisible();
   });
 
   test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {

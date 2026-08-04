@@ -40,10 +40,10 @@ const projectNav: { label: string; icon: string; view?: WorkspaceView }[] = [
   { label: 'Overview', icon: '⌂', view: 'overview' },
   { label: 'Drawings', icon: '▧', view: 'drawings' },
   { label: 'Field work', icon: '⌖', view: 'field' },
-  { label: 'Documents', icon: '▤' },
-  { label: 'Tasks', icon: '✓' },
-  { label: 'Communications', icon: '◌' },
-  { label: 'Cost & contracts', icon: '₹' },
+  { label: 'Documents', icon: '▤', view: 'documents' },
+  { label: 'Tasks', icon: '✓', view: 'tasks' },
+  { label: 'Communications', icon: '◌', view: 'communications' },
+  { label: 'Cost & contracts', icon: '₹', view: 'cost' },
 ];
 
 export default function Home() {
@@ -368,10 +368,16 @@ export default function Home() {
               finance={financeControl}
               cost={costControl}
               onOpenBrain={() => setBrainOpen(true)}
+              onNavigate={setView}
+              onOpenFeed={() => setNotificationFeedOpen(true)}
             />
           )}
           {view === 'drawings' && <Drawings record={projectRecord} />}
           {view === 'field' && <FieldMobile execution={executionRegister} />}
+          {view === 'documents' && <Documents record={projectRecord} />}
+          {view === 'tasks' && <Tasks record={projectRecord} />}
+          {view === 'communications' && <Communications record={projectRecord} />}
+          {view === 'cost' && <CostContracts finance={financeControl} cost={costControl} />}
         </div>
       </section>
       {notificationSettingsOpen && (
@@ -868,11 +874,15 @@ function Overview({
   finance,
   cost,
   onOpenBrain,
+  onNavigate,
+  onOpenFeed,
 }: {
   record: ProjectRecord | undefined;
   finance: FinanceControl | undefined;
   cost: CostControl | undefined;
   onOpenBrain: () => void;
+  onNavigate: (view: WorkspaceView) => void;
+  onOpenFeed: () => void;
 }) {
   const project = workspaceData.activeProject;
   return (
@@ -894,7 +904,7 @@ function Overview({
               <p className="eyebrow">WORK QUEUE</p>
               <h2>Needs attention</h2>
             </div>
-            <button>View all →</button>
+            <button onClick={() => onNavigate('tasks')}>View all →</button>
           </div>
           <div className="task-list">
             {(record?.tasks ?? project.tasks).map((task) => (
@@ -923,7 +933,7 @@ function Overview({
               <p className="eyebrow">RECENT RECORD</p>
               <h2>Project activity</h2>
             </div>
-            <button>Open feed →</button>
+            <button onClick={onOpenFeed}>Open feed →</button>
           </div>
           <div className="activity-list">
             {project.activity.map((event) => (
@@ -944,7 +954,7 @@ function Overview({
             <p className="eyebrow">PROJECT RECORD</p>
             <h2>Issued evidence &amp; current information</h2>
           </div>
-          <button>Open documents →</button>
+          <button onClick={() => onNavigate('documents')}>Open documents →</button>
         </div>
         <div className="record-grid">
           <div>
@@ -971,7 +981,7 @@ function Overview({
               <p className="eyebrow">COMMERCIAL CONTROL</p>
               <h2>Fee, time &amp; collections</h2>
             </div>
-            <button>Open project control →</button>
+            <button onClick={() => onNavigate('cost')}>Open project control →</button>
           </div>
           <div className="commercial-metrics">
             <div>
@@ -1053,6 +1063,161 @@ function Overview({
           </footer>
         </section>
       </div>
+    </div>
+  );
+}
+
+function Documents({ record }: { record: ProjectRecord | undefined }) {
+  const documents = record?.documents ?? [];
+  return (
+    <div className="workspace-content">
+      <section className="content-card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">CONTROLLED PROJECT RECORD</p>
+            <h2>Documents</h2>
+          </div>
+          <span>{documents.length} records</span>
+        </div>
+        <div className="simple-record-list">
+          {documents.length ? (
+            documents.map((document) => (
+              <article key={document.id}>
+                <strong>
+                  {document.document_number} · Rev {document.revision}
+                </strong>
+                <span>{document.title}</span>
+                <small>
+                  {document.document_type} · {document.status} · {document.issue_date ?? 'Unissued'}
+                </small>
+              </article>
+            ))
+          ) : (
+            <p>No controlled documents are available until you sign in and select a project.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Tasks({ record }: { record: ProjectRecord | undefined }) {
+  const tasks = record?.tasks ?? [];
+  return (
+    <div className="workspace-content">
+      <section className="content-card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">PROJECT WORK</p>
+            <h2>Tasks</h2>
+          </div>
+          <span>{tasks.length} tasks</span>
+        </div>
+        <div className="simple-record-list">
+          {tasks.length ? (
+            tasks.map((task) => (
+              <article key={task.id}>
+                <strong>{task.title}</strong>
+                <span>
+                  {task.status.replaceAll('_', ' ')} · {task.priority}
+                </span>
+                <small>
+                  {task.due_date ? `Due ${task.due_date}` : 'No due date'} ·{' '}
+                  {task.assignee_id ?? 'Unassigned'}
+                </small>
+              </article>
+            ))
+          ) : (
+            <p>No connected project tasks are available.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Communications({ record }: { record: ProjectRecord | undefined }) {
+  const communications = record?.communications ?? [];
+  return (
+    <div className="workspace-content">
+      <section className="content-card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">FILED PROJECT MESSAGES</p>
+            <h2>Communications</h2>
+          </div>
+          <span>{communications.length} messages</span>
+        </div>
+        <div className="simple-record-list">
+          {communications.length ? (
+            communications.map((message) => (
+              <article key={message.id}>
+                <strong>{message.subject}</strong>
+                <span>
+                  {message.channel} · {message.sender}
+                </span>
+                <small>Filed {new Date(message.filed_at).toLocaleString()}</small>
+              </article>
+            ))
+          ) : (
+            <p>No filed communications are available for this project.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CostContracts({
+  finance,
+  cost,
+}: {
+  finance: FinanceControl | undefined;
+  cost: CostControl | undefined;
+}) {
+  return (
+    <div className="workspace-content">
+      <section className="content-card">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">COMMERCIAL CONTROL</p>
+            <h2>Cost &amp; contracts</h2>
+          </div>
+        </div>
+        <div className="record-grid">
+          <div>
+            <span>Planned fee</span>
+            <strong>
+              {finance ? `₹${finance.health.plannedFee.toLocaleString('en-IN')}` : '—'}
+            </strong>
+            <small>
+              {finance
+                ? `${finance.health.loggedHours} logged hours`
+                : 'Sign in to load financial controls'}
+            </small>
+          </div>
+          <div>
+            <span>Invoiced / paid</span>
+            <strong>
+              {finance
+                ? `₹${finance.health.invoiced.toLocaleString('en-IN')} / ₹${finance.health.paid.toLocaleString('en-IN')}`
+                : '—'}
+            </strong>
+            <small>
+              {finance ? `₹${finance.health.outstanding.toLocaleString('en-IN')} outstanding` : ''}
+            </small>
+          </div>
+          <div>
+            <span>Owner cost forecast</span>
+            <strong>
+              {cost ? `₹${cost.health.forecastAtCompletion.toLocaleString('en-IN')}` : '—'}
+            </strong>
+            <small>
+              {cost ? `Variance ₹${cost.health.forecastVariance.toLocaleString('en-IN')}` : ''}
+            </small>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

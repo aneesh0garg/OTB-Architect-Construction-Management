@@ -1,4 +1,5 @@
-export type WorkspaceView = 'overview' | 'drawings' | 'field';
+export type WorkspaceView =
+  'overview' | 'drawings' | 'field' | 'documents' | 'tasks' | 'communications' | 'cost';
 
 export const workspaceData = {
   organization: {

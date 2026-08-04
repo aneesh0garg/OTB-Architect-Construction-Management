@@ -451,10 +451,10 @@ pnpm test
 
 ## Web mobile UI checks
 
-The web workspace has Playwright coverage for the three currently available
-project tabs (Overview, Drawings, and Field work) at a phone viewport. It also
-asserts that future modules remain visibly disabled, rather than appearing as
-unresponsive controls.
+The web workspace has Playwright coverage for the project tabs at a phone
+viewport: Overview, Drawings, Field work, Documents, Tasks, Communications,
+and Cost & contracts. Every visible project tab must change to its matching
+view; a module must not be presented as an inert control.
 
 The top-bar settings control opens a responsive **Notification settings**
 sheet. Signed-in users can set a default or event-specific delivery preference
