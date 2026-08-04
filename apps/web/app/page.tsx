@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { beginLocalLogin, restoreLocalLogin, signOutLocal, type Viewer } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -19,11 +20,29 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>('system');
   const [view, setView] = useState<WorkspaceView>('overview');
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [viewer, setViewer] = useState<Viewer>();
+  const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    restoreLocalLogin()
+      .then((identity) => {
+        if (identity) {
+          setViewer(identity);
+          setAuthMessage('Connected to local workspace');
+        }
+      })
+      .catch((error: unknown) =>
+        setAuthMessage(error instanceof Error ? error.message : 'Local sign-in is unavailable.'),
+      );
+  }, []);
+
+  const initials = viewer
+    ? viewer.userId.slice(0, 2).toUpperCase()
+    : workspaceData.organization.user.initials;
 
   return (
     <main className="workspace-shell">
@@ -45,7 +64,7 @@ export default function Home() {
         </button>
         <div className="rail-spacer" />
         <button className="avatar avatar-small" aria-label="Your profile">
-          {workspaceData.organization.user.initials}
+          {initials}
         </button>
       </aside>
 
@@ -112,10 +131,14 @@ export default function Home() {
             <small>Search project evidence with citations</small>
           </button>
           <button className="user-card">
-            <span className="avatar">{workspaceData.organization.user.initials}</span>
+            <span className="avatar">{initials}</span>
             <span>
-              <strong>{workspaceData.organization.user.name}</strong>
-              <small>{workspaceData.organization.user.role}</small>
+              <strong>
+                {viewer ? 'Signed-in workspace' : workspaceData.organization.user.name}
+              </strong>
+              <small>
+                {viewer ? viewer.roles.join(' · ') : workspaceData.organization.user.role}
+              </small>
             </span>
             <span>⋮</span>
           </button>
@@ -138,6 +161,20 @@ export default function Home() {
             <button className="icon-button" aria-label="Project activity">
               ◔
             </button>
+            <button
+              className="auth-button"
+              onClick={() =>
+                viewer
+                  ? (signOutLocal(), setViewer(undefined), setAuthMessage('Demo workspace'))
+                  : beginLocalLogin().catch((error: unknown) =>
+                      setAuthMessage(
+                        error instanceof Error ? error.message : 'Unable to start sign-in.',
+                      ),
+                    )
+              }
+            >
+              {viewer ? 'Sign out' : 'Sign in'}
+            </button>
             <select
               value={theme}
               onChange={(event) => setTheme(event.target.value as Theme)}
@@ -149,6 +186,9 @@ export default function Home() {
             </select>
           </div>
         </header>
+        <div className={viewer ? 'connection-banner connected' : 'connection-banner'}>
+          {viewer ? `Authenticated as ${viewer.organizationId}` : authMessage}
+        </div>
         <div className="project-header">
           <div>
             <p className="eyebrow">

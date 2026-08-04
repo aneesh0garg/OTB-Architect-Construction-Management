@@ -52,6 +52,17 @@ The imported local realm contains a development-only user:
 These credentials exist only for local development. Do not use them in a pilot,
 staging, or production environment.
 
+## Signing in to the local web workspace
+
+Open `http://localhost:3000`, select **Sign in**, and use the local pilot
+account above at Keycloak. The web client uses the Authorization Code flow with
+PKCE; the resulting access token lives only in the browser session and is used
+to call the tenant-scoped API. Selecting **Sign out** clears that session token.
+
+The workspace is intentionally viewable as a demo without signing in, but any
+API-backed action requires a valid local Keycloak session. `WEB_ORIGIN` defines
+the CORS allow-list for local web development.
+
 ## Workspace API quick check
 
 The workspace API requires a Keycloak access token. The following obtains a

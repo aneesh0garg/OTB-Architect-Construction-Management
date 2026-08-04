@@ -366,6 +366,31 @@ small {
   color: var(--text);
   border-radius: 7px;
 }
+.auth-button {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+.auth-button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.connection-banner {
+  padding: 6px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--raised-strong);
+  color: var(--muted);
+  font-size: 10px;
+}
+.connection-banner.connected {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+}
 .project-header {
   padding: 28px 32px 22px;
   display: flex;
@@ -1007,6 +1032,9 @@ small {
   .topbar {
     height: 55px;
     padding: 0 16px;
+  }
+  .connection-banner {
+    padding: 6px 16px;
   }
   .crumbs span,
   .crumbs b,
