@@ -6,6 +6,8 @@ import { ConstructionController } from './construction.controller.js';
 import { ConstructionService } from './construction.service.js';
 import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
+import { GmailController } from './gmail.controller.js';
+import { GmailService } from './gmail.service.js';
 import { FinanceController } from './finance.controller.js';
 import { FinanceService } from './finance.service.js';
 import { WorkspaceController } from './workspace.controller.js';
@@ -19,7 +21,15 @@ import { WorkspaceService } from './workspace.service.js';
     ConstructionController,
     FinanceController,
     AiController,
+    GmailController,
   ],
-  providers: [KeycloakAuthGuard, WorkspaceService, ConstructionService, FinanceService, AiService],
+  providers: [
+    KeycloakAuthGuard,
+    WorkspaceService,
+    ConstructionService,
+    FinanceService,
+    AiService,
+    GmailService,
+  ],
 })
 export class AppModule {}

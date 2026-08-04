@@ -178,6 +178,35 @@ policy checks, retrievals, draft creation, and approvals in the AI audit table.
 Adding a model provider requires a separate provider configuration, data-
 processing review, prompt/output retention control, and evaluation gate.
 
+## Gmail / Google Workspace connection
+
+Gmail is opt-in by organization and is not configured in a fresh local clone.
+Create an OAuth 2.0 web client in the Google Cloud project, configure its
+consent screen and redirect URI, then set these values in `.env`:
+
+```bash
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+GMAIL_REDIRECT_URI=http://localhost:3001/v1/integrations/gmail/callback
+INTEGRATION_TOKEN_KEY=<long random secret>
+```
+
+`INTEGRATION_TOKEN_KEY` is required before a refresh token can be stored. The
+API encrypts refresh tokens with AES-256-GCM and short-lived OAuth state expires
+after ten minutes.
+
+| Endpoint                                               | Purpose                                                                       |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `GET /v1/integrations/gmail`                           | List organization-authorized Gmail connections without returning credentials. |
+| `POST /v1/integrations/gmail/connect`                  | Create a one-time OAuth state and return the Google authorization URL.        |
+| `GET /v1/integrations/gmail/callback`                  | Exchange the authorization code and store the encrypted refresh token.        |
+| `POST /v1/integrations/gmail/:connectionId/disconnect` | Stop future synchronization without deleting already filed project records.   |
+
+The requested scopes are read-only, compose, and send. The implementation does
+not import an entire mailbox by default. Email becomes part of the project record
+only through explicit user filing; the existing communications endpoint retains
+its project link, Gmail thread/message identifiers, and filing audit trail.
+
 ## Quality checks
 
 ```bash
