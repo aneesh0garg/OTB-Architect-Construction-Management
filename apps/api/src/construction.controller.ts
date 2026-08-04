@@ -38,8 +38,16 @@ class ObservationDto {
   @IsOptional() @IsISO8601() dueDate?: string;
 }
 class WorkflowDto {
-  @IsIn(['rfi', 'submittal', 'site_instruction', 'meeting_minutes', 'decision']) recordType!:
-    'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
+  @IsIn([
+    'rfi',
+    'submittal',
+    'site_instruction',
+    'meeting_minutes',
+    'site_visit_report',
+    'decision',
+  ])
+  recordType!:
+    'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'site_visit_report' | 'decision';
   @IsString() @MinLength(2) @MaxLength(240) title!: string;
   @IsOptional() @IsObject() data?: Record<string, unknown>;
 }

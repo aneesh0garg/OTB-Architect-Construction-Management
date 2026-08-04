@@ -6,7 +6,8 @@ import { ProjectAccessService } from './project-access.service.js';
 import { AuditService } from './audit.service.js';
 import { NotificationService } from './notification.service.js';
 
-type WorkflowType = 'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
+type WorkflowType =
+  'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'site_visit_report' | 'decision';
 interface FieldVisitRow extends QueryResultRow {
   id: string;
   visit_date: string;
@@ -129,6 +130,8 @@ export class ConstructionService {
     input: CreateWorkflowInput,
   ) {
     await this.authorizeProject(actor, projectId);
+    if (input.recordType === 'site_visit_report')
+      await this.assertSiteVisitReportSources(actor, projectId, input.data);
     const status = workflowStates[input.recordType][0];
     const result = await this.pool.query<WorkflowRow>(
       'INSERT INTO workflow_records (organization_id, project_id, record_type, title, status, data, created_by) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7) RETURNING id, record_type, record_number, title, status, data, issued_at',
@@ -199,6 +202,36 @@ export class ConstructionService {
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
     await this.projectAccess.requireAccess(actor, projectId);
   }
+  private async assertSiteVisitReportSources(
+    actor: AuthenticatedActor,
+    projectId: string,
+    data: Record<string, unknown> | undefined,
+  ) {
+    const fieldVisitId = data?.fieldVisitId;
+    const observationIds = data?.observationIds;
+    if (
+      typeof fieldVisitId !== 'string' ||
+      !isUuid(fieldVisitId) ||
+      !Array.isArray(observationIds) ||
+      observationIds.length === 0 ||
+      !observationIds.every((id): id is string => typeof id === 'string' && isUuid(id))
+    ) {
+      throw new BadRequestException(
+        'A site visit report requires one field visit and at least one selected observation.',
+      );
+    }
+    const visit = await this.pool.query(
+      'SELECT id FROM field_visits WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      [fieldVisitId, projectId, actor.organizationId],
+    );
+    if (!visit.rows[0]) throw new BadRequestException('The selected field visit is unavailable.');
+    const observations = await this.pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM observations WHERE id = ANY($1::uuid[]) AND project_id = $2 AND organization_id = $3',
+      [observationIds, projectId, actor.organizationId],
+    );
+    if (Number(observations.rows[0]?.count) !== new Set(observationIds).size)
+      throw new BadRequestException('One or more selected observations are unavailable.');
+  }
 }
 export interface CreateFieldVisitInput {
   visitDate: string;
@@ -249,6 +282,7 @@ const workflowStates: Record<WorkflowType, string[]> = {
   ],
   site_instruction: ['draft', 'issued', 'acknowledged', 'completed', 'verified', 'closed'],
   meeting_minutes: ['draft', 'internal_review', 'issued', 'superseded', 'archived'],
+  site_visit_report: ['draft', 'internal_review', 'issued', 'acknowledged', 'archived'],
   decision: ['draft', 'pending_approval', 'decided', 'closed'],
 };
 const requiredText = (value: string, label: string) => {
@@ -262,10 +296,25 @@ const row = <T extends QueryResultRow>(rows: T[], message: string) => {
   return value;
 };
 const issuedStatus = (type: WorkflowType) =>
-  type === 'rfi' || type === 'site_instruction' || type === 'meeting_minutes'
+  type === 'rfi' ||
+  type === 'site_instruction' ||
+  type === 'meeting_minutes' ||
+  type === 'site_visit_report'
     ? 'issued'
     : 'submitted';
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const validTransition = (type: WorkflowType, current: string, next: string) => {
+  if (type === 'site_visit_report') {
+    const reportTransitions: Record<string, string[]> = {
+      draft: ['internal_review'],
+      internal_review: ['issued', 'archived'],
+      issued: ['acknowledged', 'archived'],
+      acknowledged: ['archived'],
+      archived: [],
+    };
+    return reportTransitions[current]?.includes(next) ?? false;
+  }
   const states = workflowStates[type];
   if (!states.includes(next) || current === 'closed' || current === 'archived') return false;
   if (next === 'reopened') return ['answered', 'closed'].includes(current);

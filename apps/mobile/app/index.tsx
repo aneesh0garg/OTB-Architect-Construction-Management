@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  createSiteVisitReport,
   createObservationTask,
   type MobileSession,
   restoreSession,
@@ -41,6 +42,8 @@ type FieldVisit = {
   checklist: string[];
   notes: string;
   sync: SyncState;
+  serverId?: string;
+  reportId?: string;
 };
 
 const fieldDatabase = SQLite.openDatabaseAsync('orbita-field.db');
@@ -170,6 +173,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<MobileTab>('field');
   const [session, setSession] = useState<MobileSession>();
   const [accountError, setAccountError] = useState<string>();
+  const [selectedReportObservationIds, setSelectedReportObservationIds] = useState<string[]>([]);
   const openCount = useMemo(
     () => observations.filter((item) => item.state !== 'Closed').length,
     [observations],
@@ -303,6 +307,42 @@ export default function HomeScreen() {
       setAccountError(error instanceof Error ? error.message : 'Task creation failed.');
     }
   };
+  const toggleReportObservation = (observation: Observation) => {
+    if (!observation.serverId || observation.sync !== 'synced') return;
+    setSelectedReportObservationIds((current) =>
+      current.includes(observation.serverId!)
+        ? current.filter((id) => id !== observation.serverId)
+        : [...current, observation.serverId!],
+    );
+  };
+  const createReportFromVisit = async (visit: FieldVisit) => {
+    if (!session) {
+      setAccountError('Sign in before preparing a site-visit report.');
+      return;
+    }
+    if (!visit.serverId || visit.sync !== 'synced') {
+      setAccountError('Sync the site visit before preparing its report.');
+      return;
+    }
+    if (selectedReportObservationIds.length === 0) {
+      setAccountError('Select at least one synchronized observation for the report.');
+      return;
+    }
+    try {
+      const report = await createSiteVisitReport(session, {
+        visitId: visit.serverId,
+        visitDate: visit.visitDate,
+        location: visit.location,
+        observationIds: selectedReportObservationIds,
+      });
+      const updated = { ...visit, reportId: report.id };
+      setVisits((current) => current.map((item) => (item.id === visit.id ? updated : item)));
+      await persistFieldVisit(updated);
+      setSelectedReportObservationIds([]);
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Report creation failed.');
+    }
+  };
   const retrySync = async () => {
     if (!session) {
       setAccountError('Sign in before syncing field captures.');
@@ -313,19 +353,25 @@ export default function HomeScreen() {
     const queuedObservations = observations.filter((item) => item.sync !== 'synced');
     const queuedVisits = visits.filter((visit) => visit.sync !== 'synced');
     try {
+      const visitResults = await Promise.all(
+        queuedVisits.map(async (item) => ({ item, server: await submitFieldVisit(session, item) })),
+      );
       const observationResults = await Promise.all(
         queuedObservations.map(async (item) => ({
           item,
           server: await submitObservation(session, item),
         })),
       );
-      await Promise.all(queuedVisits.map((visit) => submitFieldVisit(session, visit)));
       const syncedObservations = observationResults.map(({ item, server }) => ({
         ...item,
         serverId: server.id,
         sync: 'synced' as const,
       }));
-      const syncedVisits = queuedVisits.map((visit) => ({ ...visit, sync: 'synced' as const }));
+      const syncedVisits = visitResults.map(({ item, server }) => ({
+        ...item,
+        serverId: server.id,
+        sync: 'synced' as const,
+      }));
       await Promise.all([
         ...syncedObservations.map(persistObservation),
         ...syncedVisits.map(persistFieldVisit),
@@ -448,7 +494,12 @@ export default function HomeScreen() {
                 </View>
               </View>
               {visits.slice(0, 2).map((visit) => (
-                <FieldVisitCard key={visit.id} visit={visit} />
+                <FieldVisitCard
+                  key={visit.id}
+                  visit={visit}
+                  selectedObservationCount={selectedReportObservationIds.length}
+                  onCreateReport={() => createReportFromVisit(visit)}
+                />
               ))}
             </>
           )}
@@ -466,7 +517,11 @@ export default function HomeScreen() {
               key={observation.id}
               observation={observation}
               {...(observation.serverId && observation.sync === 'synced'
-                ? { onCreateTask: () => createTaskFromObservation(observation) }
+                ? {
+                    onCreateTask: () => createTaskFromObservation(observation),
+                    selectedForReport: selectedReportObservationIds.includes(observation.serverId),
+                    onToggleReport: () => toggleReportObservation(observation),
+                  }
                 : {})}
             />
           ))}
@@ -656,9 +711,13 @@ export default function HomeScreen() {
 function ObservationCard({
   observation,
   onCreateTask,
+  selectedForReport = false,
+  onToggleReport,
 }: {
   observation: Observation;
   onCreateTask?: () => void;
+  selectedForReport?: boolean;
+  onToggleReport?: () => void;
 }) {
   return (
     <View style={styles.observationCard}>
@@ -694,11 +753,26 @@ function ObservationCard({
           <Text style={styles.taskActionText}>Create task</Text>
         </Pressable>
       )}
+      {onToggleReport && (
+        <Pressable accessibilityRole="button" onPress={onToggleReport} style={styles.reportAction}>
+          <Text style={styles.reportActionText}>
+            {selectedForReport ? 'Included in report' : 'Include in report'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
 
-function FieldVisitCard({ visit }: { visit: FieldVisit }) {
+function FieldVisitCard({
+  visit,
+  selectedObservationCount,
+  onCreateReport,
+}: {
+  visit: FieldVisit;
+  selectedObservationCount: number;
+  onCreateReport: () => void;
+}) {
   return (
     <View style={styles.observationCard}>
       <View style={styles.observationTop}>
@@ -712,6 +786,15 @@ function FieldVisitCard({ visit }: { visit: FieldVisit }) {
         <Text style={styles.priorityText}>{visit.weather || 'Weather not recorded'}</Text>
         <Text style={styles.recordState}>{visit.checklist.length} checklist items</Text>
       </View>
+      {visit.reportId ? (
+        <Text style={styles.reportReady}>Report draft ready for review</Text>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={onCreateReport} style={styles.reportAction}>
+          <Text style={styles.reportActionText}>
+            Draft report ({selectedObservationCount} selected)
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -872,6 +955,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f4ee',
   },
   taskActionText: { color: '#176b58', fontSize: 10, fontWeight: '800' },
+  reportAction: {
+    alignSelf: 'flex-start',
+    marginTop: 11,
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    backgroundColor: '#edf6f3',
+  },
+  reportActionText: { color: '#176b58', fontSize: 10, fontWeight: '800' },
+  reportReady: { marginTop: 11, color: '#176b58', fontSize: 10, fontWeight: '800' },
   emptyState: { paddingTop: 8, color: '#6f7e7a', fontSize: 12, lineHeight: 18 },
   captureButton: {
     position: 'absolute',

@@ -199,3 +199,27 @@ export async function createObservationTask(
   if (!response.ok) throw new Error('The observation task could not be created.');
   return response.json() as Promise<{ id: string; title: string; status: string }>;
 }
+
+export async function createSiteVisitReport(
+  session: MobileSession,
+  input: { visitId: string; visitDate: string; location: string; observationIds: string[] },
+) {
+  const response = await fetch(`${requiredApiUrl()}/v1/projects/${session.projectId}/workflows`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${session.accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      recordType: 'site_visit_report',
+      title: `Site visit report · ${input.visitDate} · ${input.location}`,
+      data: {
+        fieldVisitId: input.visitId,
+        observationIds: input.observationIds,
+        generatedFrom: 'mobile_field_capture',
+      },
+    }),
+  });
+  if (!response.ok) throw new Error('The site-visit report draft could not be created.');
+  return response.json() as Promise<{ id: string; status: string }>;
+}

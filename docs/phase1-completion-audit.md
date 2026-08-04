@@ -10,18 +10,18 @@ operation has occurred.
 
 ## Verified local delivery
 
-| Area                                                   | Evidence                                                                                                                                                        |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identity, organization, roles, external project access | Keycloak guard, project membership enforcement, add/revoke collaborator APIs, and audit events.                                                                 |
-| Users, teams, capacity                                 | People directory, team roster/assignment APIs, capacity calculation, and authenticated project roster.                                                          |
-| Pipeline and proposals                                 | Opportunities, versioned proposals, fee phases, initial staffing, and transactional proposal-to-project conversion.                                             |
-| Lifecycle and planning                                 | Standard delivery stages, auditable stage/status transitions, fee phases, staff allocations, and governed task transitions.                                     |
-| Documents and drawings                                 | Direct S3/MinIO upload, batch preparation, SHA-256 integrity verification, revision supersession, site-context metadata, signed download, and 2D viewer.        |
-| Field and execution                                    | Durable mobile observation capture/sync, site visits, observations, RFIs, submittals, instructions, meetings, decisions, and state transitions.                 |
-| Commercial and owner cost                              | Fee/time ledger, GST invoices, payments, owner budgets, commitments, change events, forecast, and CSV exports.                                                  |
-| Communications and notifications                       | Manual project filing, native notifications, Gmail OAuth/file/send boundary, and explicit WhatsApp Business Phase 2 boundary.                                   |
-| AI governance                                          | Organization opt-in, permission-aware cited retrieval, review-required drafts, approval/rejection, administrator export/deletion controls, and AI audit events. |
-| Portability and audit                                  | Project/commercial CSV exports, portable `orbita-project-record/v1` JSON manifest, project/organization audit feeds.                                            |
+| Area                                                   | Evidence                                                                                                                                                                                                        |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity, organization, roles, external project access | Keycloak guard, project membership enforcement, add/revoke collaborator APIs, and audit events.                                                                                                                 |
+| Users, teams, capacity                                 | People directory, team roster/assignment APIs, capacity calculation, and authenticated project roster.                                                                                                          |
+| Pipeline and proposals                                 | Opportunities, versioned proposals, fee phases, initial staffing, and transactional proposal-to-project conversion.                                                                                             |
+| Lifecycle and planning                                 | Standard delivery stages, auditable stage/status transitions, fee phases, staff allocations, and governed task transitions.                                                                                     |
+| Documents and drawings                                 | Direct S3/MinIO upload, batch preparation, SHA-256 integrity verification, revision supersession, site-context metadata, signed download, and 2D viewer.                                                        |
+| Field and execution                                    | Durable mobile observation capture/sync, site visits, selected-observation report drafts, review → issue → acknowledgment controls, RFIs, submittals, instructions, meetings, decisions, and state transitions. |
+| Commercial and owner cost                              | Fee/time ledger, GST invoices, payments, owner budgets, commitments, change events, forecast, and CSV exports.                                                                                                  |
+| Communications and notifications                       | Manual project filing, native notifications, Gmail OAuth/file/send boundary, and explicit WhatsApp Business Phase 2 boundary.                                                                                   |
+| AI governance                                          | Organization opt-in, permission-aware cited retrieval, review-required drafts, approval/rejection, administrator export/deletion controls, and AI audit events.                                                 |
+| Portability and audit                                  | Project/commercial CSV exports, portable `orbita-project-record/v1` JSON manifest, project/organization audit feeds.                                                                                            |
 
 `scripts/phase1-smoke.mjs` creates a tenant-scoped project through the pipeline
 conversion route and exercises every area above, including authentication,

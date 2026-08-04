@@ -321,6 +321,42 @@ const repeatedObservation = await api('POST', `/v1/projects/${project.id}/observ
   syncState: 'synced',
 });
 assert.equal(repeatedObservation.id, observation.id, 'Mobile capture retry was not idempotent.');
+const fieldVisit = await api('POST', `/v1/projects/${project.id}/field-visits`, {
+  clientCaptureId: `smoke-visit-${runId}`,
+  visitDate: '2026-08-04',
+  location: 'Level 2 facade',
+  attendees: ['Pilot administrator'],
+  checklist: [{ label: 'Facade reviewed', complete: true }],
+  notes: 'Source visit for the smoke report.',
+  syncState: 'synced',
+});
+const report = await api('POST', `/v1/projects/${project.id}/workflows`, {
+  recordType: 'site_visit_report',
+  title: `Facade site visit report ${runId}`,
+  data: { fieldVisitId: fieldVisit.id, observationIds: [observation.id] },
+});
+assert.equal(report.status, 'draft', 'Site-visit report did not start as a reviewable draft.');
+const reviewedReport = await api(
+  'POST',
+  `/v1/projects/${project.id}/workflows/${report.id}/transitions`,
+  { status: 'internal_review', note: 'Reviewed by smoke workflow.' },
+);
+assert.equal(reviewedReport.status, 'internal_review');
+const issuedReport = await api(
+  'POST',
+  `/v1/projects/${project.id}/workflows/${report.id}/transitions`,
+  {
+    status: 'issued',
+    note: 'Issued by smoke workflow.',
+  },
+);
+assert.equal(issuedReport.status, 'issued');
+const acknowledgedReport = await api(
+  'POST',
+  `/v1/projects/${project.id}/workflows/${report.id}/transitions`,
+  { status: 'acknowledged', note: 'Owner acknowledgement recorded by smoke workflow.' },
+);
+assert.equal(acknowledgedReport.status, 'acknowledged');
 const rfi = await api('POST', `/v1/projects/${project.id}/workflows`, {
   recordType: 'rfi',
   title: `Facade cavity RFI ${runId}`,

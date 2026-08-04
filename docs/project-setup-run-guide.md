@@ -197,13 +197,13 @@ their sync status, visible. The server accepts idempotent field captures
 through a client capture ID, so a device can retry safely after a connectivity
 interruption.
 
-| Endpoint                                                       | Purpose                                                                                                     |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `POST /v1/projects/:projectId/field-visits`                    | Create or retry a site-visit capture with attendees, weather, checklist, notes, and sync state.             |
-| `POST /v1/projects/:projectId/observations`                    | Create or retry an observation with location, trade, priority, evidence metadata, assignee, and sync state. |
-| `POST /v1/projects/:projectId/workflows`                       | Create an RFI, submittal, site instruction, meeting minutes, or decision record.                            |
-| `POST /v1/projects/:projectId/workflows/:recordId/transitions` | Apply an auditable, state-model-validated workflow transition.                                              |
-| `GET /v1/projects/:projectId/execution-register`               | Read field and construction-administration registers.                                                       |
+| Endpoint                                                       | Purpose                                                                                                                                                                                                               |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/projects/:projectId/field-visits`                    | Create or retry a site-visit capture with attendees, weather, checklist, notes, and sync state.                                                                                                                       |
+| `POST /v1/projects/:projectId/observations`                    | Create or retry an observation with location, trade, priority, evidence metadata, assignee, and sync state.                                                                                                           |
+| `POST /v1/projects/:projectId/workflows`                       | Create an RFI, submittal, site instruction, meeting minutes, site-visit report, or decision record. A site-visit report must reference one project visit and one or more selected project observations.               |
+| `POST /v1/projects/:projectId/workflows/:recordId/transitions` | Apply an auditable, state-model-validated workflow transition. Site-visit reports require `draft → internal_review → issued → acknowledged`; each recorded transition provides the approval/acknowledgement evidence. |
+| `GET /v1/projects/:projectId/execution-register`               | Read field and construction-administration registers.                                                                                                                                                                 |
 
 Start the mobile field app with `pnpm --filter @orbita/mobile dev`, then use
 Expo Go or an iOS/Android simulator. “Capture observation” and “Start” a site
