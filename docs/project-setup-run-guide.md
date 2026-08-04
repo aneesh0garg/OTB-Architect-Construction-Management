@@ -214,7 +214,9 @@ and conflict states explicit. The current mobile app uses Keycloak
 Authorization Code + PKCE, stores its short-lived access token in the device
 secure store, and submits its queue only after an authenticated project session
 is available. The API’s `clientCaptureId` deduplicates retries when the app
-submits the draft.
+submits the draft. After an observation has synchronized, **Create task**
+creates a project task with that observation retained as its source record; the
+native Tasks tab shows only those source-linked field tasks.
 
 For a physical device, copy `apps/mobile/.env.example` to
 `apps/mobile/.env` and replace the example LAN address with the computer’s

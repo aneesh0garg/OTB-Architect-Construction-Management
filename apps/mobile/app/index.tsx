@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  createObservationTask,
   type MobileSession,
   restoreSession,
   signIn,
@@ -28,6 +29,8 @@ type Observation = {
   priority: 'High' | 'Medium' | 'Low';
   state: 'Open' | 'In review' | 'Closed';
   sync: SyncState;
+  serverId?: string;
+  taskId?: string;
 };
 type FieldVisit = {
   id: string;
@@ -181,6 +184,10 @@ export default function HomeScreen() {
       visits.filter((visit) => visit.sync !== 'synced').length,
     [observations, visits],
   );
+  const linkedTaskObservations = useMemo(
+    () => observations.filter((item) => item.taskId),
+    [observations],
+  );
   const currentTab = mobileTabs.find((tab) => tab.id === activeTab) ?? mobileTabs[1]!;
 
   useEffect(() => {
@@ -272,6 +279,30 @@ export default function HomeScreen() {
     setVisitChecklist('');
     setVisitNotes('');
   };
+  const createTaskFromObservation = async (observation: Observation) => {
+    if (!session) {
+      setAccountError('Sign in before creating a project task.');
+      return;
+    }
+    if (!observation.serverId || observation.sync !== 'synced') {
+      setAccountError('Sync this observation before creating its project task.');
+      return;
+    }
+    try {
+      const task = await createObservationTask(session, {
+        observationId: observation.serverId,
+        title: observation.title,
+        priority: observation.priority,
+      });
+      const updated = { ...observation, taskId: task.id };
+      setObservations((current) =>
+        current.map((item) => (item.id === observation.id ? updated : item)),
+      );
+      await persistObservation(updated);
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Task creation failed.');
+    }
+  };
   const retrySync = async () => {
     if (!session) {
       setAccountError('Sign in before syncing field captures.');
@@ -282,12 +313,16 @@ export default function HomeScreen() {
     const queuedObservations = observations.filter((item) => item.sync !== 'synced');
     const queuedVisits = visits.filter((visit) => visit.sync !== 'synced');
     try {
-      await Promise.all([
-        ...queuedObservations.map((item) => submitObservation(session, item)),
-        ...queuedVisits.map((visit) => submitFieldVisit(session, visit)),
-      ]);
-      const syncedObservations = queuedObservations.map((item) => ({
+      const observationResults = await Promise.all(
+        queuedObservations.map(async (item) => ({
+          item,
+          server: await submitObservation(session, item),
+        })),
+      );
+      await Promise.all(queuedVisits.map((visit) => submitFieldVisit(session, visit)));
+      const syncedObservations = observationResults.map(({ item, server }) => ({
         ...item,
+        serverId: server.id,
         sync: 'synced' as const,
       }));
       const syncedVisits = queuedVisits.map((visit) => ({ ...visit, sync: 'synced' as const }));
@@ -427,7 +462,13 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           {observations.map((observation) => (
-            <ObservationCard observation={observation} key={observation.id} />
+            <ObservationCard
+              key={observation.id}
+              observation={observation}
+              {...(observation.serverId && observation.sync === 'synced'
+                ? { onCreateTask: () => createTaskFromObservation(observation) }
+                : {})}
+            />
           ))}
         </ScrollView>
       )}
@@ -436,12 +477,17 @@ export default function HomeScreen() {
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.sectionTitle}>Open field tasks</Text>
-              <Text style={styles.sectionMeta}>Resolve observations before the next visit</Text>
+              <Text style={styles.sectionMeta}>Created from synchronized field observations</Text>
             </View>
           </View>
-          {openObservations.map((observation) => (
+          {linkedTaskObservations.map((observation) => (
             <ObservationCard observation={observation} key={observation.id} />
           ))}
+          {linkedTaskObservations.length === 0 && (
+            <Text style={styles.emptyState}>
+              Sync an observation, then use “Create task” from Field to add it here.
+            </Text>
+          )}
         </ScrollView>
       )}
       {activeTab === 'more' && (
@@ -607,7 +653,13 @@ export default function HomeScreen() {
   );
 }
 
-function ObservationCard({ observation }: { observation: Observation }) {
+function ObservationCard({
+  observation,
+  onCreateTask,
+}: {
+  observation: Observation;
+  onCreateTask?: () => void;
+}) {
   return (
     <View style={styles.observationCard}>
       <View style={styles.observationTop}>
@@ -631,8 +683,17 @@ function ObservationCard({ observation }: { observation: Observation }) {
       <Text style={styles.observationTitle}>{observation.title}</Text>
       <View style={styles.observationFooter}>
         <Text style={styles.priorityText}>{observation.priority}</Text>
-        <Text style={styles.recordState}>{observation.state}</Text>
+        {observation.taskId ? (
+          <Text style={styles.recordState}>Task created</Text>
+        ) : (
+          <Text style={styles.recordState}>{observation.state}</Text>
+        )}
       </View>
+      {onCreateTask && !observation.taskId && (
+        <Pressable accessibilityRole="button" onPress={onCreateTask} style={styles.taskAction}>
+          <Text style={styles.taskActionText}>Create task</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -802,6 +863,16 @@ const styles = StyleSheet.create({
   },
   priorityText: { fontSize: 10, color: '#77837f' },
   recordState: { fontSize: 10, color: '#236b59', fontWeight: '700' },
+  taskAction: {
+    alignSelf: 'flex-start',
+    marginTop: 11,
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    backgroundColor: '#e8f4ee',
+  },
+  taskActionText: { color: '#176b58', fontSize: 10, fontWeight: '800' },
+  emptyState: { paddingTop: 8, color: '#6f7e7a', fontSize: 12, lineHeight: 18 },
   captureButton: {
     position: 'absolute',
     right: 18,

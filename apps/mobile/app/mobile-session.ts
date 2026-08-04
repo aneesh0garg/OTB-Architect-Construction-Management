@@ -171,3 +171,31 @@ export async function submitFieldVisit(
   if (!response.ok) throw new Error('The field visit could not be synced.');
   return response.json() as Promise<{ id: string }>;
 }
+
+export async function createObservationTask(
+  session: MobileSession,
+  input: {
+    observationId: string;
+    title: string;
+    priority: 'High' | 'Medium' | 'Low';
+  },
+) {
+  const response = await fetch(
+    `${requiredApiUrl()}/v1/workspace/projects/${session.projectId}/tasks`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: `Follow up: ${input.title}`,
+        priority: input.priority === 'High' ? 'high' : input.priority === 'Low' ? 'low' : 'normal',
+        sourceRecordType: 'observation',
+        sourceRecordId: input.observationId,
+      }),
+    },
+  );
+  if (!response.ok) throw new Error('The observation task could not be created.');
+  return response.json() as Promise<{ id: string; title: string; status: string }>;
+}
