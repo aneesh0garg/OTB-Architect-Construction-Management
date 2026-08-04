@@ -20,7 +20,6 @@ import {
   saveResourcePerson,
   searchProjectBrain,
   createProjectBrainDraft,
-  createTaskComment,
   createFieldObservation,
   createProjectTask,
   createProjectBudget,
@@ -34,7 +33,6 @@ import {
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
-  loadTaskComments,
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
@@ -54,7 +52,6 @@ import {
   type AiDraft,
   type NotificationPreference,
   type WorkspaceNotification,
-  type TaskComment,
   type ProjectRecord,
   type PipelineRegister,
   type CapacityRegister,
@@ -2238,10 +2235,6 @@ function Tasks({
   const [priority, setPriority] = useState('normal');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string>();
-  const [taskComments, setTaskComments] = useState<TaskComment[]>([]);
-  const [commentBody, setCommentBody] = useState('');
-  const selectedTask = tasks.find((task) => task.id === selectedTaskId);
 
   const createTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2275,31 +2268,9 @@ function Tasks({
       setSaving(false);
     }
   };
-  const openTaskDetail = async (taskId: string) => {
-    setSelectedTaskId(taskId);
-    setTaskComments([]);
-    setMessage(undefined);
-    if (!record || !signedIn) return;
-    try {
-      setTaskComments(await loadTaskComments(record.project.id, taskId));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Task discussion could not be loaded.');
-    }
-  };
-  const addTaskComment = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!record || !selectedTask || !commentBody.trim()) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      const comment = await createTaskComment(record.project.id, selectedTask.id, commentBody.trim());
-      setTaskComments((current) => [...current, comment]);
-      setCommentBody('');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Task comment could not be saved.');
-    } finally {
-      setSaving(false);
-    }
+  const openTaskDetail = (taskId: string) => {
+    if (!record) return;
+    window.location.assign(`/projects/${record.project.id}/tasks/${taskId}`);
   };
   return (
     <div className="workspace-content">
@@ -2366,79 +2337,6 @@ function Tasks({
           )}
         </div>
       </section>
-      {selectedTask && (
-        <section
-          className="content-card detail-workspace"
-          aria-label={`Task details for ${selectedTask.title}`}
-        >
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">TASK DETAIL</p>
-              <h2>{selectedTask.title}</h2>
-            </div>
-            <button onClick={() => setSelectedTaskId(undefined)}>Close</button>
-          </div>
-          <div className="record-grid">
-            <div>
-              <span>Status</span>
-              <strong>{selectedTask.status.replaceAll('_', ' ')}</strong>
-            </div>
-            <div>
-              <span>Priority</span>
-              <strong>{selectedTask.priority}</strong>
-            </div>
-            <div>
-              <span>Assignee</span>
-              <strong>{selectedTask.assignee_id ?? 'Unassigned'}</strong>
-            </div>
-            <div>
-              <span>Due</span>
-              <strong>{selectedTask.due_date ?? 'Not scheduled'}</strong>
-            </div>
-          </div>
-          <section className="task-discussion" aria-label="Task discussion">
-            <div className="card-header">
-              <div>
-                <p className="eyebrow">DISCUSSION</p>
-                <h3>Project conversation</h3>
-              </div>
-              <span>{taskComments.length} comments</span>
-            </div>
-            {taskComments.length ? (
-              <div className="comment-list">
-                {taskComments.map((comment) => (
-                  <article key={comment.id}>
-                    <strong>{comment.created_by}</strong>
-                    <time dateTime={comment.created_at}>
-                      {new Date(comment.created_at).toLocaleString()}
-                    </time>
-                    <p>{comment.body}</p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="settings-empty">No discussion yet. Record the next decision or question.</p>
-            )}
-            {signedIn && (
-              <form className="task-comment-form" onSubmit={addTaskComment}>
-                <label>
-                  Add a comment
-                  <textarea
-                    value={commentBody}
-                    onChange={(event) => setCommentBody(event.target.value)}
-                    maxLength={4000}
-                    placeholder="Share a decision, constraint, or follow-up…"
-                    required
-                  />
-                </label>
-                <button className="button-primary" disabled={saving} type="submit">
-                  Post comment
-                </button>
-              </form>
-            )}
-          </section>
-        </section>
-      )}
     </div>
   );
 }
