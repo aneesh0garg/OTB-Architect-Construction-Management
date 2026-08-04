@@ -82,6 +82,37 @@ The API will initialize the Phase 1 organization, team, project membership, and
 audit tables on startup. Application migrations will replace this bootstrap
 schema initialization before production deployment.
 
+## P1.1 project-record API
+
+All endpoints below are tenant-scoped and require the same `Authorization`
+header used in the quick check. `PROJECT_ID` must be an ID returned from
+`GET /v1/workspace`.
+
+| Endpoint                                                | Purpose                                                                                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/workspace/projects/:projectId/record`          | Read project metadata, tasks, document revisions, and filed communications.                                                                |
+| `POST /v1/workspace/projects/:projectId/tasks`          | Create a task; an assigned user receives an in-app notification.                                                                           |
+| `POST /v1/workspace/projects/:projectId/documents`      | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
+| `POST /v1/workspace/projects/:projectId/communications` | File an immutable inbound, outbound, or internal project message.                                                                          |
+| `GET /v1/workspace/notifications`                       | Read the current user’s in-app notification feed.                                                                                          |
+| `POST /v1/workspace/notifications/:notificationId/read` | Mark a notification as read.                                                                                                               |
+
+Example: create an issued drawing revision.
+
+```bash
+curl -X POST "http://localhost:3001/v1/workspace/projects/$PROJECT_ID/documents" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "documentNumber": "A-204",
+    "documentType": "drawing",
+    "title": "Stair detail",
+    "revision": "G",
+    "status": "issued",
+    "issueDate": "2026-03-12"
+  }'
+```
+
 ## Quality checks
 
 ```bash

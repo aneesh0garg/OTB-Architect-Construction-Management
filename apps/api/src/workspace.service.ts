@@ -18,6 +18,41 @@ interface MemberRow extends QueryResultRow {
   user_id: string;
   role: PlatformRole;
 }
+interface TaskRow extends QueryResultRow {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assignee_id: string | null;
+}
+interface DocumentRow extends QueryResultRow {
+  id: string;
+  document_number: string;
+  document_type: string;
+  title: string;
+  revision: string;
+  status: string;
+  issue_date: string | null;
+}
+interface CommunicationRow extends QueryResultRow {
+  id: string;
+  channel: string;
+  direction: string;
+  subject: string;
+  body: string;
+  sender: string;
+  recipients: string[];
+  filed_at: Date;
+}
+interface NotificationRow extends QueryResultRow {
+  id: string;
+  event_type: string;
+  title: string;
+  body: string;
+  read_at: Date | null;
+  created_at: Date;
+}
 
 @Injectable()
 export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
@@ -33,6 +68,10 @@ export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS projects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL REFERENCES organizations(id), code TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'planning', location TEXT, stage TEXT NOT NULL DEFAULT 'planning', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (organization_id, code));
       CREATE TABLE IF NOT EXISTS project_members (project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, user_id TEXT NOT NULL, role TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (project_id, user_id));
       CREATE TABLE IF NOT EXISTS audit_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', priority TEXT NOT NULL DEFAULT 'normal', due_date DATE, assignee_id TEXT, source_record_type TEXT, source_record_id TEXT, created_by TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS document_revisions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, document_number TEXT NOT NULL, document_type TEXT NOT NULL, title TEXT NOT NULL, revision TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', issue_date DATE, storage_key TEXT, issuer_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE (project_id, document_number, revision));
+      CREATE TABLE IF NOT EXISTS communications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, channel TEXT NOT NULL, direction TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, sender TEXT NOT NULL, recipients TEXT[] NOT NULL DEFAULT '{}', thread_id TEXT, source_message_id TEXT, filing_status TEXT NOT NULL DEFAULT 'filed', filed_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+      CREATE TABLE IF NOT EXISTS notifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id TEXT NOT NULL, user_id TEXT NOT NULL, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, event_type TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     `);
   }
   async onModuleDestroy() {
@@ -128,6 +167,143 @@ export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
     await this.audit(actor, 'project.collaborator_added', 'project', project.id, added);
     return added;
   }
+  async getProjectRecord(actor: AuthenticatedActor, projectId: string) {
+    const project = await this.projectForActor(actor, projectId);
+    const [tasks, documents, communications] = await Promise.all([
+      this.pool.query<TaskRow>(
+        'SELECT id, title, status, priority, due_date, assignee_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        [project.id],
+      ),
+      this.pool.query<DocumentRow>(
+        'SELECT id, document_number, document_type, title, revision, status, issue_date FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at DESC',
+        [project.id],
+      ),
+      this.pool.query<CommunicationRow>(
+        'SELECT id, channel, direction, subject, body, sender, recipients, filed_at FROM communications WHERE project_id = $1 AND filing_status = $2 ORDER BY filed_at DESC',
+        [project.id, 'filed'],
+      ),
+    ]);
+    return {
+      project,
+      tasks: tasks.rows,
+      documents: documents.rows,
+      communications: communications.rows,
+    };
+  }
+  async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
+    const project = await this.projectForActor(actor, projectId);
+    const task = await this.pool.query<TaskRow>(
+      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date, assignee_id',
+      [
+        actor.organizationId,
+        project.id,
+        this.requiredText(input.title, 'Task title'),
+        input.priority ?? 'normal',
+        input.dueDate ?? null,
+        input.assigneeId ?? null,
+        input.sourceRecordType ?? null,
+        input.sourceRecordId ?? null,
+        actor.userId,
+      ],
+    );
+    const created = this.resultRow(task.rows, 'Task could not be created.');
+    await this.notify(
+      actor.organizationId,
+      input.assigneeId,
+      project.id,
+      'task.assigned',
+      'New project task',
+      created.title,
+    );
+    await this.audit(actor, 'task.created', 'task', created.id, {
+      projectId: project.id,
+      priority: created.priority,
+    });
+    return created;
+  }
+  async addDocumentRevision(
+    actor: AuthenticatedActor,
+    projectId: string,
+    input: CreateDocumentInput,
+  ) {
+    this.requireRole(actor, [
+      'organization_admin',
+      'principal',
+      'project_manager',
+      'project_member',
+    ]);
+    const project = await this.projectForActor(actor, projectId);
+    const number = this.requiredText(input.documentNumber, 'Document number').toUpperCase();
+    if (input.status === 'issued')
+      await this.pool.query(
+        'UPDATE document_revisions SET status = $1 WHERE project_id = $2 AND document_number = $3 AND status = $4',
+        ['superseded', project.id, number, 'issued'],
+      );
+    const document = await this.pool.query<DocumentRow>(
+      'INSERT INTO document_revisions (organization_id, project_id, document_number, document_type, title, revision, status, issue_date, storage_key, issuer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, document_number, document_type, title, revision, status, issue_date',
+      [
+        actor.organizationId,
+        project.id,
+        number,
+        input.documentType,
+        this.requiredText(input.title, 'Document title'),
+        this.requiredText(input.revision, 'Revision'),
+        input.status ?? 'draft',
+        input.issueDate ?? null,
+        input.storageKey ?? null,
+        actor.userId,
+      ],
+    );
+    const created = this.resultRow(document.rows, 'Document revision could not be created.');
+    await this.audit(actor, 'document.revision_created', 'document_revision', created.id, {
+      projectId: project.id,
+      number,
+      revision: created.revision,
+    });
+    return created;
+  }
+  async fileCommunication(
+    actor: AuthenticatedActor,
+    projectId: string,
+    input: FileCommunicationInput,
+  ) {
+    const project = await this.projectForActor(actor, projectId);
+    const communication = await this.pool.query<CommunicationRow>(
+      'INSERT INTO communications (organization_id, project_id, channel, direction, subject, body, sender, recipients, thread_id, source_message_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, channel, direction, subject, body, sender, recipients, filed_at',
+      [
+        actor.organizationId,
+        project.id,
+        input.channel,
+        input.direction,
+        this.requiredText(input.subject, 'Subject'),
+        this.requiredText(input.body, 'Message body'),
+        this.requiredText(input.sender, 'Sender'),
+        input.recipients,
+        input.threadId ?? null,
+        input.sourceMessageId ?? null,
+      ],
+    );
+    const filed = this.resultRow(communication.rows, 'Communication could not be filed.');
+    await this.audit(actor, 'communication.filed', 'communication', filed.id, {
+      projectId: project.id,
+      channel: filed.channel,
+    });
+    return filed;
+  }
+  async getNotifications(actor: AuthenticatedActor) {
+    const notifications = await this.pool.query<NotificationRow>(
+      'SELECT id, event_type, title, body, read_at, created_at FROM notifications WHERE organization_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 50',
+      [actor.organizationId, actor.userId],
+    );
+    return notifications.rows;
+  }
+  async markNotificationRead(actor: AuthenticatedActor, notificationId: string) {
+    const notification = await this.pool.query<NotificationRow>(
+      'UPDATE notifications SET read_at = COALESCE(read_at, NOW()) WHERE id = $1 AND organization_id = $2 AND user_id = $3 RETURNING id, event_type, title, body, read_at, created_at',
+      [notificationId, actor.organizationId, actor.userId],
+    );
+    return this.resultRow(notification.rows, 'Notification is unavailable.');
+  }
   private async ensureOrganization(actor: AuthenticatedActor) {
     await this.pool.query(
       'INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
@@ -139,9 +315,20 @@ export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
       'SELECT id, code, name, status, location, stage FROM projects WHERE id = $1 AND organization_id = $2',
       [projectId, actor.organizationId],
     );
-    if (!result.rows[0])
-      throw new BadRequestException('Project is unavailable in this organization.');
-    return result.rows[0];
+    const project = result.rows[0];
+    if (!project) throw new BadRequestException('Project is unavailable in this organization.');
+    if (
+      !actor.roles.some((role) =>
+        ['organization_admin', 'principal', 'finance_admin', 'project_manager'].includes(role),
+      )
+    ) {
+      const member = await this.pool.query<MemberRow>(
+        'SELECT user_id, role FROM project_members WHERE project_id = $1 AND user_id = $2',
+        [project.id, actor.userId],
+      );
+      if (!member.rows[0]) throw new BadRequestException('Project membership is required.');
+    }
+    return project;
   }
   private requiredText(value: string, label: string) {
     const text = value?.trim();
@@ -169,6 +356,20 @@ export class WorkspaceService implements OnModuleInit, OnModuleDestroy {
       [actor.organizationId, actor.userId, action, entityType, entityId, JSON.stringify(metadata)],
     );
   }
+  private async notify(
+    organizationId: string,
+    userId: string | undefined,
+    projectId: string,
+    eventType: string,
+    title: string,
+    body: string,
+  ) {
+    if (!userId) return;
+    await this.pool.query(
+      'INSERT INTO notifications (organization_id, user_id, project_id, event_type, title, body) VALUES ($1, $2, $3, $4, $5, $6)',
+      [organizationId, userId, projectId, eventType, title, body],
+    );
+  }
 }
 export interface CreateProjectInput {
   code: string;
@@ -179,4 +380,31 @@ export interface CreateProjectInput {
 export interface AddCollaboratorInput {
   userId: string;
   role: string;
+}
+export interface CreateTaskInput {
+  title: string;
+  priority?: string;
+  dueDate?: string;
+  assigneeId?: string;
+  sourceRecordType?: string;
+  sourceRecordId?: string;
+}
+export interface CreateDocumentInput {
+  documentNumber: string;
+  documentType: string;
+  title: string;
+  revision: string;
+  status?: string;
+  issueDate?: string;
+  storageKey?: string;
+}
+export interface FileCommunicationInput {
+  channel: string;
+  direction: string;
+  subject: string;
+  body: string;
+  sender: string;
+  recipients: string[];
+  threadId?: string;
+  sourceMessageId?: string;
 }
