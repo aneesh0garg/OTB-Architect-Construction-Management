@@ -1807,6 +1807,19 @@ function Documents({
   onChanged: () => Promise<void>;
 }) {
   const documents = record ? sortControlledDocuments(record.documents) : [];
+  const [documentQuery, setDocumentQuery] = useState('');
+  const [documentStatus, setDocumentStatus] = useState('all');
+  const [documentTypeFilter, setDocumentTypeFilter] = useState('all');
+  const filteredDocuments = documents.filter((document) => {
+    const matchesQuery = `${document.document_number} ${document.title}`
+      .toLowerCase()
+      .includes(documentQuery.trim().toLowerCase());
+    return (
+      matchesQuery &&
+      (documentStatus === 'all' || document.status === documentStatus) &&
+      (documentTypeFilter === 'all' || document.document_type === documentTypeFilter)
+    );
+  });
   const [file, setFile] = useState<File>();
   const [documentNumber, setDocumentNumber] = useState('');
   const [title, setTitle] = useState('');
@@ -1975,9 +1988,43 @@ function Documents({
           </form>
         )}
         {message && <p className="form-message">{message}</p>}
+        <div className="table-toolbar document-register-toolbar">
+          <input
+            aria-label="Search documents"
+            placeholder="Search number or title"
+            value={documentQuery}
+            onChange={(event) => setDocumentQuery(event.target.value)}
+          />
+          <select
+            aria-label="Filter document status"
+            value={documentStatus}
+            onChange={(event) => setDocumentStatus(event.target.value)}
+          >
+            <option value="all">All statuses</option>
+            <option value="issued">Issued</option>
+            <option value="draft">Draft</option>
+            <option value="internal_review">In review</option>
+            <option value="approved">Approved</option>
+            <option value="superseded">Superseded</option>
+          </select>
+          <select
+            aria-label="Filter document type"
+            value={documentTypeFilter}
+            onChange={(event) => setDocumentTypeFilter(event.target.value)}
+          >
+            <option value="all">All types</option>
+            <option value="drawing">Drawings</option>
+            <option value="specification">Specifications</option>
+            <option value="report">Reports</option>
+            <option value="contract">Contracts</option>
+            <option value="photo">Photos</option>
+            <option value="other">Other</option>
+          </select>
+          <span>{filteredDocuments.length} shown</span>
+        </div>
         <div className="simple-record-list">
-          {documents.length ? (
-            documents.map((document) => (
+          {filteredDocuments.length ? (
+            filteredDocuments.map((document) => (
               <article key={document.id}>
                 <strong>
                   {document.document_number} · Rev {document.revision}
@@ -2042,7 +2089,7 @@ function Documents({
               </article>
             ))
           ) : (
-            <p>No controlled documents are available until you sign in and select a project.</p>
+            <p>No documents match the current register filters.</p>
           )}
         </div>
       </section>
