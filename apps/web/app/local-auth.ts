@@ -203,8 +203,22 @@ export type DocumentAnnotation = {
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
-const issuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER ?? 'http://localhost:8180/realms/orbita';
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const configuredIssuer =
+  process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER ?? 'http://localhost:8180/realms/orbita';
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
+const localServiceUrl = (configuredUrl: string) => {
+  const url = new URL(configuredUrl);
+  // On a phone, localhost points to the phone itself. Keep explicit remote
+  // endpoints intact, but follow the web app's LAN hostname for local services.
+  if (typeof window !== 'undefined' && url.hostname === 'localhost') {
+    url.hostname = window.location.hostname;
+  }
+  return url.toString().replace(/\/$/, '');
+};
+
+const issuerUrl = () => localServiceUrl(configuredIssuer);
+const apiUrl = () => localServiceUrl(configuredApiUrl);
 
 const base64Url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes))
@@ -225,7 +239,7 @@ export async function beginLocalLogin() {
     code_challenge: base64Url(new Uint8Array(digest)),
     code_challenge_method: 'S256',
   });
-  window.location.assign(`${issuer}/protocol/openid-connect/auth?${query.toString()}`);
+  window.location.assign(`${issuerUrl()}/protocol/openid-connect/auth?${query.toString()}`);
 }
 
 export async function restoreLocalLogin(): Promise<Viewer | undefined> {
@@ -235,7 +249,7 @@ export async function restoreLocalLogin(): Promise<Viewer | undefined> {
     const verifier = sessionStorage.getItem(verifierKey);
     if (!verifier) throw new Error('The local sign-in request expired. Please try again.');
     const redirectUri = `${window.location.origin}${window.location.pathname}`;
-    const response = await fetch(`${issuer}/protocol/openid-connect/token`, {
+    const response = await fetch(`${issuerUrl()}/protocol/openid-connect/token`, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -256,7 +270,7 @@ export async function restoreLocalLogin(): Promise<Viewer | undefined> {
   }
   const token = sessionStorage.getItem(tokenKey);
   if (!token) return undefined;
-  const response = await fetch(`${apiUrl}/v1/me`, {
+  const response = await fetch(`${apiUrl()}/v1/me`, {
     headers: { authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -274,7 +288,7 @@ export function signOutLocal() {
 export async function loadConnectedWorkspace(): Promise<ConnectedWorkspace> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to load workspace data.');
-  const response = await fetch(`${apiUrl}/v1/workspace`, {
+  const response = await fetch(`${apiUrl()}/v1/workspace`, {
     headers: { authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error('Workspace data could not be loaded.');
@@ -284,7 +298,7 @@ export async function loadConnectedWorkspace(): Promise<ConnectedWorkspace> {
 async function apiGet<T>(path: string): Promise<T> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to load project data.');
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetch(`${apiUrl()}${path}`, {
     headers: { authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error('Project data could not be loaded.');
@@ -294,7 +308,7 @@ async function apiGet<T>(path: string): Promise<T> {
 async function apiPut<T>(path: string, body: unknown): Promise<T> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to change notification settings.');
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetch(`${apiUrl()}${path}`, {
     method: 'PUT',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -306,7 +320,7 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
 async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to use Project Brain.');
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetch(`${apiUrl()}${path}`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${token}`,

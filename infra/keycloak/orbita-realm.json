@@ -22,8 +22,8 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": ["http://localhost:3000/*", "http://192.168.29.157:3000/*"],
+      "webOrigins": ["http://localhost:3000", "http://192.168.29.157:3000"],
       "protocolMappers": [
         {
           "name": "organization_id",

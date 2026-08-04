@@ -527,6 +527,12 @@ same network, open `http://192.168.1.25:3000` on the phone. The web dev server
 binds to the local network, but only the configured host is permitted to fetch
 its development assets.
 
+For phone sign-in and authenticated project data, also include that same URL in
+the root `.env` `WEB_ORIGIN` value, then restart the API. The imported local
+Keycloak `orbita-web` client must include `http://<LAN-IP>:3000/*` as a redirect
+URI and `http://<LAN-IP>:3000` as a web origin. The realm template includes the
+current example LAN address; update it if the computer's Wi-Fi IP changes.
+
 Before committing, run `git diff --check`. CI repeats formatting, linting,
 type-checking, and tests for each change.
 
