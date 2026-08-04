@@ -103,6 +103,7 @@ header used in the quick check. `PROJECT_ID` must be an ID returned from
 | Endpoint                                                | Purpose                                                                                                                                    |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET /v1/workspace/projects/:projectId/record`          | Read project metadata, tasks, document revisions, and filed communications.                                                                |
+| `POST /v1/workspace/projects/:projectId/status`         | Transition a project through planning, active, on-hold, closed, and archived states; closing sets a seven-year retention date.             |
 | `POST /v1/workspace/projects/:projectId/tasks`          | Create a task; an assigned user receives an in-app notification.                                                                           |
 | `POST /v1/workspace/projects/:projectId/documents`      | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
 | `POST /v1/workspace/projects/:projectId/communications` | File an immutable inbound, outbound, or internal project message.                                                                          |

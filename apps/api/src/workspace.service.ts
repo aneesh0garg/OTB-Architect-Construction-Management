@@ -10,6 +10,8 @@ interface ProjectRow extends QueryResultRow {
   status: string;
   location: string | null;
   stage: string;
+  closed_at: Date | null;
+  retention_until: Date | null;
 }
 interface TeamRow extends QueryResultRow {
   id: string;
@@ -72,7 +74,7 @@ export class WorkspaceService {
     await this.ensureOrganization(actor);
     const [projects, teams] = await Promise.all([
       this.pool.query<ProjectRow>(
-        'SELECT id, code, name, status, location, stage FROM projects WHERE organization_id = $1 ORDER BY created_at DESC',
+        'SELECT id, code, name, status, location, stage, closed_at, retention_until FROM projects WHERE organization_id = $1 ORDER BY created_at DESC',
         [actor.organizationId],
       ),
       this.pool.query<TeamRow>(
@@ -108,7 +110,7 @@ export class WorkspaceService {
     this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
     await this.ensureOrganization(actor);
     const project = await this.pool.query<ProjectRow>(
-      'INSERT INTO projects (organization_id, code, name, location, stage) VALUES ($1, $2, $3, $4, $5) RETURNING id, code, name, status, location, stage',
+      'INSERT INTO projects (organization_id, code, name, location, stage) VALUES ($1, $2, $3, $4, $5) RETURNING id, code, name, status, location, stage, closed_at, retention_until',
       [
         actor.organizationId,
         this.requiredText(input.code, 'Project code').toUpperCase(),
@@ -133,6 +135,38 @@ export class WorkspaceService {
       name: created.name,
     });
     return created;
+  }
+  async transitionProjectStatus(actor: AuthenticatedActor, projectId: string, status: string) {
+    this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
+    const project = await this.projectForActor(actor, projectId);
+    const allowed: Record<string, string[]> = {
+      planning: ['active', 'on_hold'],
+      active: ['on_hold', 'closed'],
+      on_hold: ['active', 'closed'],
+      closed: ['archived'],
+      archived: [],
+    };
+    if (!allowed[project.status]?.includes(status))
+      throw new BadRequestException(
+        `Project status cannot change from ${project.status} to ${status}.`,
+      );
+    const result = await this.pool.query<ProjectRow>(
+      `UPDATE projects
+       SET status = $1,
+           closed_at = CASE WHEN $1 = 'closed' THEN NOW() ELSE closed_at END,
+           retention_until = CASE WHEN $1 = 'closed' THEN NOW() + INTERVAL '7 years' ELSE retention_until END
+       WHERE id = $2 AND organization_id = $3
+       RETURNING id, code, name, status, location, stage, closed_at, retention_until`,
+      [status, projectId, actor.organizationId],
+    );
+    const updated = this.resultRow(result.rows, 'Project is unavailable.');
+    await this.audit(actor, 'project.status_changed', 'project', updated.id, {
+      projectId: updated.id,
+      fromStatus: project.status,
+      toStatus: updated.status,
+      retentionUntil: updated.retention_until,
+    });
+    return updated;
   }
   async addCollaborator(actor: AuthenticatedActor, projectId: string, input: AddCollaboratorInput) {
     this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
@@ -320,7 +354,7 @@ export class WorkspaceService {
   }
   private async projectForActor(actor: AuthenticatedActor, projectId: string) {
     const result = await this.pool.query<ProjectRow>(
-      'SELECT id, code, name, status, location, stage FROM projects WHERE id = $1 AND organization_id = $2',
+      'SELECT id, code, name, status, location, stage, closed_at, retention_until FROM projects WHERE id = $1 AND organization_id = $2',
       [projectId, actor.organizationId],
     );
     const project = result.rows[0];

@@ -22,6 +22,9 @@ class CreateProjectDto {
   @IsOptional() @IsString() @MaxLength(240) location?: string;
   @IsOptional() @IsString() @MaxLength(80) stage?: string;
 }
+class ProjectStatusDto {
+  @IsIn(['active', 'on_hold', 'closed', 'archived']) status!: string;
+}
 class AddCollaboratorDto {
   @IsString() @MinLength(1) @MaxLength(160) userId!: string;
   @IsIn(['contractor', 'consultant', 'owner', 'vendor', 'project_member', 'field_supervisor'])
@@ -82,6 +85,13 @@ export class WorkspaceController {
     @Body() body: AddCollaboratorDto,
   ) {
     return this.workspace.addCollaborator(request.actor!, projectId, body);
+  }
+  @Post('projects/:projectId/status') transitionProjectStatus(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: ProjectStatusDto,
+  ) {
+    return this.workspace.transitionProjectStatus(request.actor!, projectId, body.status);
   }
   @Get('projects/:projectId/record') getProjectRecord(
     @Req() request: AuthenticatedRequest,

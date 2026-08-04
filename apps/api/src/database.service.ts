@@ -44,6 +44,13 @@ const migrations: Migration[] = [
       WHERE source_message_id IS NOT NULL;
     `,
   },
+  {
+    id: '0003_project_lifecycle_retention',
+    sql: `
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ;
+    `,
+  },
 ];
 
 @Injectable()

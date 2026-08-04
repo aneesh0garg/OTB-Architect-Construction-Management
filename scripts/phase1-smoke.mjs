@@ -51,6 +51,8 @@ const project = await api('POST', '/v1/workspace/projects', {
 });
 assert.ok(project.id, 'Project creation did not return an ID.');
 const projectPath = `/v1/workspace/projects/${project.id}`;
+const activeProject = await api('POST', `${projectPath}/status`, { status: 'active' });
+assert.equal(activeProject.status, 'active', 'Project did not transition to active.');
 
 const task = await api('POST', `${projectPath}/tasks`, {
   title: `Verify facade coordination ${runId}`,
@@ -202,6 +204,7 @@ for (const action of [
   'workflow.transitioned',
   'finance.invoice_status_changed',
   'finance.payment_recorded',
+  'project.status_changed',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),
@@ -209,4 +212,7 @@ for (const action of [
     `Audit event ${action} was not recorded.`,
   );
 }
+const closedProject = await api('POST', `${projectPath}/status`, { status: 'closed' });
+assert.equal(closedProject.status, 'closed', 'Project did not transition to closed.');
+assert.ok(closedProject.retention_until, 'Closing a project did not set the retention date.');
 console.log(`Phase 1 smoke passed for ${project.code} (${project.id}).`);
