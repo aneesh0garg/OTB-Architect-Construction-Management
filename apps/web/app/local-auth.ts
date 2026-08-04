@@ -61,6 +61,8 @@ export type ProjectRecord = {
     priority: string;
     due_date: string | null;
     assignee_id: string | null;
+    source_record_type: string | null;
+    source_record_id: string | null;
   }[];
   documents: {
     id: string;
@@ -584,7 +586,6 @@ export async function uploadProjectDocument(
   input: {
     documentType: 'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other';
     title: string;
-    revision: string;
     supersedesDocumentId?: string;
     clientRequestId: string;
   },
@@ -643,7 +644,7 @@ export const createProjectTransmittal = (
   );
 export const createProjectTask = (
   projectId: string,
-  input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },
+  input: { title: string; priority?: string; dueDate?: string; assigneeId?: string; sourceRecordType?: string; sourceRecordId?: string },
 ) => apiPost(`/v1/workspace/projects/${projectId}/tasks`, input);
 export const transitionProjectTask = (
   projectId: string,
@@ -653,7 +654,7 @@ export const transitionProjectTask = (
 export const updateProjectTask = (
   projectId: string,
   taskId: string,
-  input: { title?: string; priority?: string; dueDate?: string; assigneeId?: string },
+  input: { title?: string; priority?: string; dueDate?: string; assigneeId?: string; clearDueDate?: boolean; clearAssignee?: boolean },
 ) => apiPatch(`/v1/workspace/projects/${projectId}/tasks/${taskId}`, input);
 export const loadTaskComments = (projectId: string, taskId: string) =>
   apiGet<TaskComment[]>(`/v1/workspace/projects/${projectId}/tasks/${taskId}/comments`);

@@ -962,6 +962,28 @@ small {
   gap: 8px;
   margin: 16px 0 0;
 }
+.record-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.record-toolbar-actions .button-primary,
+.record-toolbar-actions .button-secondary {
+  padding: 8px 10px;
+}
+.field-edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 14px;
+}
 .task-discussion h3 {
   margin: 2px 0 0;
   font-size: 1rem;
@@ -2055,6 +2077,9 @@ small {
     display: grid;
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+  .record-toolbar-actions {
+    justify-content: flex-start;
   }
   .document-register-toolbar input,
   .document-register-toolbar select {

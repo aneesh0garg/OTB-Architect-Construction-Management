@@ -314,10 +314,8 @@ const completedUpload = await api(
 assert.equal(completedUpload.status, 'uploaded', 'Upload was not verified.');
 assert.match(completedUpload.checksumSha256, /^[a-f0-9]{64}$/, 'Upload checksum is missing.');
 const uploadedDocument = await api('POST', `${projectPath}/documents`, {
-  documentNumber: `UP-${runId}`,
   documentType: 'report',
   title: `Uploaded smoke report ${runId}`,
-  revision: 'A',
   status: 'draft',
   uploadId: preparedUpload.uploadId,
 });
@@ -369,7 +367,7 @@ const documentTypes = ['drawing', 'specification', 'report', 'contract', 'photo'
 for (const [index, documentType] of documentTypes.entries()) {
   const fixture = uploadFixtures[index % uploadFixtures.length];
   const documentNumber = `FMT-${runId}-${index}`;
-  const uploadRevision = async (revision) => {
+  const uploadRevision = async (revision, supersedesDocumentId) => {
     const prepared = await api('POST', `${projectPath}/documents/uploads`, {
       fileName: `${documentNumber}-${revision}.${fixture.extension}`,
       contentType: fixture.contentType,
@@ -383,11 +381,10 @@ for (const [index, documentType] of documentTypes.entries()) {
     assert.equal(stored.ok, true, `${fixture.extension} signed upload failed.`);
     await api('POST', `${projectPath}/documents/uploads/${prepared.uploadId}/complete`);
     const created = await api('POST', `${projectPath}/documents`, {
-      documentNumber,
       documentType,
       title: `${documentType} ${revision} ${runId}`,
-      revision,
       uploadId: prepared.uploadId,
+      ...(supersedesDocumentId ? { supersedesDocumentId } : {}),
     });
     const original = await api('GET', `${projectPath}/documents/${created.id}/download`);
     const downloaded = Buffer.from(await (await fetch(original.downloadUrl)).arrayBuffer());
@@ -396,7 +393,7 @@ for (const [index, documentType] of documentTypes.entries()) {
   };
   const revisionA = await uploadRevision('A');
   await api('POST', `${projectPath}/documents/${revisionA.id}/issue`);
-  const revisionB = await uploadRevision('B');
+  const revisionB = await uploadRevision('B', revisionA.id);
   await api('POST', `${projectPath}/documents/${revisionB.id}/issue`);
   const updatedRecord = await api('GET', `${projectPath}/record`);
   assert.equal(
@@ -411,10 +408,8 @@ for (const [index, documentType] of documentTypes.entries()) {
   );
 }
 await api('POST', `${projectPath}/documents`, {
-  documentNumber: `A-${runId}`,
   documentType: 'drawing',
   title: `Smoke facade drawing ${runId}`,
-  revision: 'A',
   status: 'issued',
   issueDate: '2026-08-04',
   discipline: 'Architecture',
@@ -423,10 +418,9 @@ await api('POST', `${projectPath}/documents`, {
   zone: 'Facade east',
 });
 const issuedDrawing = await api('POST', `${projectPath}/documents`, {
-  documentNumber: `A-${runId}`,
   documentType: 'drawing',
   title: `Smoke facade drawing ${runId}`,
-  revision: 'B',
+  supersedesDocumentId: (await api('GET', `${projectPath}/record`)).documents.find((item) => item.title === `Smoke facade drawing ${runId}`)?.id,
   status: 'issued',
   issueDate: '2026-08-05',
 });

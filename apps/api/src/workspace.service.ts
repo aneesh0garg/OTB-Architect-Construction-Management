@@ -35,6 +35,8 @@ interface TaskRow extends QueryResultRow {
   due_date: string | null;
   assignee_id: string | null;
   created_by: string;
+  source_record_type: string | null;
+  source_record_id: string | null;
 }
 interface TaskCommentRow extends QueryResultRow {
   id: string;
@@ -319,7 +321,7 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications, transmittals, members] = await Promise.all([
       this.pool.query<TaskRow>(
-        'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
       ),
       this.pool.query<DocumentRow>(
@@ -351,8 +353,16 @@ export class WorkspaceService {
   }
   async createTask(actor: AuthenticatedActor, projectId: string, input: CreateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
+    if (input.sourceRecordType === 'document_revision') {
+      if (!input.sourceRecordId) throw new BadRequestException('A linked document must be selected.');
+      const document = await this.pool.query(
+        'SELECT id FROM document_revisions WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+        [input.sourceRecordId, project.id, actor.organizationId],
+      );
+      this.resultRow(document.rows, 'The linked document is unavailable for this project.');
+    }
     const task = await this.pool.query<TaskRow>(
-      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by',
+      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id',
       [
         actor.organizationId,
         project.id,
@@ -382,7 +392,7 @@ export class WorkspaceService {
   }
   async getMyTasks(actor: AuthenticatedActor) {
     const tasks = await this.pool.query<PersonalTaskRow>(
-      `SELECT t.id, t.title, t.status, t.priority, t.due_date::text AS due_date, t.assignee_id, t.created_by,
+      `SELECT t.id, t.title, t.status, t.priority, t.due_date::text AS due_date, t.assignee_id, t.created_by, t.source_record_type, t.source_record_id,
           t.project_id, p.code AS project_code, p.name AS project_name
        FROM tasks t
        JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
@@ -401,7 +411,7 @@ export class WorkspaceService {
   ) {
     const project = await this.projectForActor(actor, projectId);
     const task = await this.pool.query<TaskRow>(
-      `SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by
+      `SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id
        FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
       [taskId, project.id, actor.organizationId],
     );
@@ -430,7 +440,7 @@ export class WorkspaceService {
       );
     const result = await this.pool.query<TaskRow>(
       `UPDATE tasks SET status = $1 WHERE id = $2 AND project_id = $3
-       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by`,
+       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id`,
       [status, current.id, project.id],
     );
     const updated = this.resultRow(result.rows, 'Task is unavailable.');
@@ -444,7 +454,7 @@ export class WorkspaceService {
   async updateTask(actor: AuthenticatedActor, projectId: string, taskId: string, input: UpdateTaskInput) {
     const project = await this.projectForActor(actor, projectId);
     const task = await this.pool.query<TaskRow>(
-      'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3',
+      'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id FROM tasks WHERE id = $1 AND project_id = $2 AND organization_id = $3',
       [taskId, project.id, actor.organizationId],
     );
     const current = this.resultRow(task.rows, 'Task is unavailable.');
@@ -458,12 +468,12 @@ export class WorkspaceService {
     const result = await this.pool.query<TaskRow>(
       `UPDATE tasks SET title = $1, priority = $2, due_date = $3, assignee_id = $4
        WHERE id = $5 AND project_id = $6 AND organization_id = $7
-       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by`,
+       RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id`,
       [
         input.title ? this.requiredText(input.title, 'Task title') : current.title,
         input.priority ?? current.priority,
-        input.dueDate ?? current.due_date,
-        input.assigneeId ?? current.assignee_id,
+        input.dueDate ?? (input.clearDueDate ? null : current.due_date),
+        input.assigneeId ?? (input.clearAssignee ? null : current.assignee_id),
         current.id,
         project.id,
         actor.organizationId,
@@ -555,9 +565,8 @@ export class WorkspaceService {
       throw new BadRequestException('A superseding revision must use the same document type.');
     const number =
       superseded?.document_number ??
-      (input.documentNumber?.trim()
-        ? this.requiredText(input.documentNumber, 'Document number').toUpperCase()
-        : await this.nextDocumentNumber(project.id, input.documentType));
+      (await this.nextDocumentNumber(project.id, input.documentType));
+    const revision = superseded ? this.nextDocumentRevision(superseded.revision) : 'A';
     const upload = input.uploadId
       ? await this.uploads.consume(actor, projectId, input.uploadId)
       : { storageKey: null, checksumSha256: null };
@@ -578,7 +587,7 @@ export class WorkspaceService {
         number,
         input.documentType,
         this.requiredText(input.title, 'Document title'),
-        this.requiredText(input.revision, 'Revision'),
+        revision,
         input.status ?? 'draft',
         input.issueDate ?? null,
         input.discipline?.trim() || null,
@@ -616,6 +625,18 @@ export class WorkspaceService {
         other: 'DOC',
       }[documentType] ?? 'DOC';
     return `${prefix}-${String(result.rows[0]?.number ?? 1).padStart(4, '0')}`;
+  }
+  private nextDocumentRevision(revision: string) {
+    if (/^\d+$/.test(revision)) return String(Number(revision) + 1);
+    const characters = revision.toUpperCase().split('');
+    for (let index = characters.length - 1; index >= 0; index -= 1) {
+      if (characters[index] !== 'Z') {
+        characters[index] = String.fromCharCode(characters[index]!.charCodeAt(0) + 1);
+        return characters.join('');
+      }
+      characters[index] = 'A';
+    }
+    return `A${characters.join('')}`;
   }
   async issueDocumentRevision(actor: AuthenticatedActor, projectId: string, documentId: string) {
     this.requireRole(actor, [
@@ -1025,12 +1046,12 @@ export interface UpdateTaskInput {
   priority?: string;
   dueDate?: string;
   assigneeId?: string;
+  clearDueDate?: boolean;
+  clearAssignee?: boolean;
 }
 export interface CreateDocumentInput {
-  documentNumber?: string;
   documentType: string;
   title: string;
-  revision: string;
   status?: string;
   issueDate?: string;
   discipline?: string;

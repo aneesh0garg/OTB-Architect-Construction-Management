@@ -701,9 +701,9 @@ function MobileWorkspaceDirectory({
   onOpenTeams,
 }: {
   kind: 'projects' | 'teams';
-  projects: Array<{ id?: string; code: string; name: string; status: string }>;
+  projects: ReadonlyArray<{ id?: string; code: string; name: string; status: string }>;
   activeProjectCode: string;
-  teams: string[];
+  teams: ReadonlyArray<string>;
   signedIn: boolean;
   onClose: () => void;
   onCreate: () => void;
@@ -789,7 +789,7 @@ function ProjectPeopleDialog({
   onClose,
   onChanged,
 }: {
-  record?: ProjectRecord;
+  record: ProjectRecord | undefined;
   signedIn: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
@@ -2152,21 +2152,6 @@ const sortControlledDocuments = (
     if (statusComparison !== 0) return statusComparison;
     return documentNumberCollator.compare(right.revision, left.revision);
   });
-const nextRevision = (revision: string) => {
-  if (/^\d+$/.test(revision)) return String(Number(revision) + 1);
-  const letters = revision.toUpperCase();
-  if (!/^[A-Z]+$/.test(letters)) return 'A';
-  const characters = letters.split('');
-  for (let index = characters.length - 1; index >= 0; index -= 1) {
-    if (characters[index] !== 'Z') {
-      characters[index] = String.fromCharCode(characters[index]!.charCodeAt(0) + 1);
-      return characters.join('');
-    }
-    characters[index] = 'A';
-  }
-  return `A${characters.join('')}`;
-};
-
 const newClientRequestId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -2208,49 +2193,11 @@ function Documents({
       (documentTypeFilter === 'all' || document.document_type === documentTypeFilter)
     );
   });
-  const [file, setFile] = useState<File>();
-  const [title, setTitle] = useState('');
-  const [documentType, setDocumentType] = useState<
-    'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
-  >('drawing');
-  const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
-  const [clientRequestId, setClientRequestId] = useState(newClientRequestId);
-  const [transmittalPurpose, setTransmittalPurpose] = useState('Construction issue');
-  const [transmittalRecipients, setTransmittalRecipients] = useState('');
-  const [transmittalIds, setTransmittalIds] = useState<string[]>([]);
-  const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
-  const revision = selectedPrior ? nextRevision(selectedPrior.revision) : 'A';
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [transmittalOpen, setTransmittalOpen] = useState(false);
   const [message, setMessage] = useState<string>();
-  const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
   const [reviewingId, setReviewingId] = useState<string>();
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!record || !file) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await uploadProjectDocument(record.project.id, file, {
-        documentType,
-        title: title.trim(),
-        revision: revision.trim(),
-        ...(supersedesDocumentId ? { supersedesDocumentId } : {}),
-        clientRequestId,
-      });
-      setFile(undefined);
-      setTitle('');
-      setSupersedesDocumentId('');
-      setClientRequestId(newClientRequestId());
-      await onChanged();
-      setMessage('Document revision uploaded and added to the controlled record.');
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'Document upload could not be completed.',
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
   const issue = async (document: ProjectRecord['documents'][number]) => {
     if (!record) return;
     setIssuingId(document.id);
@@ -2291,30 +2238,6 @@ function Documents({
     if (!record) return;
     window.location.assign(`/projects/${record.project.id}/documents/${documentId}`);
   };
-  const submitTransmittal = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!record) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      const transmittal = await createProjectTransmittal(record.project.id, {
-        purpose: transmittalPurpose,
-        recipients: transmittalRecipients
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean),
-        documentIds: transmittalIds,
-      });
-      setTransmittalIds([]);
-      setTransmittalRecipients('');
-      await onChanged();
-      setMessage(`Transmittal #${transmittal.transmittal_number} was created.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Transmittal could not be created.');
-    } finally {
-      setSaving(false);
-    }
-  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -2323,124 +2246,13 @@ function Documents({
             <p className="eyebrow">CONTROLLED PROJECT RECORD</p>
             <h2>Documents</h2>
           </div>
-          <span>{documents.length} records</span>
+          <div className="record-toolbar-actions">
+            <span>{documents.length} records</span>
+            {signedIn && record && <button className="button-secondary" onClick={() => setTransmittalOpen(true)}>Create transmittal</button>}
+            {signedIn && record && <button className="button-primary" onClick={() => setUploadOpen(true)}>Upload revision</button>}
+          </div>
         </div>
-        {signedIn && record && (
-          <form className="document-form" onSubmit={submit}>
-            <label>
-              Original file
-              <input
-                accept="application/pdf,image/jpeg,image/png"
-                onChange={(event) => setFile(event.target.files?.[0])}
-                required
-                type="file"
-              />
-            </label>
-            <label>
-              Document number
-              <input
-                value={selectedPrior?.document_number ?? 'Assigned by server on save'}
-                readOnly
-                aria-label="Server-assigned document number"
-              />
-            </label>
-            <label>
-              Title
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                minLength={2}
-                required
-              />
-            </label>
-            <label>
-              Type
-              <select
-                value={documentType}
-                onChange={(event) => setDocumentType(event.target.value as typeof documentType)}
-              >
-                <option value="drawing">Drawing</option>
-                <option value="specification">Specification</option>
-                <option value="report">Report</option>
-                <option value="contract">Contract</option>
-                <option value="photo">Photo</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>
-              Revision
-              <input value={revision} readOnly aria-label="Generated document revision" />
-            </label>
-            <label>
-              Supersede existing revision (optional)
-              <select
-                value={supersedesDocumentId}
-                onChange={(event) => setSupersedesDocumentId(event.target.value)}
-              >
-                <option value="">Create a new document number</option>
-                {documents
-                  .filter((document) => document.document_type === documentType)
-                  .map((document) => (
-                    <option key={document.id} value={document.id}>
-                      {document.document_number} · Rev {document.revision} · {document.status}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <button className="button-primary" disabled={saving} type="submit">
-              {saving ? 'Uploading…' : 'Upload revision'}
-            </button>
-          </form>
-        )}
         {message && <p className="form-message">{message}</p>}
-        {signedIn && (
-          <form className="document-form" onSubmit={submitTransmittal}>
-            <label>
-              Transmittal purpose
-              <input
-                value={transmittalPurpose}
-                onChange={(event) => setTransmittalPurpose(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Recipients (comma-separated)
-              <input
-                value={transmittalRecipients}
-                onChange={(event) => setTransmittalRecipients(event.target.value)}
-                required
-              />
-            </label>
-            <fieldset className="document-transmittal-select">
-              <legend>Issued documents</legend>
-              {documents
-                .filter((document) => document.status === 'issued')
-                .map((document) => (
-                  <label key={document.id}>
-                    <input
-                      type="checkbox"
-                      checked={transmittalIds.includes(document.id)}
-                      onChange={(event) =>
-                        setTransmittalIds((current) =>
-                          event.target.checked
-                            ? [...current, document.id]
-                            : current.filter((id) => id !== document.id),
-                        )
-                      }
-                    />{' '}
-                    {document.document_number} · Rev {document.revision}
-                  </label>
-                ))}
-            </fieldset>
-            <button
-              className="button-secondary"
-              disabled={saving || transmittalIds.length === 0}
-              type="submit"
-            >
-              Create transmittal
-            </button>
-          </form>
-        )}
         <div className="table-toolbar document-register-toolbar">
           <input
             aria-label="Search documents"
@@ -2561,8 +2373,90 @@ function Documents({
           )}
         </div>
       </section>
+      {uploadOpen && record && <DocumentUploadDialog documents={documents} projectId={record.project.id} onClose={() => setUploadOpen(false)} onCompleted={async (notice) => { await onChanged(); setUploadOpen(false); setMessage(notice); }} />}
+      {transmittalOpen && record && <TransmittalDialog documents={documents} projectId={record.project.id} onClose={() => setTransmittalOpen(false)} onCompleted={async (notice) => { await onChanged(); setTransmittalOpen(false); setMessage(notice); }} />}
     </div>
   );
+}
+
+function DocumentUploadDialog({
+  projectId,
+  documents,
+  onClose,
+  onCompleted,
+}: {
+  projectId: string;
+  documents: ProjectRecord['documents'];
+  onClose: () => void;
+  onCompleted: (notice: string) => Promise<void>;
+}) {
+  const [file, setFile] = useState<File>();
+  const [title, setTitle] = useState('');
+  const [documentType, setDocumentType] = useState<'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'>('drawing');
+  const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
+  const [clientRequestId, setClientRequestId] = useState(newClientRequestId);
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!file) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await uploadProjectDocument(projectId, file, {
+        documentType,
+        title: title.trim(),
+        ...(supersedesDocumentId ? { supersedesDocumentId } : {}),
+        clientRequestId,
+      });
+      await onCompleted('Document revision uploaded and added to the controlled record.');
+    } catch (error) {
+      setClientRequestId(newClientRequestId());
+      setMessage(error instanceof Error ? error.message : 'Document upload could not be completed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <div className="dialog-backdrop" role="presentation"><section className="modal-card" aria-label="Upload document revision" role="dialog" aria-modal="true">
+    <div className="card-header"><div><p className="eyebrow">CONTROLLED RECORD</p><h2>Upload revision</h2><p>Document number and revision are generated by the server.</p></div><button className="button-secondary" type="button" onClick={onClose}>Close</button></div>
+    <form className="document-form" onSubmit={submit}>
+      <label>Original file<input accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFile(event.target.files?.[0])} required type="file" /></label>
+      <label>Title<input value={title} onChange={(event) => setTitle(event.target.value)} minLength={2} required /></label>
+      <label>Type<select value={documentType} onChange={(event) => { setDocumentType(event.target.value as typeof documentType); setSupersedesDocumentId(''); }}><option value="drawing">Drawing</option><option value="specification">Specification</option><option value="report">Report</option><option value="contract">Contract</option><option value="photo">Photo</option><option value="other">Other</option></select></label>
+      <label>Supersede existing document (optional)<select value={supersedesDocumentId} onChange={(event) => setSupersedesDocumentId(event.target.value)}><option value="">Create a new controlled document</option>{documents.filter((document) => document.document_type === documentType).map((document) => <option key={document.id} value={document.id}>{document.document_number} · Rev {document.revision} · {document.status}</option>)}</select></label>
+      {message && <p className="form-message">{message}</p>}
+      <div className="detail-action-row"><button className="button-primary" disabled={saving} type="submit">{saving ? 'Uploading…' : 'Upload revision'}</button><button className="button-secondary" disabled={saving} type="button" onClick={onClose}>Cancel</button></div>
+    </form>
+  </section></div>;
+}
+
+function TransmittalDialog({ projectId, documents, onClose, onCompleted }: { projectId: string; documents: ProjectRecord['documents']; onClose: () => void; onCompleted: (notice: string) => Promise<void> }) {
+  const [purpose, setPurpose] = useState('Construction issue');
+  const [recipients, setRecipients] = useState('');
+  const [documentIds, setDocumentIds] = useState<string[]>([]);
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const issuedDocuments = documents.filter((document) => document.status === 'issued');
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true); setMessage(undefined);
+    try {
+      const transmittal = await createProjectTransmittal(projectId, { purpose, recipients: recipients.split(',').map((value) => value.trim()).filter(Boolean), documentIds });
+      await onCompleted(`Transmittal #${transmittal.transmittal_number} was created.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Transmittal could not be created.');
+    } finally { setSaving(false); }
+  };
+  return <div className="dialog-backdrop" role="presentation"><section className="modal-card" aria-label="Create transmittal" role="dialog" aria-modal="true">
+    <div className="card-header"><div><p className="eyebrow">FORMAL ISSUE</p><h2>Create transmittal</h2></div><button className="button-secondary" type="button" onClick={onClose}>Close</button></div>
+    <form className="document-form" onSubmit={submit}>
+      <label>Transmittal purpose<input value={purpose} onChange={(event) => setPurpose(event.target.value)} required /></label>
+      <label>Recipients (comma-separated)<input value={recipients} onChange={(event) => setRecipients(event.target.value)} required /></label>
+      <fieldset className="document-transmittal-select"><legend>Issued documents</legend>{issuedDocuments.length ? issuedDocuments.map((document) => <label key={document.id}><input type="checkbox" checked={documentIds.includes(document.id)} onChange={(event) => setDocumentIds((current) => event.target.checked ? [...current, document.id] : current.filter((id) => id !== document.id))} /> {document.document_number} · Rev {document.revision}</label>) : <p className="settings-empty">Issue a document revision before creating a transmittal.</p>}</fieldset>
+      {message && <p className="form-message">{message}</p>}
+      <div className="detail-action-row"><button className="button-primary" disabled={saving || documentIds.length === 0} type="submit">{saving ? 'Creating…' : 'Create transmittal'}</button><button className="button-secondary" disabled={saving} type="button" onClick={onClose}>Cancel</button></div>
+    </form>
+  </section></div>;
 }
 
 function Tasks({
@@ -2575,35 +2469,9 @@ function Tasks({
   onChanged: () => Promise<void>;
 }) {
   const tasks = record?.tasks ?? [];
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState('normal');
-  const [dueDate, setDueDate] = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
-
-  const createTask = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!record || !title.trim()) return;
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await createProjectTask(record.project.id, {
-        title: title.trim(),
-        priority,
-        ...(dueDate ? { dueDate } : {}),
-        ...(assigneeId ? { assigneeId } : {}),
-      });
-      setTitle('');
-      setDueDate('');
-      setAssigneeId('');
-      await onChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Task could not be created.');
-    } finally {
-      setSaving(false);
-    }
-  };
   const completeTask = async (taskId: string, completed: boolean) => {
     if (!record) return;
     setSaving(true);
@@ -2633,52 +2501,8 @@ function Tasks({
             <p className="eyebrow">PROJECT WORK</p>
             <h2>Tasks</h2>
           </div>
-          <span>{tasks.length} tasks</span>
+          <div className="record-toolbar-actions"><span>{tasks.length} tasks</span>{signedIn && record && <button className="button-primary" onClick={() => setCreateOpen(true)}>Create task</button>}</div>
         </div>
-        {signedIn && record && (
-          <form className="inline-form task-form" onSubmit={createTask}>
-            <label>
-              New task
-              <input value={title} onChange={(event) => setTitle(event.target.value)} required />
-            </label>
-            <label>
-              Priority
-              <select value={priority} onChange={(event) => setPriority(event.target.value)}>
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </label>
-            <label>
-              Due date
-              <input
-                aria-label="Task due date"
-                type="date"
-                value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-              />
-            </label>
-            <label>
-              Assignee
-              <select
-                aria-label="Task assignee"
-                value={assigneeId}
-                onChange={(event) => setAssigneeId(event.target.value)}
-              >
-                <option value="">Unassigned</option>
-                {(record.members ?? []).map((member) => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.display_name ?? member.user_id}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="button-primary" disabled={saving} type="submit">
-              Add task
-            </button>
-          </form>
-        )}
         {message && <p className="form-message">{message}</p>}
         <div className="simple-record-list">
           {tasks.length ? (
@@ -2714,8 +2538,42 @@ function Tasks({
           )}
         </div>
       </section>
+      {createOpen && record && <TaskCreationDialog record={record} onClose={() => setCreateOpen(false)} onCompleted={async () => { await onChanged(); setCreateOpen(false); setMessage('Task created.'); }} />}
     </div>
   );
+}
+
+function TaskCreationDialog({ record, onClose, onCompleted }: { record: ProjectRecord; onClose: () => void; onCompleted: () => Promise<void> }) {
+  const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [documentId, setDocumentId] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true); setMessage(undefined);
+    try {
+      await createProjectTask(record.project.id, { title: title.trim(), priority, ...(dueDate ? { dueDate } : {}), ...(assigneeId ? { assigneeId } : {}), ...(documentId ? { sourceRecordType: 'document_revision', sourceRecordId: documentId } : {}) });
+      await onCompleted();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Task could not be created.');
+    } finally { setSaving(false); }
+  };
+  return <div className="dialog-backdrop" role="presentation"><section className="modal-card" aria-label="Create task" role="dialog" aria-modal="true">
+    <div className="card-header"><div><p className="eyebrow">PROJECT WORK</p><h2>Create task</h2><p>Link a controlled document when the task is part of a review or issue workflow.</p></div><button className="button-secondary" type="button" onClick={onClose}>Close</button></div>
+    <form className="document-form" onSubmit={submit}>
+      <label>New task<input value={title} onChange={(event) => setTitle(event.target.value)} minLength={2} required /></label>
+      <label>Priority<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
+      <label>Due date<input aria-label="Task due date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label>
+      <label>Assignee<select aria-label="Task assignee" value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}><option value="">Unassigned</option>{record.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select></label>
+      <label>Linked document (optional)<select value={documentId} onChange={(event) => setDocumentId(event.target.value)}><option value="">No document link</option>{record.documents.map((document) => <option key={document.id} value={document.id}>{document.document_number} · Rev {document.revision} · {document.title}</option>)}</select></label>
+      {message && <p className="form-message">{message}</p>}
+      <div className="detail-action-row"><button className="button-primary" disabled={saving} type="submit">{saving ? 'Creating…' : 'Add task'}</button><button className="button-secondary" disabled={saving} type="button" onClick={onClose}>Cancel</button></div>
+    </form>
+  </section></div>;
 }
 
 function Communications({

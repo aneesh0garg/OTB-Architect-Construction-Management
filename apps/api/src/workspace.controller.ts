@@ -70,15 +70,15 @@ class UpdateTaskDto {
   @IsOptional() @IsIn(['low', 'normal', 'high', 'critical']) priority?: string;
   @IsOptional() @IsISO8601() dueDate?: string;
   @IsOptional() @IsString() @MaxLength(160) assigneeId?: string;
+  @IsOptional() @IsBoolean() clearDueDate?: boolean;
+  @IsOptional() @IsBoolean() clearAssignee?: boolean;
 }
 class CreateTaskCommentDto {
   @IsString() @MinLength(1) @MaxLength(4000) body!: string;
 }
 class CreateDocumentDto {
-  @IsOptional() @IsString() @MinLength(2) @MaxLength(48) documentNumber?: string;
   @IsIn(['drawing', 'specification', 'report', 'contract', 'photo', 'other']) documentType!: string;
   @IsString() @MinLength(2) @MaxLength(240) title!: string;
-  @IsString() @MinLength(1) @MaxLength(24) revision!: string;
   @IsOptional() @IsIn(['draft', 'issued']) status?: string;
   @IsOptional() @IsISO8601() issueDate?: string;
   @IsOptional() @IsString() @MaxLength(80) discipline?: string;

@@ -21,11 +21,8 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   const [commentBody, setCommentBody] = useState('');
   const [message, setMessage] = useState<string>();
   const [working, setWorking] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editPriority, setEditPriority] = useState('normal');
-  const [editDueDate, setEditDueDate] = useState('');
-  const [editAssigneeId, setEditAssigneeId] = useState('');
+  const [editingField, setEditingField] = useState<'title' | 'priority' | 'dueDate' | 'assignee'>();
+  const [fieldValue, setFieldValue] = useState('');
 
   const refresh = async () => {
     const next = await loadProjectRecord(projectId);
@@ -73,28 +70,24 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
       setWorking(false);
     }
   };
-  const beginEdit = () => {
+  const beginFieldEdit = (field: 'title' | 'priority' | 'dueDate' | 'assignee') => {
     if (!task) return;
-    setEditTitle(task.title);
-    setEditPriority(task.priority);
-    setEditDueDate(task.due_date ?? '');
-    setEditAssigneeId(task.assignee_id ?? '');
-    setEditing(true);
+    setFieldValue(field === 'title' ? task.title : field === 'priority' ? task.priority : field === 'dueDate' ? task.due_date ?? '' : task.assignee_id ?? '');
+    setEditingField(field);
   };
-  const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
+  const saveField = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!task) return;
+    if (!task || !editingField) return;
     setWorking(true);
     setMessage(undefined);
     try {
-      await updateProjectTask(projectId, task.id, {
-        title: editTitle.trim(),
-        priority: editPriority,
-        ...(editDueDate ? { dueDate: editDueDate } : {}),
-        ...(editAssigneeId ? { assigneeId: editAssigneeId } : {}),
-      });
+      const update = editingField === 'title' ? { title: fieldValue.trim() }
+        : editingField === 'priority' ? { priority: fieldValue }
+        : editingField === 'dueDate' ? (fieldValue ? { dueDate: fieldValue } : { clearDueDate: true })
+        : (fieldValue ? { assigneeId: fieldValue } : { clearAssignee: true });
+      await updateProjectTask(projectId, task.id, update);
       await refresh();
-      setEditing(false);
+      setEditingField(undefined);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Task could not be updated.');
     } finally {
@@ -118,9 +111,10 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
       {message && <p className="form-message">{message}</p>}
       <section className="content-card record-page-card">
         <div className="record-grid">
-          <div><span>Priority</span><strong>{task.priority}</strong></div>
-          <div><span>Assignee</span><strong>{task.assignee_id ?? 'Unassigned'}</strong></div>
-          <div><span>Due</span><strong>{task.due_date ?? 'Not scheduled'}</strong></div>
+          <div><span>Title</span><strong>{task.title}</strong><button className="field-edit-button" aria-label="Edit task title" disabled={working} onClick={() => beginFieldEdit('title')}>✎</button></div>
+          <div><span>Priority</span><strong>{task.priority}</strong><button className="field-edit-button" aria-label="Edit task priority" disabled={working} onClick={() => beginFieldEdit('priority')}>✎</button></div>
+          <div><span>Assignee</span><strong>{record!.members.find((member) => member.user_id === task.assignee_id)?.display_name ?? task.assignee_id ?? 'Unassigned'}</strong><button className="field-edit-button" aria-label="Edit task assignee" disabled={working} onClick={() => beginFieldEdit('assignee')}>✎</button></div>
+          <div><span>Due</span><strong>{task.due_date ?? 'Not scheduled'}</strong><button className="field-edit-button" aria-label="Edit task due date" disabled={working} onClick={() => beginFieldEdit('dueDate')}>✎</button></div>
           <div><span>Project</span><strong>{record?.project.code}</strong></div>
         </div>
         {canTransition && <div className="detail-action-row">
@@ -129,13 +123,12 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
           {task.status === 'blocked' && <button className="button-secondary" disabled={working} onClick={() => void setStatus('in_progress')}>Resume work</button>}
           <button className="button-primary" disabled={working} onClick={() => void setStatus('completed')}>Complete task</button>
         </div>}
-        <div className="detail-action-row"><button className="button-secondary" disabled={working} onClick={beginEdit}>Edit task</button></div>
-        {editing && <form className="proposal-builder task-edit-form" onSubmit={saveEdit}>
-          <label>Title<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required /></label>
-          <label>Priority<select value={editPriority} onChange={(event) => setEditPriority(event.target.value)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
-          <label>Due date<input type="date" value={editDueDate} onChange={(event) => setEditDueDate(event.target.value)} /></label>
-          <label>Assignee<select value={editAssigneeId} onChange={(event) => setEditAssigneeId(event.target.value)}><option value="">Keep current assignee</option>{record?.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select></label>
-          <div className="detail-action-row"><button className="button-primary" disabled={working} type="submit">Save task</button><button className="button-secondary" type="button" onClick={() => setEditing(false)}>Cancel</button></div>
+        {editingField && <form className="proposal-builder task-edit-form" onSubmit={saveField}>
+          {editingField === 'title' && <label>Task title<input value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} minLength={2} required /></label>}
+          {editingField === 'priority' && <label>Task priority<select value={fieldValue} onChange={(event) => setFieldValue(event.target.value)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>}
+          {editingField === 'dueDate' && <label>Task due date<input type="date" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} /></label>}
+          {editingField === 'assignee' && <label>Task assignee<select value={fieldValue} onChange={(event) => setFieldValue(event.target.value)}><option value="">Unassigned</option>{record!.members.map((member) => <option key={member.user_id} value={member.user_id}>{member.display_name ?? member.user_id}</option>)}</select></label>}
+          <div className="detail-action-row"><button className="button-primary" disabled={working} type="submit">Save {editingField === 'dueDate' ? 'due date' : editingField}</button><button className="button-secondary" type="button" onClick={() => setEditingField(undefined)}>Cancel</button></div>
         </form>}
       </section>
       <section className="content-card record-page-card task-discussion" aria-label="Task discussion">

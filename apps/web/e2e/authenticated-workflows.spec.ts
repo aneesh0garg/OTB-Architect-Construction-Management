@@ -16,6 +16,7 @@ test.describe('authenticated workspace workflows', () => {
 
   test('creates a task from the project work queue', async ({ page }) => {
     await page.getByTestId('project-tab-tasks').click();
+    await page.getByRole('button', { name: 'Create task' }).click();
     const title = `UI task ${Date.now()}`;
     await page.getByLabel('New task').fill(title);
     await page.getByLabel('Task due date').fill('2026-12-31');
@@ -62,6 +63,7 @@ test.describe('authenticated workspace workflows', () => {
 
   test('opens a task detail workspace and persists its discussion', async ({ page }) => {
     await page.getByTestId('project-tab-tasks').click();
+    await page.getByRole('button', { name: 'Create task' }).click();
     const title = `UI task discussion ${Date.now()}`;
     await page.getByLabel('New task').fill(title);
     await page.getByRole('button', { name: 'Add task' }).click();
@@ -72,9 +74,9 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
 
     const updatedTitle = `${title} updated`;
-    await page.getByRole('button', { name: 'Edit task' }).click();
-    await page.getByLabel('Title').fill(updatedTitle);
-    await page.getByRole('button', { name: 'Save task' }).click();
+    await page.getByRole('button', { name: 'Edit task title' }).click();
+    await page.getByLabel('Task title').fill(updatedTitle);
+    await page.getByRole('button', { name: 'Save title' }).click();
     await expect(page.getByRole('heading', { name: updatedTitle })).toBeVisible();
 
     const comment = 'Coordinate the decision with the site team.';
@@ -86,6 +88,11 @@ test.describe('authenticated workspace workflows', () => {
   test('exposes controlled document and commercial write workflows', async ({ page }) => {
     await page.getByTestId('project-tab-documents').click();
     await expect(page.getByRole('button', { name: 'Upload revision' })).toBeVisible();
+    await page.getByRole('button', { name: 'Upload revision' }).click();
+    await expect(page.getByRole('dialog', { name: 'Upload document revision' })).toBeVisible();
+    await expect(page.getByLabel('Server-assigned document number')).toHaveCount(0);
+    await expect(page.getByLabel('Generated document revision')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Close' }).click();
 
     await page.getByTestId('project-tab-cost-&-contracts').click();
     await expect(page.getByRole('button', { name: 'Add budget' })).toBeVisible();
