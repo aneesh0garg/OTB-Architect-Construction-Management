@@ -505,6 +505,7 @@ export default function Home() {
             <Documents
               record={projectRecord}
               signedIn={Boolean(viewer)}
+              onNavigate={setView}
               onChanged={() =>
                 projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
               }
@@ -1766,10 +1767,12 @@ function Overview({
 function Documents({
   record,
   signedIn,
+  onNavigate,
   onChanged,
 }: {
   record: ProjectRecord | undefined;
   signedIn: boolean;
+  onNavigate: (view: WorkspaceView) => void;
   onChanged: () => Promise<void>;
 }) {
   const documents = record?.documents ?? [];
@@ -1887,6 +1890,14 @@ function Documents({
                 <small>
                   {document.document_type} · {document.status} · {document.issue_date ?? 'Unissued'}
                 </small>
+                {document.document_type === 'drawing' && (
+                  <button
+                    className="button-secondary record-action"
+                    onClick={() => onNavigate('drawings')}
+                  >
+                    Review drawing
+                  </button>
+                )}
               </article>
             ))
           ) : (
