@@ -26,5 +26,12 @@ export default defineConfig({
         browserName: 'chromium',
       },
     },
+    {
+      name: 'mobile-webkit',
+      use: {
+        ...devices['iPhone 13'],
+        browserName: 'webkit',
+      },
+    },
   ],
 });

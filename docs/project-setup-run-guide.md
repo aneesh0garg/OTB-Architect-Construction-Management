@@ -418,10 +418,10 @@ project tabs (Overview, Drawings, and Field work) at a phone viewport. It also
 asserts that future modules remain visibly disabled, rather than appearing as
 unresponsive controls.
 
-Install Chromium once, then run the suite:
+Install the mobile browser engines once, then run the suite:
 
 ```bash
-pnpm --filter @orbita/web exec playwright install chromium
+pnpm --filter @orbita/web exec playwright install chromium webkit
 pnpm test:ui
 ```
 
