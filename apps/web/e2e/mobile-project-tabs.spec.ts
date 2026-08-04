@@ -40,6 +40,14 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByTestId('project-view-cost')).toBeVisible();
   });
 
+  test('keeps project creation reachable on a phone viewport', async ({ page }) => {
+    await page.getByRole('button', { name: '+ New project' }).click();
+    await expect(page.getByRole('dialog', { name: 'Create project' })).toContainText(
+      'Sign in to create projects and teams',
+    );
+    await page.getByRole('button', { name: 'Close create project' }).click();
+  });
+
   test('keeps notification preferences accessible on a phone viewport', async ({ page }) => {
     await page.getByTestId('notification-settings-trigger').click();
 

@@ -18,6 +18,8 @@ import {
   createProjectBrainDraft,
   createDocumentAnnotation,
   createProjectTask,
+  createWorkspaceProject,
+  createWorkspaceTeam,
   fileProjectCommunication,
   loadDocumentAnnotations,
   reviewProjectBrainDraft,
@@ -65,6 +67,7 @@ export default function Home() {
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
   const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
+  const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -101,6 +104,11 @@ export default function Home() {
     setFinanceControl(finance);
     setCostControl(cost);
     setExecutionRegister(execution);
+  }
+  async function refreshWorkspace() {
+    const workspace = await loadConnectedWorkspace();
+    setConnectedWorkspace(workspace);
+    return workspace;
   }
 
   const initials = viewer
@@ -185,7 +193,9 @@ export default function Home() {
         </nav>
         <div className="sidebar-heading">
           <span>PROJECTS</span>
-          <button aria-label="Create project">+</button>
+          <button aria-label="Create project" onClick={() => setWorkspaceDialog('project')}>
+            +
+          </button>
         </div>
         <nav className="project-list" aria-label="Projects">
           {projects.map((item) => (
@@ -222,7 +232,9 @@ export default function Home() {
         )}
         <div className="sidebar-heading sidebar-heading-team">
           <span>TEAMS</span>
-          <button aria-label="Create team">+</button>
+          <button aria-label="Create team" onClick={() => setWorkspaceDialog('team')}>
+            +
+          </button>
         </div>
         <div className="team-list">
           {teams.map((team) => (
@@ -337,7 +349,9 @@ export default function Home() {
               )}
             </div>
             <button className="button-secondary">Share</button>
-            <button className="button-primary">+ New</button>
+            <button className="button-primary" onClick={() => setWorkspaceDialog('project')}>
+              + New project
+            </button>
           </div>
         </div>
         <nav className="project-tabs" aria-label="Project sections">
@@ -426,7 +440,113 @@ export default function Home() {
           onClose={() => setNotificationFeedOpen(false)}
         />
       )}
+      {workspaceDialog && (
+        <WorkspaceCreationDialog
+          kind={workspaceDialog}
+          signedIn={Boolean(viewer)}
+          onClose={() => setWorkspaceDialog(undefined)}
+          onCreated={async (createdProjectId) => {
+            await refreshWorkspace();
+            if (createdProjectId) await loadProjectViews(createdProjectId);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function WorkspaceCreationDialog({
+  kind,
+  signedIn,
+  onClose,
+  onCreated,
+}: {
+  kind: 'project' | 'team';
+  signedIn: boolean;
+  onClose: () => void;
+  onCreated: (projectId?: string) => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [location, setLocation] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const isProject = kind === 'project';
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!signedIn) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      if (isProject) {
+        const project = await createWorkspaceProject({
+          name: name.trim(),
+          code: code.trim(),
+          ...(location.trim() ? { location: location.trim() } : {}),
+        });
+        await onCreated(project.id);
+      } else {
+        await createWorkspaceTeam(name.trim());
+        await onCreated();
+      }
+      onClose();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : `The ${kind} could not be created.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section className="modal-card" aria-label={`Create ${kind}`} role="dialog" aria-modal="true">
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">WORKSPACE SETUP</p>
+            <h2>Create {isProject ? 'project' : 'team'}</h2>
+          </div>
+          <button className="icon-button" aria-label={`Close create ${kind}`} onClick={onClose}>
+            ×
+          </button>
+        </div>
+        {!signedIn ? (
+          <p className="settings-empty">Sign in to create projects and teams in your workspace.</p>
+        ) : (
+          <form className="modal-form" onSubmit={submit}>
+            <label>
+              {isProject ? 'Project name' : 'Team name'}
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                minLength={2}
+                required
+              />
+            </label>
+            {isProject && (
+              <>
+                <label>
+                  Project code
+                  <input
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.toUpperCase())}
+                    minLength={2}
+                    maxLength={24}
+                    required
+                  />
+                </label>
+                <label>
+                  Location <small>(optional)</small>
+                  <input value={location} onChange={(event) => setLocation(event.target.value)} />
+                </label>
+              </>
+            )}
+            {message && <p className="form-message">{message}</p>}
+            <button className="button-primary" disabled={saving} type="submit">
+              {saving ? 'Creating…' : `Create ${kind}`}
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
   );
 }
 
