@@ -6,6 +6,7 @@ import {
   restoreSession,
   signIn,
   signOut,
+  submitFieldVisit,
   submitObservation,
 } from './mobile-session';
 import {
@@ -28,6 +29,16 @@ type Observation = {
   state: 'Open' | 'In review' | 'Closed';
   sync: SyncState;
 };
+type FieldVisit = {
+  id: string;
+  visitDate: string;
+  location: string;
+  attendees: string[];
+  weather: string;
+  checklist: string[];
+  notes: string;
+  sync: SyncState;
+};
 
 const fieldDatabase = SQLite.openDatabaseAsync('orbita-field.db');
 
@@ -35,6 +46,13 @@ async function initializeFieldStore() {
   const database = await fieldDatabase;
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS local_observations (
+      id TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS local_field_visits (
       id TEXT PRIMARY KEY NOT NULL,
       payload TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -63,6 +81,30 @@ async function persistObservation(observation: Observation) {
     'INSERT INTO local_observations (id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at',
     observation.id,
     JSON.stringify(observation),
+    new Date().toISOString(),
+  );
+}
+
+async function loadLocalFieldVisits() {
+  const database = await initializeFieldStore();
+  const rows = await database.getAllAsync<{ payload: string }>(
+    'SELECT payload FROM local_field_visits ORDER BY updated_at DESC',
+  );
+  return rows.flatMap((row) => {
+    try {
+      return [JSON.parse(row.payload) as FieldVisit];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function persistFieldVisit(visit: FieldVisit) {
+  const database = await initializeFieldStore();
+  await database.runAsync(
+    'INSERT INTO local_field_visits (id, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at',
+    visit.id,
+    JSON.stringify(visit),
     new Date().toISOString(),
   );
 }
@@ -111,8 +153,16 @@ const mobileTabs: { id: MobileTab; icon: string; label: string; title: string }[
 
 export default function HomeScreen() {
   const [observations, setObservations] = useState(initialObservations);
+  const [visits, setVisits] = useState<FieldVisit[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [visitCaptureOpen, setVisitCaptureOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [visitDate, setVisitDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [visitLocation, setVisitLocation] = useState('Riverside site');
+  const [visitAttendees, setVisitAttendees] = useState('');
+  const [visitWeather, setVisitWeather] = useState('');
+  const [visitChecklist, setVisitChecklist] = useState('');
+  const [visitNotes, setVisitNotes] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('synced');
   const [activeTab, setActiveTab] = useState<MobileTab>('field');
   const [session, setSession] = useState<MobileSession>();
@@ -126,21 +176,29 @@ export default function HomeScreen() {
     [observations],
   );
   const queuedCount = useMemo(
-    () => observations.filter((item) => item.sync !== 'synced').length,
-    [observations],
+    () =>
+      observations.filter((item) => item.sync !== 'synced').length +
+      visits.filter((visit) => visit.sync !== 'synced').length,
+    [observations, visits],
   );
   const currentTab = mobileTabs.find((tab) => tab.id === activeTab) ?? mobileTabs[1]!;
 
   useEffect(() => {
     let active = true;
-    loadLocalObservations()
-      .then((stored) => {
-        if (!active || stored.length === 0) return;
+    Promise.all([loadLocalObservations(), loadLocalFieldVisits()])
+      .then(([storedObservations, storedVisits]) => {
+        if (!active) return;
         setObservations((current) => [
-          ...stored,
-          ...current.filter((item) => !stored.some((saved) => saved.id === item.id)),
+          ...storedObservations,
+          ...current.filter((item) => !storedObservations.some((saved) => saved.id === item.id)),
         ]);
-        if (stored.some((item) => item.sync !== 'synced')) setSyncState('local');
+        if (storedVisits.length > 0) setVisits(storedVisits);
+        if (
+          storedObservations.some((item) => item.sync !== 'synced') ||
+          storedVisits.some((visit) => visit.sync !== 'synced')
+        ) {
+          setSyncState('local');
+        }
       })
       .catch(() => active && setSyncState('failed'));
     return () => {
@@ -186,6 +244,34 @@ export default function HomeScreen() {
     setTitle('');
     setCaptureOpen(false);
   };
+  const captureFieldVisit = async () => {
+    const location = visitLocation.trim();
+    if (!location) return;
+    const visit: FieldVisit = {
+      id: `FV-${Date.now().toString(36).toUpperCase()}`,
+      visitDate: visitDate.trim() || new Date().toISOString().slice(0, 10),
+      location,
+      attendees: visitAttendees
+        .split(',')
+        .map((attendee) => attendee.trim())
+        .filter(Boolean),
+      weather: visitWeather.trim(),
+      checklist: visitChecklist
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+      notes: visitNotes.trim(),
+      sync: 'local',
+    };
+    setVisits((current) => [visit, ...current]);
+    await persistFieldVisit(visit);
+    setSyncState('local');
+    setVisitCaptureOpen(false);
+    setVisitAttendees('');
+    setVisitWeather('');
+    setVisitChecklist('');
+    setVisitNotes('');
+  };
   const retrySync = async () => {
     if (!session) {
       setAccountError('Sign in before syncing field captures.');
@@ -193,20 +279,44 @@ export default function HomeScreen() {
       return;
     }
     setSyncState('syncing');
-    const queued = observations.filter((item) => item.sync !== 'synced');
+    const queuedObservations = observations.filter((item) => item.sync !== 'synced');
+    const queuedVisits = visits.filter((visit) => visit.sync !== 'synced');
     try {
-      await Promise.all(queued.map((item) => submitObservation(session, item)));
-      const synced = queued.map((item) => ({ ...item, sync: 'synced' as const }));
-      await Promise.all(synced.map(persistObservation));
+      await Promise.all([
+        ...queuedObservations.map((item) => submitObservation(session, item)),
+        ...queuedVisits.map((visit) => submitFieldVisit(session, visit)),
+      ]);
+      const syncedObservations = queuedObservations.map((item) => ({
+        ...item,
+        sync: 'synced' as const,
+      }));
+      const syncedVisits = queuedVisits.map((visit) => ({ ...visit, sync: 'synced' as const }));
+      await Promise.all([
+        ...syncedObservations.map(persistObservation),
+        ...syncedVisits.map(persistFieldVisit),
+      ]);
       setObservations((current) =>
-        current.map((item) => synced.find((saved) => saved.id === item.id) ?? item),
+        current.map((item) => syncedObservations.find((saved) => saved.id === item.id) ?? item),
+      );
+      setVisits((current) =>
+        current.map((visit) => syncedVisits.find((saved) => saved.id === visit.id) ?? visit),
       );
       setSyncState('synced');
     } catch (error) {
-      const failed = queued.map((item) => ({ ...item, sync: 'failed' as const }));
-      await Promise.all(failed.map(persistObservation));
+      const failedObservations = queuedObservations.map((item) => ({
+        ...item,
+        sync: 'failed' as const,
+      }));
+      const failedVisits = queuedVisits.map((visit) => ({ ...visit, sync: 'failed' as const }));
+      await Promise.all([
+        ...failedObservations.map(persistObservation),
+        ...failedVisits.map(persistFieldVisit),
+      ]);
       setObservations((current) =>
-        current.map((item) => failed.find((saved) => saved.id === item.id) ?? item),
+        current.map((item) => failedObservations.find((saved) => saved.id === item.id) ?? item),
+      );
+      setVisits((current) =>
+        current.map((visit) => failedVisits.find((saved) => saved.id === visit.id) ?? visit),
       );
       setSyncState('failed');
       setAccountError(error instanceof Error ? error.message : 'Sync failed.');
@@ -281,12 +391,32 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.eyebrow}>TODAY'S SITE VISIT</Text>
               <Text style={styles.visitTitle}>Riverside site · 14 Mar</Text>
-              <Text style={styles.visitMeta}>Clear · 2 attendees · 1 checklist item</Text>
+              <Text style={styles.visitMeta}>
+                Start a local draft before connectivity is available
+              </Text>
             </View>
-            <Pressable accessibilityRole="button" style={styles.visitButton}>
-              <Text style={styles.visitButtonText}>Open</Text>
+            <Pressable
+              accessibilityLabel="Start site visit"
+              accessibilityRole="button"
+              style={styles.visitButton}
+              onPress={() => setVisitCaptureOpen(true)}
+            >
+              <Text style={styles.visitButtonText}>Start</Text>
             </Pressable>
           </View>
+          {visits.length > 0 && (
+            <>
+              <View style={styles.listHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Visit drafts</Text>
+                  <Text style={styles.sectionMeta}>Saved locally until synchronized</Text>
+                </View>
+              </View>
+              {visits.slice(0, 2).map((visit) => (
+                <FieldVisitCard key={visit.id} visit={visit} />
+              ))}
+            </>
+          )}
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.sectionTitle}>Observations</Text>
@@ -391,6 +521,77 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
+      {visitCaptureOpen && (
+        <View style={styles.sheetBackdrop}>
+          <ScrollView contentContainerStyle={styles.captureSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>New site visit</Text>
+            <Text style={styles.sheetCopy}>
+              The visit is saved on this device first and can be synchronized when you sign in.
+            </Text>
+            <Text style={styles.inputLabel}>Visit date</Text>
+            <TextInput
+              value={visitDate}
+              onChangeText={setVisitDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Site location</Text>
+            <TextInput
+              value={visitLocation}
+              onChangeText={setVisitLocation}
+              placeholder="Site or zone"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Attendees</Text>
+            <TextInput
+              value={visitAttendees}
+              onChangeText={setVisitAttendees}
+              placeholder="Comma-separated names"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Weather</Text>
+            <TextInput
+              value={visitWeather}
+              onChangeText={setVisitWeather}
+              placeholder="Clear, rain, hot…"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Checklist</Text>
+            <TextInput
+              value={visitChecklist}
+              onChangeText={setVisitChecklist}
+              placeholder="Comma-separated checklist items"
+              placeholderTextColor="#758181"
+              style={styles.input}
+            />
+            <Text style={styles.inputLabel}>Notes</Text>
+            <TextInput
+              value={visitNotes}
+              onChangeText={setVisitNotes}
+              multiline
+              placeholder="What happened on site?"
+              placeholderTextColor="#758181"
+              style={[styles.input, styles.notesInput]}
+            />
+            <View style={styles.sheetActions}>
+              <Pressable onPress={() => setVisitCaptureOpen(false)} style={styles.cancelButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={captureFieldVisit}
+                style={[styles.saveButton, !visitLocation.trim() && styles.saveDisabled]}
+              >
+                <Text style={styles.saveText}>Save locally</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      )}
       <View accessibilityRole="tablist" style={styles.tabBar}>
         {mobileTabs.map((tab) => (
           <Tab
@@ -431,6 +632,24 @@ function ObservationCard({ observation }: { observation: Observation }) {
       <View style={styles.observationFooter}>
         <Text style={styles.priorityText}>{observation.priority}</Text>
         <Text style={styles.recordState}>{observation.state}</Text>
+      </View>
+    </View>
+  );
+}
+
+function FieldVisitCard({ visit }: { visit: FieldVisit }) {
+  return (
+    <View style={styles.observationCard}>
+      <View style={styles.observationTop}>
+        <Text style={styles.observationId}>
+          {visit.visitDate} · {visit.location}
+        </Text>
+        <Text style={styles.recordSync}>{visit.sync === 'synced' ? '✓' : '○'}</Text>
+      </View>
+      <Text style={styles.observationTitle}>{visit.attendees.length || 'No'} attendees</Text>
+      <View style={styles.observationFooter}>
+        <Text style={styles.priorityText}>{visit.weather || 'Weather not recorded'}</Text>
+        <Text style={styles.recordState}>{visit.checklist.length} checklist items</Text>
       </View>
     </View>
   );
@@ -639,8 +858,9 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { fontSize: 19, fontWeight: '700', color: '#172521' },
   sheetCopy: { marginTop: 5, fontSize: 12, lineHeight: 18, color: '#71807b' },
+  inputLabel: { marginTop: 14, fontSize: 11, color: '#53645f', fontWeight: '700' },
   input: {
-    marginTop: 18,
+    marginTop: 6,
     minHeight: 47,
     borderWidth: 1,
     borderColor: '#cddbd6',
@@ -649,6 +869,7 @@ const styles = StyleSheet.create({
     color: '#1d2b27',
     fontSize: 14,
   },
+  notesInput: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
   sheetActions: { marginTop: 14, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   cancelButton: { paddingVertical: 11, paddingHorizontal: 13 },
   cancelText: { color: '#5f706a', fontSize: 12, fontWeight: '700' },

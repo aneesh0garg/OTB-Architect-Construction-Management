@@ -135,3 +135,39 @@ export async function submitObservation(
   if (!response.ok) throw new Error('The observation could not be synced.');
   return response.json() as Promise<{ id: string }>;
 }
+
+export async function submitFieldVisit(
+  session: MobileSession,
+  input: {
+    id: string;
+    visitDate: string;
+    location: string;
+    attendees: string[];
+    weather: string;
+    checklist: string[];
+    notes: string;
+  },
+) {
+  const response = await fetch(
+    `${requiredApiUrl()}/v1/projects/${session.projectId}/field-visits`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${session.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        clientCaptureId: input.id,
+        visitDate: input.visitDate,
+        location: input.location,
+        attendees: input.attendees,
+        weather: input.weather || undefined,
+        checklist: input.checklist.map((label) => ({ label, complete: false })),
+        notes: input.notes || undefined,
+        syncState: 'synced',
+      }),
+    },
+  );
+  if (!response.ok) throw new Error('The field visit could not be synced.');
+  return response.json() as Promise<{ id: string }>;
+}

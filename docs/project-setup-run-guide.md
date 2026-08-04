@@ -192,9 +192,10 @@ can explicitly open the signed original in a separate tab.
 
 ## P1.2 field and execution API
 
-The mobile field screen makes local capture and its sync status visible. The
-server accepts idempotent field captures through a client capture ID, so a
-device can retry safely after a connectivity interruption.
+The mobile field screen makes local observation and site-visit capture, plus
+their sync status, visible. The server accepts idempotent field captures
+through a client capture ID, so a device can retry safely after a connectivity
+interruption.
 
 | Endpoint                                                       | Purpose                                                                                                     |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -205,13 +206,15 @@ device can retry safely after a connectivity interruption.
 | `GET /v1/projects/:projectId/execution-register`               | Read field and construction-administration registers.                                                       |
 
 Start the mobile field app with `pnpm --filter @orbita/mobile dev`, then use
-Expo Go or an iOS/Android simulator. “Capture observation” saves a device-local
-SQLite record first, so a capture survives an app restart; the sync indicator
-makes local, syncing, synced, failed, and conflict states explicit. The current
-mobile app uses Keycloak Authorization Code + PKCE, stores its short-lived
-access token in the device secure store, and submits its queue only after an
-authenticated project session is available. The API’s `clientCaptureId`
-deduplicates retries when the app submits the draft.
+Expo Go or an iOS/Android simulator. “Capture observation” and “Start” a site
+visit both save device-local SQLite records first, so a capture survives an app
+restart. A site visit records its date, location, attendees, weather,
+checklist, and notes. The sync indicator makes local, syncing, synced, failed,
+and conflict states explicit. The current mobile app uses Keycloak
+Authorization Code + PKCE, stores its short-lived access token in the device
+secure store, and submits its queue only after an authenticated project session
+is available. The API’s `clientCaptureId` deduplicates retries when the app
+submits the draft.
 
 For a physical device, copy `apps/mobile/.env.example` to
 `apps/mobile/.env` and replace the example LAN address with the computer’s
