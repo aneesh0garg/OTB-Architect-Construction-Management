@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CreateBucketCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -22,6 +23,10 @@ interface UploadRow extends QueryResultRow {
   expected_size: string;
   actual_size: string | null;
   status: string;
+}
+interface DocumentStorageRow extends QueryResultRow {
+  id: string;
+  storage_key: string | null;
 }
 
 @Injectable()
@@ -110,6 +115,26 @@ export class DocumentUploadService {
       projectId,
     });
     return attached.storage_key;
+  }
+
+  async download(actor: AuthenticatedActor, projectId: string, documentId: string) {
+    await this.projectAccess.requireAccess(actor, projectId);
+    const result = await this.database.query<DocumentStorageRow>(
+      'SELECT id, storage_key FROM document_revisions WHERE id = $1 AND organization_id = $2 AND project_id = $3',
+      [documentId, actor.organizationId, projectId],
+    );
+    const document = row(result.rows, 'Document revision is unavailable.');
+    if (!document.storage_key)
+      throw new BadRequestException('This document revision has no uploaded original.');
+    const downloadUrl = await getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: this.bucket(), Key: document.storage_key }),
+      { expiresIn: 300 },
+    );
+    await this.audit.record(actor, 'document.download_prepared', 'document_revision', document.id, {
+      projectId,
+    });
+    return { documentId: document.id, downloadUrl, expiresInSeconds: 300 };
   }
 
   private async find(

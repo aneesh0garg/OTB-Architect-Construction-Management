@@ -129,7 +129,7 @@ const completedUpload = await api(
   `${projectPath}/documents/uploads/${preparedUpload.uploadId}/complete`,
 );
 assert.equal(completedUpload.status, 'uploaded', 'Upload was not verified.');
-await api('POST', `${projectPath}/documents`, {
+const uploadedDocument = await api('POST', `${projectPath}/documents`, {
   documentNumber: `UP-${runId}`,
   documentType: 'report',
   title: `Uploaded smoke report ${runId}`,
@@ -137,6 +137,13 @@ await api('POST', `${projectPath}/documents`, {
   status: 'draft',
   uploadId: preparedUpload.uploadId,
 });
+const download = await api('GET', `${projectPath}/documents/${uploadedDocument.id}/download`);
+const downloadedBody = await (await fetch(download.downloadUrl)).text();
+assert.equal(
+  downloadedBody,
+  documentBytes.toString('utf8'),
+  'Signed original download did not match.',
+);
 await api('POST', `${projectPath}/documents`, {
   documentNumber: `A-${runId}`,
   documentType: 'drawing',
@@ -335,6 +342,7 @@ for (const action of [
   'export.project_csv_created',
   'export.commercial_csv_created',
   'document.upload_attached',
+  'document.download_prepared',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),

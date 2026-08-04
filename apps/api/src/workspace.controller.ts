@@ -138,6 +138,13 @@ export class WorkspaceController {
   ) {
     return this.uploads.complete(request.actor!, projectId, uploadId);
   }
+  @Get('projects/:projectId/documents/:documentId/download') downloadDocument(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.uploads.download(request.actor!, projectId, documentId);
+  }
   @Post('projects/:projectId/communications') fileCommunication(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,
