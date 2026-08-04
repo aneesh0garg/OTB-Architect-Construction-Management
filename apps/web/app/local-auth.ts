@@ -76,6 +76,10 @@ export type ExecutionRegister = {
     sync_state: string;
   }[];
 };
+export type DocumentDownload = {
+  downloadUrl: string;
+  expiresAt: string;
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -175,3 +179,5 @@ export const loadCostControl = (projectId: string) =>
   apiGet<CostControl>(`/v1/projects/${projectId}/finance/cost`);
 export const loadExecutionRegister = (projectId: string) =>
   apiGet<ExecutionRegister>(`/v1/projects/${projectId}/execution-register`);
+export const prepareDocumentDownload = (projectId: string, documentId: string) =>
+  apiGet<DocumentDownload>(`/v1/workspace/projects/${projectId}/documents/${documentId}/download`);

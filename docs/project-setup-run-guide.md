@@ -147,6 +147,13 @@ returned `uploadUrl` with the declared `Content-Type`, complete the upload, and
 pass its `uploadId` to the document-revision endpoint. This prevents a caller
 from attaching an arbitrary storage key from another tenant or project.
 
+In the web workspace, the enabled **Drawings** tab opens a file-backed drawing
+inside a controlled 2D viewer. It first requests the same permission-checked,
+five-minute signed URL shown above; the viewer never exposes a storage key and
+shows a clear message for a revision without an original or after access has
+changed. PDFs and uploaded drawing images render in the browser, and the user
+can explicitly open the signed original in a separate tab.
+
 ## P1.2 field and execution API
 
 The mobile field screen makes local capture and its sync status visible. The

@@ -888,6 +888,58 @@ small {
   color: var(--primary);
   font-size: 18px;
 }
+.drawing-open-error {
+  margin: 12px 0 0;
+  color: var(--alert, #a8540e);
+  font-size: 12px;
+}
+.drawing-viewer {
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raised);
+}
+.drawing-viewer header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.drawing-viewer h3 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+.drawing-viewer header > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drawing-viewer small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.drawing-viewer a,
+.drawing-viewer button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.drawing-viewer button {
+  font-size: 21px;
+  line-height: 1;
+}
+.drawing-viewer iframe {
+  display: block;
+  width: 100%;
+  height: min(68vh, 760px);
+  border: 0;
+  background: white;
+}
 .status-pill.superseded {
   color: var(--muted);
   background: var(--raised-strong);
@@ -1157,6 +1209,12 @@ small {
   }
   .drawing-table-card {
     overflow-x: auto;
+  }
+  .drawing-viewer header,
+  .drawing-viewer header > div:last-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
   }
   .field-page {
     display: block;

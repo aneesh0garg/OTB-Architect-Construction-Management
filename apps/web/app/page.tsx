@@ -5,6 +5,7 @@ import {
   beginLocalLogin,
   loadCostControl,
   loadExecutionRegister,
+  prepareDocumentDownload,
   loadFinanceControl,
   loadConnectedWorkspace,
   loadProjectRecord,
@@ -495,9 +496,34 @@ function Overview({
 }
 
 function Drawings({ record }: { record: ProjectRecord | undefined }) {
+  const [preview, setPreview] = useState<{
+    title: string;
+    documentNumber: string;
+    url: string;
+    expiresAt: string;
+  }>();
+  const [openError, setOpenError] = useState<string>();
   const drawings =
     record?.documents.filter((document) => document.document_type === 'drawing') ??
     workspaceData.activeProject.drawings;
+  const openDrawing = async (drawing: (typeof drawings)[number]) => {
+    if (!record || !('id' in drawing)) {
+      setOpenError('Sign in to open a controlled drawing original.');
+      return;
+    }
+    setOpenError(undefined);
+    try {
+      const download = await prepareDocumentDownload(record.project.id, drawing.id);
+      setPreview({
+        title: drawing.title,
+        documentNumber: drawing.document_number,
+        url: download.downloadUrl,
+        expiresAt: download.expiresAt,
+      });
+    } catch {
+      setOpenError('This revision has no downloadable original, or your access has changed.');
+    }
+  };
   return (
     <div className="workspace-content drawings-view">
       <div className="drawings-hero">
@@ -546,6 +572,7 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
               </span>
               <button
                 aria-label={`Open ${'document_number' in drawing ? drawing.document_number : drawing.number}`}
+                onClick={() => openDrawing(drawing)}
               >
                 →
               </button>
@@ -553,6 +580,32 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
           ))}
         </div>
       </section>
+      {openError && <p className="drawing-open-error">{openError}</p>}
+      {preview && (
+        <section
+          className="drawing-viewer"
+          aria-label={`Drawing viewer for ${preview.documentNumber}`}
+        >
+          <header>
+            <div>
+              <p className="eyebrow">CONTROLLED ORIGINAL</p>
+              <h3>
+                {preview.documentNumber} · {preview.title}
+              </h3>
+            </div>
+            <div>
+              <small>Access link expires {new Date(preview.expiresAt).toLocaleTimeString()}</small>
+              <a href={preview.url} target="_blank" rel="noreferrer">
+                Open original ↗
+              </a>
+              <button onClick={() => setPreview(undefined)} aria-label="Close drawing viewer">
+                ×
+              </button>
+            </div>
+          </header>
+          <iframe title={preview.title} src={preview.url} />
+        </section>
+      )}
     </div>
   );
 }
