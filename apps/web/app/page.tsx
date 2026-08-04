@@ -259,7 +259,7 @@ export default function Home() {
               setStaffingOpen(true);
             }}
           >
-            <span>◉</span> Resource capacity
+            <span>◉</span> Team & resources
           </a>
         </nav>
         <div className="sidebar-heading">
