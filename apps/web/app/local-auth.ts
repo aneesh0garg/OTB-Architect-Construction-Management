@@ -428,6 +428,8 @@ export const recordProjectPayment = (
   invoiceId: string,
   input: { amount: number; paidDate: string; reference?: string },
 ) => apiPost(`/v1/projects/${projectId}/finance/invoices/${invoiceId}/payments`, input);
+export const transitionProjectInvoice = (projectId: string, invoiceId: string, status: string) =>
+  apiPost(`/v1/projects/${projectId}/finance/invoices/${invoiceId}/status`, { status });
 export const fileProjectCommunication = (
   projectId: string,
   input: {

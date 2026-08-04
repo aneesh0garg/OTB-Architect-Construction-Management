@@ -38,6 +38,7 @@ import {
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
+  transitionProjectInvoice,
   transitionWorkspaceProjectStage,
   transitionWorkspaceProjectStatus,
   recordProjectPayment,
@@ -2244,6 +2245,19 @@ function CostContracts({
       setSaving(false);
     }
   };
+  const updateInvoiceStatus = async (invoiceId: string, status: string) => {
+    if (!record) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await transitionProjectInvoice(record.project.id, invoiceId, status);
+      await onChanged();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Invoice status could not be updated.');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -2480,6 +2494,24 @@ function CostContracts({
               <span>
                 {invoice.status.replaceAll('_', ' ')} · Accounting {invoice.accounting_sync_status}
               </span>
+              {signedIn && invoice.status === 'draft' && (
+                <button
+                  className="button-secondary record-action"
+                  disabled={saving}
+                  onClick={() => updateInvoiceStatus(invoice.id, 'internal_review')}
+                >
+                  Send for internal review
+                </button>
+              )}
+              {signedIn && invoice.status === 'internal_review' && (
+                <button
+                  className="button-secondary record-action"
+                  disabled={saving}
+                  onClick={() => updateInvoiceStatus(invoice.id, 'issued')}
+                >
+                  Issue invoice
+                </button>
+              )}
               {signedIn && ['issued', 'partially_paid'].includes(invoice.status) && (
                 <button
                   className="button-secondary record-action"
