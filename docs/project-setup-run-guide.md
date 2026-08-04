@@ -497,6 +497,16 @@ env -u CI apps/web/node_modules/.bin/playwright test \
   --project=mobile-chromium --workers=1
 ```
 
+To run the governed authenticated workflow checks, explicitly supply a short-lived
+access token for the local test account. These checks create local test records:
+
+```bash
+ORBITA_E2E_ACCESS_TOKEN='local-access-token' \
+  env -u CI apps/web/node_modules/.bin/playwright test \
+  -c apps/web/playwright.config.ts apps/web/e2e/authenticated-workflows.spec.ts \
+  --project=desktop-chromium --workers=1
+```
+
 The test runner starts the web app unless an instance is already serving on
 port 3000. Set `PLAYWRIGHT_BASE_URL` to test a different local deployment.
 
