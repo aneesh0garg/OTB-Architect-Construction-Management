@@ -114,6 +114,7 @@ header used in the quick check. `PROJECT_ID` must be an ID returned from
 | `GET /v1/projects/:projectId/search?q=:query`                                 | Search permitted documents, filed communications, tasks, field observations, and workflow records within a project.                        |
 | `GET /v1/projects/:projectId/exports/project.csv`                             | Download an audit-recorded, spreadsheet-safe project-record CSV.                                                                           |
 | `GET /v1/projects/:projectId/exports/commercial.csv`                          | Download an audit-recorded, spreadsheet-safe commercial and cost-control CSV.                                                              |
+| `GET /v1/projects/:projectId/exports/project.json`                            | Download an audit-recorded, non-proprietary `orbita-project-record/v1` manifest with project records and audit events.                     |
 | `POST /v1/workspace/projects/:projectId/tasks`                                | Create a task; an assigned user receives an in-app notification.                                                                           |
 | `POST /v1/workspace/projects/:projectId/tasks/:taskId/status`                 | Move a task from open through in-progress/blocked to completed or cancelled; every valid transition is audited.                            |
 | `POST /v1/workspace/projects/:projectId/documents`                            | Register a controlled document or drawing revision. A newly issued revision supersedes the previously issued revision for the same number. |
@@ -130,6 +131,13 @@ Task assignments, issued construction workflows, invoice issuance, and payment
 receipts create in-app notifications for authorized project members. External
 email and push delivery remain explicitly opt-in integrations; notification
 contents never substitute for the underlying project record.
+
+The JSON package includes project metadata, tasks, document metadata, filed
+communications, observations, workflows, and the project-scoped audit trail.
+It deliberately excludes storage keys and original file bytes; recipients can
+use the normal permission-checked document-download endpoint to obtain each
+original independently. This keeps a portable record export from becoming a
+long-lived, unrestricted attachment share.
 
 Project delivery stages are distinct from record-retention status. The accepted
 stages are `pursuit`, `concept`, `schematic_design`, `design_development`,

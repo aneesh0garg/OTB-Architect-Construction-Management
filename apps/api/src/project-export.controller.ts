@@ -18,4 +18,10 @@ export class ProjectExportController {
   commercial(@Req() request: AuthenticatedRequest, @Param('projectId') projectId: string) {
     return this.exports.commercialCsv(request.actor!, projectId);
   }
+
+  @Get('project.json')
+  @Header('content-type', 'application/json; charset=utf-8')
+  projectPackage(@Req() request: AuthenticatedRequest, @Param('projectId') projectId: string) {
+    return this.exports.projectPackage(request.actor!, projectId);
+  }
 }

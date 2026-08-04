@@ -453,6 +453,21 @@ const projectExport = await apiText(`/v1/projects/${project.id}/exports/project.
 assert.match(projectExport, /Facade observation/);
 const commercialExport = await apiText(`/v1/projects/${project.id}/exports/commercial.csv`);
 assert.match(commercialExport, /Amount \(INR\)/);
+const projectPackage = await api('GET', `/v1/projects/${project.id}/exports/project.json`);
+assert.equal(
+  projectPackage.format,
+  'orbita-project-record/v1',
+  'Project package format is missing.',
+);
+assert.equal(projectPackage.project.id, project.id, 'Project package has the wrong project.');
+assert.equal(
+  projectPackage.documents.some((item) => item.storage_key !== undefined),
+  false,
+);
+assert.ok(
+  projectPackage.attachmentNotice,
+  'Project package does not describe original-file handling.',
+);
 const auditEvents = await api('GET', `/v1/workspace/audit?projectId=${project.id}`);
 for (const action of [
   'observation.captured',
@@ -467,6 +482,7 @@ for (const action of [
   'project.search_performed',
   'export.project_csv_created',
   'export.commercial_csv_created',
+  'export.project_package_created',
   'document.upload_attached',
   'document.download_prepared',
   'document.upload_batch_prepared',

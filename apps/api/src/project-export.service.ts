@@ -101,6 +101,71 @@ export class ProjectExportService {
     });
     return csv(rows);
   }
+
+  async projectPackage(actor: AuthenticatedActor, projectId: string) {
+    await this.projectAccess.requireAccess(actor, projectId);
+    const [project, tasks, documents, communications, observations, workflows, auditEvents] =
+      await Promise.all([
+        this.database.query<QueryResultRow>(
+          'SELECT id, code, name, client_name, status, location, stage, created_at, closed_at, retention_until FROM projects WHERE id = $1 AND organization_id = $2',
+          [projectId, actor.organizationId],
+        ),
+        this.database.query<QueryResultRow>(
+          'SELECT id, title, status, priority, due_date, assignee_id, source_record_type, source_record_id, created_at FROM tasks WHERE project_id = $1 ORDER BY created_at',
+          [projectId],
+        ),
+        this.database.query<QueryResultRow>(
+          `SELECT id, document_number, document_type, title, revision, status, issue_date,
+            discipline, building, floor, zone, created_at
+           FROM document_revisions WHERE project_id = $1 ORDER BY document_number, created_at`,
+          [projectId],
+        ),
+        this.database.query<QueryResultRow>(
+          `SELECT id, channel, direction, subject, body, sender, recipients, thread_id,
+            source_message_id, filed_at FROM communications
+           WHERE project_id = $1 AND filing_status = 'filed' ORDER BY filed_at`,
+          [projectId],
+        ),
+        this.database.query<QueryResultRow>(
+          `SELECT id, observation_number, title, description, category, location, floor, zone,
+            trade, priority, status, evidence, assignee_id, due_date, created_at
+           FROM observations WHERE project_id = $1 ORDER BY created_at`,
+          [projectId],
+        ),
+        this.database.query<QueryResultRow>(
+          `SELECT id, record_type, record_number, title, status, data, issued_at, created_at
+           FROM workflow_records WHERE project_id = $1 ORDER BY created_at`,
+          [projectId],
+        ),
+        this.database.query<QueryResultRow>(
+          `SELECT id, actor_id, action, entity_type, entity_id, metadata, created_at
+           FROM audit_events WHERE organization_id = $1 AND metadata->>'projectId' = $2
+           ORDER BY created_at`,
+          [actor.organizationId, projectId],
+        ),
+      ]);
+    const value = project.rows[0];
+    if (!value) throw new Error('Project is unavailable.');
+    const packageData = {
+      format: 'orbita-project-record/v1',
+      exportedAt: new Date().toISOString(),
+      project: value,
+      tasks: tasks.rows,
+      documents: documents.rows,
+      communications: communications.rows,
+      observations: observations.rows,
+      workflows: workflows.rows,
+      auditEvents: auditEvents.rows,
+      attachmentNotice:
+        'Original files are intentionally excluded from this JSON manifest. An authorized user can prepare a short-lived controlled download for each exported document revision.',
+    };
+    await this.audit.record(actor, 'export.project_package_created', 'project', projectId, {
+      projectId,
+      documentCount: documents.rows.length,
+      auditEventCount: auditEvents.rows.length,
+    });
+    return packageData;
+  }
 }
 
 const csv = (rows: unknown[][]) => `${rows.map((row) => row.map(cell).join(',')).join('\r\n')}\r\n`;
