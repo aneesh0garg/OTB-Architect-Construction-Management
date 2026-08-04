@@ -10,11 +10,15 @@ import {
   loadConnectedWorkspace,
   loadProjectRecord,
   loadPipeline,
+  loadResourceCapacity,
+  loadResourcePeople,
+  loadResourceTeams,
   loadNotificationPreferences,
   loadNotifications,
   markNotificationRead,
   restoreLocalLogin,
   saveNotificationPreference,
+  saveResourcePerson,
   searchProjectBrain,
   createProjectBrainDraft,
   createDocumentAnnotation,
@@ -23,6 +27,7 @@ import {
   createProjectInvoice,
   createPipelineOpportunity,
   createPipelineProposal,
+  assignResourceTeamMember,
   createWorkspaceProject,
   createWorkspaceTeam,
   fileProjectCommunication,
@@ -43,6 +48,9 @@ import {
   type DocumentAnnotation,
   type ProjectRecord,
   type PipelineRegister,
+  type CapacityRegister,
+  type ResourcePerson,
+  type ResourceTeam,
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
@@ -77,6 +85,7 @@ export default function Home() {
   const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
   const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
   const [pipelineOpen, setPipelineOpen] = useState(false);
+  const [staffingOpen, setStaffingOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -203,7 +212,14 @@ export default function Home() {
           >
             <span>◫</span> Portfolio
           </a>
-          <a className="sidebar-link" href="#teams">
+          <a
+            className="sidebar-link"
+            href="#teams"
+            onClick={(event) => {
+              event.preventDefault();
+              setStaffingOpen(true);
+            }}
+          >
             <span>◉</span> My teams
           </a>
         </nav>
@@ -488,6 +504,9 @@ export default function Home() {
       {pipelineOpen && (
         <PipelineDialog signedIn={Boolean(viewer)} onClose={() => setPipelineOpen(false)} />
       )}
+      {staffingOpen && (
+        <StaffingDialog signedIn={Boolean(viewer)} onClose={() => setStaffingOpen(false)} />
+      )}
     </main>
   );
 }
@@ -581,6 +600,200 @@ function WorkspaceCreationDialog({
               {saving ? 'Creating…' : `Create ${kind}`}
             </button>
           </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () => void }) {
+  const [people, setPeople] = useState<ResourcePerson[]>([]);
+  const [teams, setTeams] = useState<ResourceTeam[]>([]);
+  const [capacity, setCapacity] = useState<CapacityRegister>();
+  const [userId, setUserId] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [weeklyHours, setWeeklyHours] = useState('40');
+  const [teamId, setTeamId] = useState('');
+  const [memberId, setMemberId] = useState('');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const refresh = async () => {
+    if (!signedIn) return;
+    try {
+      const [nextPeople, nextTeams, nextCapacity] = await Promise.all([
+        loadResourcePeople(),
+        loadResourceTeams(),
+        loadResourceCapacity(
+          new Date().toISOString().slice(0, 10),
+          new Date(Date.now() + 27 * 86400000).toISOString().slice(0, 10),
+        ),
+      ]);
+      setPeople(nextPeople);
+      setTeams(nextTeams);
+      setCapacity(nextCapacity);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Staffing records could not be loaded.');
+    }
+  };
+  useEffect(() => {
+    void refresh();
+  }, [signedIn]);
+  const savePerson = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await saveResourcePerson({
+        userId: userId.trim(),
+        displayName: displayName.trim(),
+        weeklyCapacityHours: Number(weeklyHours),
+      });
+      setUserId('');
+      setDisplayName('');
+      setWeeklyHours('40');
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Person could not be saved.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const assign = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await assignResourceTeamMember({ teamId, userId: memberId });
+      setMemberId('');
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Team assignment could not be saved.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="modal-card staffing-dialog"
+        aria-label="Staffing and capacity"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="card-header">
+          <div>
+            <p className="eyebrow">RESOURCE MANAGEMENT</p>
+            <h2>Staffing &amp; capacity</h2>
+          </div>
+          <button
+            className="icon-button"
+            aria-label="Close staffing and capacity"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+        {!signedIn ? (
+          <p className="settings-empty">Sign in to manage people, teams, and capacity.</p>
+        ) : (
+          <>
+            <form className="inline-form staffing-form" onSubmit={savePerson}>
+              <label>
+                User ID
+                <input
+                  value={userId}
+                  onChange={(event) => setUserId(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Name
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Weekly hours
+                <input
+                  type="number"
+                  min="0"
+                  max="80"
+                  value={weeklyHours}
+                  onChange={(event) => setWeeklyHours(event.target.value)}
+                  required
+                />
+              </label>
+              <button className="button-primary" disabled={saving} type="submit">
+                Save person
+              </button>
+            </form>
+            {teams.length > 0 && people.length > 0 && (
+              <form className="inline-form staffing-form" onSubmit={assign}>
+                <label>
+                  Team
+                  <select
+                    value={teamId}
+                    onChange={(event) => setTeamId(event.target.value)}
+                    required
+                  >
+                    <option value="">Choose team</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Person
+                  <select
+                    value={memberId}
+                    onChange={(event) => setMemberId(event.target.value)}
+                    required
+                  >
+                    <option value="">Choose person</option>
+                    {people.map((person) => (
+                      <option key={person.user_id} value={person.user_id}>
+                        {person.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="button-primary" disabled={saving} type="submit">
+                  Assign team
+                </button>
+              </form>
+            )}
+            {message && <p className="form-message">{message}</p>}
+            <div className="simple-record-list">
+              {(capacity?.people ?? []).map((person) => (
+                <article key={person.user_id}>
+                  <strong>
+                    {person.display_name} · {person.utilization}% allocated
+                  </strong>
+                  <span>
+                    {person.allocatedHours}h allocated · {person.availableHours}h available of{' '}
+                    {person.capacityHours}h
+                  </span>
+                </article>
+              ))}
+              {capacity && !capacity.people.length && <p>No people have been added.</p>}
+            </div>
+            <div className="simple-record-list">
+              {teams.map((team) => (
+                <article key={team.id}>
+                  <strong>{team.name}</strong>
+                  <span>
+                    {team.members.length
+                      ? team.members.map((member) => member.display_name).join(', ')
+                      : 'No members assigned'}
+                  </span>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

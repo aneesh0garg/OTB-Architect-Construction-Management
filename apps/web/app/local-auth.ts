@@ -21,6 +21,30 @@ export type PipelineOpportunity = {
   proposals: { id: string; version: number; status: string; fee: string }[];
 };
 export type PipelineRegister = { opportunities: PipelineOpportunity[] };
+export type ResourcePerson = {
+  user_id: string;
+  display_name: string;
+  title: string | null;
+  weekly_capacity_hours: number;
+  active: boolean;
+};
+export type ResourceTeam = {
+  id: string;
+  name: string;
+  members: Array<{ user_id: string; display_name: string; title: string | null; role: string }>;
+};
+export type CapacityRegister = {
+  from: string;
+  to: string;
+  people: Array<
+    ResourcePerson & {
+      capacityHours: number;
+      allocatedHours: number;
+      availableHours: number;
+      utilization: number;
+    }
+  >;
+};
 export type ProjectRecord = {
   project: {
     id: string;
@@ -321,6 +345,23 @@ export const createPipelineProposal = (
     ...input,
     phases: [{ name: 'Base services', plannedFee: input.fee, targetHours: 1 }],
   });
+export const loadResourcePeople = () => apiGet<ResourcePerson[]>('/v1/resources/people');
+export const loadResourceTeams = () => apiGet<ResourceTeam[]>('/v1/resources/teams');
+export const loadResourceCapacity = (from: string, to: string) =>
+  apiGet<CapacityRegister>(
+    `/v1/resources/capacity?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  );
+export const saveResourcePerson = (input: {
+  userId: string;
+  displayName: string;
+  title?: string;
+  weeklyCapacityHours?: number;
+}) => apiPost('/v1/resources/people', input);
+export const assignResourceTeamMember = (input: {
+  teamId: string;
+  userId: string;
+  role?: string;
+}) => apiPost('/v1/resources/team-members', input);
 export async function uploadProjectDocument(
   projectId: string,
   file: File,
