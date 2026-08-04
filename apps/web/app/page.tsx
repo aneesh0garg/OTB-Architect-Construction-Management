@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import {
   beginLocalLogin,
   loadCostControl,
@@ -1806,6 +1806,11 @@ function Documents({
     url: string;
     expiresAt: string;
   }>();
+  const [openingId, setOpeningId] = useState<string>();
+  const previewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (preview) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [preview]);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!record || !file) return;
@@ -1850,6 +1855,7 @@ function Documents({
   };
   const openDocument = async (document: ProjectRecord['documents'][number]) => {
     if (!record) return;
+    setOpeningId(document.id);
     setMessage(undefined);
     try {
       const download = await prepareDocumentDownload(record.project.id, document.id);
@@ -1860,6 +1866,8 @@ function Documents({
       });
     } catch {
       setMessage('This revision has no downloadable original, or your access has changed.');
+    } finally {
+      setOpeningId(undefined);
     }
   };
   return (
@@ -1953,9 +1961,10 @@ function Documents({
                 {signedIn && document.has_original && (
                   <button
                     className="button-secondary record-action"
+                    disabled={openingId === document.id}
                     onClick={() => void openDocument(document)}
                   >
-                    Open original
+                    {openingId === document.id ? 'Opening…' : 'Open original'}
                   </button>
                 )}
                 {document.document_type === 'drawing' && (
@@ -1973,7 +1982,11 @@ function Documents({
           )}
         </div>
       </section>
-      {preview && <DocumentPreview preview={preview} onClose={() => setPreview(undefined)} />}
+      {preview && (
+        <div ref={previewRef} tabIndex={-1}>
+          <DocumentPreview preview={preview} onClose={() => setPreview(undefined)} />
+        </div>
+      )}
     </div>
   );
 }
