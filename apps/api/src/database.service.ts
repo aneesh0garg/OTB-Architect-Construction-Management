@@ -269,7 +269,7 @@ const migrations: Migration[] = [
       ALTER TABLE people ADD COLUMN IF NOT EXISTS invitation_status TEXT NOT NULL DEFAULT 'active';
       ALTER TABLE people ADD COLUMN IF NOT EXISTS profile_photo_key TEXT;
       CREATE UNIQUE INDEX IF NOT EXISTS people_organization_email_uniq
-        ON people (organization_id, lower(email)) WHERE email IS NOT NULL;
+        ON people (organization_id, (lower(email))) WHERE email IS NOT NULL;
       CREATE TABLE IF NOT EXISTS organization_member_invitations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -280,7 +280,7 @@ const migrations: Migration[] = [
         expires_at TIMESTAMPTZ NOT NULL,
         accepted_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE (organization_id, lower(email))
+        UNIQUE (organization_id, email)
       );
       CREATE TABLE IF NOT EXISTS member_profile_photo_uploads (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

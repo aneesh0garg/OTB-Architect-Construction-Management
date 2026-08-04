@@ -92,6 +92,17 @@ test('exchanges a task deep-link Keycloak callback only once during React develo
   expect(tokenRequests).toBe(1);
 });
 
+test('shows the signed-in workspace header after a successful Keycloak callback', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('orbita.pkce-verifier', 'test-verifier'));
+  await page.route('**/protocol/openid-connect/token', (route) => route.fulfill({ json: { access_token: 'test-access-token' } }));
+  await page.route('**/v1/me', (route) => route.fulfill({ json: { userId: 'pilot-admin', organizationId: 'northline-studio', roles: ['organization_admin'] } }));
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
+  await page.route('**/v1/workspace/notification-preferences', (route) => route.fulfill({ json: [] }));
+  await page.goto('/?code=successful-callback&session_state=test-session');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByText('Authenticated as northline-studio')).toBeVisible();
+});
+
 test.describe('mobile project navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');

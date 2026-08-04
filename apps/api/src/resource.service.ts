@@ -158,7 +158,7 @@ export class ResourceService {
     await this.database.query(
       `INSERT INTO organization_member_invitations (organization_id, email, keycloak_user_id, status, invited_by, expires_at)
        VALUES ($1,$2,$3,'pending',$4,NOW() + INTERVAL '7 days')
-       ON CONFLICT (organization_id, lower(email)) DO UPDATE SET keycloak_user_id = EXCLUDED.keycloak_user_id, status = 'pending', invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at, created_at = NOW()`,
+       ON CONFLICT (organization_id, email) DO UPDATE SET keycloak_user_id = EXCLUDED.keycloak_user_id, status = 'pending', invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at, created_at = NOW()`,
       [actor.organizationId, email, identity.userId, actor.userId],
     );
     await this.audit.record(actor, 'organization.member_invited', 'person', person.user_id, {
