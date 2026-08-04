@@ -60,4 +60,15 @@ test.describe('mobile project navigation', () => {
     await page.getByRole('button', { name: 'Close Project Brain' }).click();
     await expect(dialog).toBeHidden();
   });
+
+  test('keeps the in-app notification feed reachable on a phone viewport', async ({ page }) => {
+    await page.getByRole('button', { name: 'Project activity' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Notifications' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Sign in to view your permitted project activity.');
+
+    await page.getByRole('button', { name: 'Close notifications' }).click();
+    await expect(dialog).toBeHidden();
+  });
 });

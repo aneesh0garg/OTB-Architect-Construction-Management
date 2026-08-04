@@ -461,6 +461,11 @@ created during quiet hours are stored but remain hidden until the quiet period
 ends (India Standard Time for the India-first launch). Email delivery and
 digest dispatch require the production delivery worker and sender identity.
 
+The project-activity control opens the in-app notification feed. It lists only
+the signed-in user's currently available, permitted notifications; selecting an
+unread item records its acknowledgement. Events deferred by quiet hours remain
+absent until their configured availability time.
+
 Install the mobile browser engines once, then run the suite:
 
 ```bash

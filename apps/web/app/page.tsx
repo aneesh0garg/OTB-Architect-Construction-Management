@@ -10,6 +10,8 @@ import {
   loadConnectedWorkspace,
   loadProjectRecord,
   loadNotificationPreferences,
+  loadNotifications,
+  markNotificationRead,
   restoreLocalLogin,
   saveNotificationPreference,
   searchProjectBrain,
@@ -23,6 +25,7 @@ import {
   type AiCitation,
   type AiDraft,
   type NotificationPreference,
+  type WorkspaceNotification,
   type ProjectRecord,
   type Viewer,
 } from './local-auth';
@@ -55,6 +58,7 @@ export default function Home() {
   );
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
+  const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -131,7 +135,11 @@ export default function Home() {
         <button className="rail-button" aria-label="AI workspace">
           ✦
         </button>
-        <button className="rail-button" aria-label="Notifications">
+        <button
+          className="rail-button"
+          aria-label="Notifications"
+          onClick={() => setNotificationFeedOpen(true)}
+        >
           ◔<span className="rail-dot" />
         </button>
         <div className="rail-spacer" />
@@ -249,7 +257,11 @@ export default function Home() {
               ⌕ <span>Search this project</span>
               <kbd>⌘ K</kbd>
             </button>
-            <button className="icon-button" aria-label="Project activity">
+            <button
+              className="icon-button"
+              aria-label="Project activity"
+              onClick={() => setNotificationFeedOpen(true)}
+            >
               ◔
             </button>
             <button
@@ -379,7 +391,90 @@ export default function Home() {
           onClose={() => setBrainOpen(false)}
         />
       )}
+      {notificationFeedOpen && (
+        <NotificationFeed
+          signedIn={Boolean(viewer)}
+          onClose={() => setNotificationFeedOpen(false)}
+        />
+      )}
     </main>
+  );
+}
+
+function NotificationFeed({ signedIn, onClose }: { signedIn: boolean; onClose: () => void }) {
+  const [notifications, setNotifications] = useState<WorkspaceNotification[]>([]);
+  const [message, setMessage] = useState<string>();
+  const [loading, setLoading] = useState(signedIn);
+  useEffect(() => {
+    if (!signedIn) return;
+    loadNotifications()
+      .then(setNotifications)
+      .catch((error: unknown) =>
+        setMessage(error instanceof Error ? error.message : 'Notifications could not be loaded.'),
+      )
+      .finally(() => setLoading(false));
+  }, [signedIn]);
+  const markRead = async (notification: WorkspaceNotification) => {
+    if (notification.read_at) return;
+    try {
+      const updated = await markNotificationRead(notification.id);
+      setNotifications((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Notification could not be updated.');
+    }
+  };
+  return (
+    <div className="settings-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="notification-settings notification-feed"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-feed-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <p className="eyebrow">YOUR WORKSPACE</p>
+            <h2 id="notification-feed-title">Notifications</h2>
+          </div>
+          <button className="icon-button" aria-label="Close notifications" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        {!signedIn ? (
+          <p className="settings-empty">Sign in to view your permitted project activity.</p>
+        ) : (
+          <div className="notification-list">
+            {loading && <p className="settings-empty">Loading notifications…</p>}
+            {!loading && notifications.length === 0 && (
+              <p className="settings-empty">You are all caught up.</p>
+            )}
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                className={notification.read_at ? 'notification-item' : 'notification-item unread'}
+                onClick={() => void markRead(notification)}
+                aria-label={`${notification.read_at ? 'Read' : 'Mark read'}: ${notification.title}`}
+              >
+                <span className="notification-marker" />
+                <span>
+                  <strong>{notification.title}</strong>
+                  <small>{notification.body}</small>
+                  <time>{new Date(notification.created_at).toLocaleString()}</time>
+                </span>
+              </button>
+            ))}
+            {message && (
+              <p className="settings-message" role="status">
+                {message}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 

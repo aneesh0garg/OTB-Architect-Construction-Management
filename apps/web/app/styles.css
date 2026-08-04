@@ -540,6 +540,56 @@ small {
   font-size: 11px;
   line-height: 1.4;
 }
+.notification-feed {
+  width: min(100%, 480px);
+}
+.notification-list {
+  display: grid;
+  gap: 2px;
+  max-height: 520px;
+  overflow: auto;
+  padding: 10px;
+}
+.notification-item {
+  display: grid;
+  grid-template-columns: 9px 1fr;
+  gap: 9px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+.notification-item:hover {
+  background: var(--surface);
+}
+.notification-item > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+.notification-item small,
+.notification-item time {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.notification-item time {
+  font-size: 10px;
+}
+.notification-marker {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: transparent;
+}
+.notification-item.unread {
+  background: var(--primary-soft);
+}
+.notification-item.unread .notification-marker {
+  background: var(--primary);
+}
 .settings-toggle {
   grid-template-columns: 1fr auto;
   align-items: center;

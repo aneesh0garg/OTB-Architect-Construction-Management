@@ -123,6 +123,14 @@ export type AiDraft = {
   status: 'review_required' | 'approved' | 'rejected';
   model: string;
 };
+export type WorkspaceNotification = {
+  id: string;
+  event_type: string;
+  title: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -269,3 +277,7 @@ export const reviewProjectBrainDraft = (
   draftId: string,
   decision: 'approve' | 'reject',
 ) => apiPost<AiDraft>(`/v1/projects/${projectId}/brain/drafts/${draftId}/${decision}`);
+export const loadNotifications = () =>
+  apiGet<WorkspaceNotification[]>('/v1/workspace/notifications');
+export const markNotificationRead = (notificationId: string) =>
+  apiPost<WorkspaceNotification>(`/v1/workspace/notifications/${notificationId}/read`);
