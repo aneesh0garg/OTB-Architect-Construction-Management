@@ -67,6 +67,25 @@ The workspace is intentionally viewable as a demo without signing in, but any
 API-backed action requires a valid local Keycloak session. `WEB_ORIGIN` defines
 the CORS allow-list for local web development.
 
+## Controlled documents and drawings
+
+Documents receive a generated number by type (`DRW-0001`, `SPC-0001`, and so
+on) and begin at revision `A`. To create a replacement, select the prior record
+in **Supersede existing revision**; the next revision is generated automatically.
+After the new revision is issued, the earlier issued revision with that document
+number becomes **superseded**.
+
+The governed workflow is **draft → internal review → approved → issued**.
+Authors submit drafts for review; organization administrators, principals, and
+project managers can approve or return them to draft. Review decisions and
+issuance are retained in the project audit record. Issued documents can be
+selected to create a numbered transmittal with recipients.
+
+The Documents register supports search, status/type filtering, and sorting.
+**Open original** appears only when a file is retained. Drawings use the review
+workspace for annotations; on phones, PDFs open in the browser's native viewer
+to provide reliable page navigation and controls.
+
 ## Workspace API quick check
 
 The workspace API requires a Keycloak access token. The following obtains a
