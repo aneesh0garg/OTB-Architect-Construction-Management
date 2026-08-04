@@ -47,4 +47,20 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByRole('button', { name: 'Add budget' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create invoice' })).toBeVisible();
   });
+
+  test('opens an invoice accounting record after creating it', async ({ page }) => {
+    await page.getByTestId('project-tab-cost-&-contracts').click();
+    await page.getByLabel('Client').fill(`UI owner ${Date.now()}`);
+    await page.getByLabel('Description').fill('Construction administration monthly fee');
+    await page.getByLabel('Amount').fill('12500');
+    await page.getByRole('button', { name: 'Create invoice' }).click();
+
+    const openInvoices = page.getByRole('button', { name: 'Open invoice' });
+    const count = await openInvoices.count();
+    expect(count).toBeGreaterThan(0);
+    await openInvoices.nth(count - 1).click();
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/invoices\/[^/]+$/);
+    await expect(page.getByText('Invoice basis')).toBeVisible();
+    await expect(page.getByText('Payments')).toBeVisible();
+  });
 });
