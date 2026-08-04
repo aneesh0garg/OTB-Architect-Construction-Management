@@ -35,3 +35,18 @@ pnpm test
 
 For the complete local service map, pilot account, workspace API check, and
 separate web/API/mobile commands, see [the project setup and run guide](docs/project-setup-run-guide.md).
+
+## Local Phase 1 smoke test
+
+With Docker Compose and the API already running, run:
+
+```bash
+pnpm smoke:phase1
+```
+
+It uses the local-only pilot account and creates one clearly named smoke project.
+The test verifies tenant authentication, project records, document supersession,
+idempotent email/mobile capture, execution workflows, finance, payments, and
+cited Project Brain drafting. Override local endpoints or credentials only with
+the `ORBITA_API_URL`, `ORBITA_KEYCLOAK_ISSUER`, `ORBITA_SMOKE_USERNAME`, and
+`ORBITA_SMOKE_PASSWORD` environment variables.

@@ -245,3 +245,17 @@ pnpm test
 
 Before committing, run `git diff --check`. CI repeats formatting, linting,
 type-checking, and tests for each change.
+
+## End-to-end Phase 1 smoke test
+
+After the API and local Docker services are running, execute:
+
+```bash
+pnpm smoke:phase1
+```
+
+The smoke test creates one `SMK-*` project and verifies the connected project
+record, document supersession, duplicate-safe email/mobile retries, RFI issue,
+invoice/payment control, and cited AI draft approval. It does not call Gmail or
+Zoho because those require real third-party OAuth credentials; their endpoints
+remain explicitly configuration-gated.
