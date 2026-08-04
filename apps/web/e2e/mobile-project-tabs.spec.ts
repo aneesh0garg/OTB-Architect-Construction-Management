@@ -62,6 +62,16 @@ test.describe('mobile project navigation', () => {
     await expect(page.getByTestId('project-view-cost')).toBeVisible();
   });
 
+  test('keeps document register filters and sorting reachable on a phone viewport', async ({
+    page,
+  }) => {
+    await page.getByTestId('project-tab-documents').click();
+    await expect(page.getByLabel('Search documents')).toBeVisible();
+    await expect(page.getByLabel('Filter document status')).toBeVisible();
+    await expect(page.getByLabel('Filter document type')).toBeVisible();
+    await expect(page.getByLabel('Sort documents')).toBeVisible();
+  });
+
   test('keeps project creation reachable on a phone viewport', async ({ page }) => {
     await page.getByRole('button', { name: '+ New project' }).click();
     await expect(page.getByRole('dialog', { name: 'Create project' })).toContainText(
