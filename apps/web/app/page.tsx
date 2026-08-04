@@ -64,6 +64,41 @@ import {
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
 
+const workspacePreferencesKey = 'orbita.workspace-preferences';
+type WorkspacePreferences = { theme?: Theme; view?: WorkspaceView; projectId?: string };
+const workspaceViews: WorkspaceView[] = [
+  'overview',
+  'drawings',
+  'field',
+  'documents',
+  'tasks',
+  'communications',
+  'costs',
+];
+
+function readWorkspacePreferences(): WorkspacePreferences {
+  try {
+    const value = localStorage.getItem(workspacePreferencesKey);
+    if (!value) return {};
+    const parsed = JSON.parse(value) as WorkspacePreferences;
+    return {
+      theme: parsed.theme === 'light' || parsed.theme === 'dark' || parsed.theme === 'system' ? parsed.theme : undefined,
+      view: parsed.view && workspaceViews.includes(parsed.view) ? parsed.view : undefined,
+      projectId: typeof parsed.projectId === 'string' ? parsed.projectId : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function saveWorkspacePreferences(update: WorkspacePreferences) {
+  try {
+    localStorage.setItem(workspacePreferencesKey, JSON.stringify({ ...readWorkspacePreferences(), ...update }));
+  } catch {
+    // Storage can be unavailable in private browser contexts; the workspace remains usable.
+  }
+}
+
 type Theme = 'light' | 'dark' | 'system';
 
 const projectNav: { label: string; icon: string; view?: WorkspaceView }[] = [
@@ -99,11 +134,25 @@ export default function Home() {
   const [projectPeopleOpen, setProjectPeopleOpen] = useState(false);
   const [lifecycleMessage, setLifecycleMessage] = useState<string>();
   const [authMessage, setAuthMessage] = useState('Demo workspace');
+  const [preferencesReady, setPreferencesReady] = useState(false);
   const project = projectRecord?.project ?? workspaceData.activeProject;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    const preferences = readWorkspacePreferences();
+    if (preferences.theme) setTheme(preferences.theme);
+    if (preferences.view) setView(preferences.view);
+    setPreferencesReady(true);
+  }, []);
+  useEffect(() => {
+    if (preferencesReady) saveWorkspacePreferences({ theme, view });
+  }, [preferencesReady, theme, view]);
+  useEffect(() => {
+    if (preferencesReady && projectRecord?.project.id)
+      saveWorkspacePreferences({ projectId: projectRecord.project.id });
+  }, [preferencesReady, projectRecord?.project.id]);
   useEffect(() => {
     restoreLocalLogin()
       .then(async (identity) => {
@@ -112,8 +161,10 @@ export default function Home() {
           const workspace = await loadConnectedWorkspace();
           setConnectedWorkspace(workspace);
           setNotificationPreferences(await loadNotificationPreferences());
-          if (workspace.projects[0]) {
-            await loadProjectViews(workspace.projects[0].id);
+          const preferredProjectId = readWorkspacePreferences().projectId;
+          const selectedProject = workspace.projects.find((item) => item.id === preferredProjectId) ?? workspace.projects[0];
+          if (selectedProject) {
+            await loadProjectViews(selectedProject.id);
           }
           setAuthMessage('Connected to local workspace');
         }

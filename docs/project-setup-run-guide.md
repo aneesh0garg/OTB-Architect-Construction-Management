@@ -175,8 +175,11 @@ an administrator explicitly adds its Keycloak user ID as a project collaborator.
 
 Open `http://localhost:3000`, select **Sign in**, and use the local pilot
 account above at Keycloak. The web client uses the Authorization Code flow with
-PKCE; the resulting access token lives only in the browser session and is used
-to call the tenant-scoped API. Selecting **Sign out** clears that session token.
+PKCE; the resulting access and refresh tokens live only in the browser session and
+are used to call the tenant-scoped API. Refreshing the page retains that browser-tab
+session and renews an expired access token when Keycloak still authorizes it. Selecting
+**Sign out** clears both tokens. The selected project, workspace tab, and theme are
+stored separately as non-sensitive browser preferences and are restored on refresh.
 
 The workspace is intentionally viewable as a demo without signing in, but any
 API-backed action requires a valid local Keycloak session. `WEB_ORIGIN` defines

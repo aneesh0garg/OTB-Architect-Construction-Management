@@ -22,6 +22,47 @@ test('retains PKCE sign-in when a mobile browser has no crypto.subtle on a LAN H
   expect(pageErrors).toEqual([]);
 });
 
+test('restores the selected workspace tab after a browser refresh', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('orbita.workspace-preferences', JSON.stringify({ theme: 'dark', view: 'drawings' })),
+  );
+  await page.goto('/');
+  await expect(page.getByTestId('project-view-drawings')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.reload();
+  await expect(page.getByTestId('project-view-drawings')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('refreshes an expired local access token without logging the workspace out', async ({ page }) => {
+  let meRequests = 0;
+  let refreshRequests = 0;
+  await page.addInitScript(() => {
+    sessionStorage.setItem('orbita.access-token', 'expired-token');
+    sessionStorage.setItem('orbita.refresh-token', 'refresh-token');
+  });
+  await page.route('**/protocol/openid-connect/token', async (route) => {
+    refreshRequests += 1;
+    await route.fulfill({ json: { access_token: 'renewed-token', refresh_token: 'renewed-refresh-token' } });
+  });
+  await page.route('**/v1/me', async (route) => {
+    meRequests += 1;
+    if (meRequests === 1) await route.fulfill({ status: 401, json: { message: 'Expired' } });
+    else await route.fulfill({ json: { userId: 'admin-1', organizationId: 'northline-studio', roles: ['organization_admin'] } });
+  });
+  await page.route('**/v1/workspace', (route) => route.fulfill({ json: { organizationId: 'northline-studio', projects: [], teams: [] } }));
+  await page.route('**/v1/notifications/preferences', (route) => route.fulfill({ json: [] }));
+
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect.poll(() => refreshRequests).toBe(1);
+  expect(await page.evaluate(() => sessionStorage.getItem('orbita.access-token'))).toBe('renewed-token');
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+});
+
 test('keeps the Staffing and capacity dialog vertically scrollable', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Team/ }).click();

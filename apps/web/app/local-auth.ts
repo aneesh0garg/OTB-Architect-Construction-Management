@@ -253,6 +253,7 @@ export type TaskComment = {
 };
 
 const tokenKey = 'orbita.access-token';
+const refreshTokenKey = 'orbita.refresh-token';
 const verifierKey = 'orbita.pkce-verifier';
 let localLoginRestoreInFlight: Promise<Viewer | undefined> | undefined;
 const configuredIssuer =
@@ -415,27 +416,61 @@ async function restoreLocalLoginOnce(): Promise<Viewer | undefined> {
       }),
     });
     if (!response.ok) throw new Error('Local sign-in could not be completed.');
-    const tokens = (await response.json()) as { access_token?: string };
+    const tokens = (await response.json()) as { access_token?: string; refresh_token?: string };
     if (!tokens.access_token)
       throw new Error('The identity provider did not return an access token.');
     sessionStorage.setItem(tokenKey, tokens.access_token);
+    if (tokens.refresh_token) sessionStorage.setItem(refreshTokenKey, tokens.refresh_token);
     sessionStorage.removeItem(verifierKey);
     window.history.replaceState({}, '', redirectUri);
   }
-  const token = sessionStorage.getItem(tokenKey);
+  let token = sessionStorage.getItem(tokenKey);
   if (!token) return undefined;
-  const response = await fetch(`${apiUrl()}/v1/me`, {
+  let response = await fetch(`${apiUrl()}/v1/me`, {
     headers: { authorization: `Bearer ${token}` },
   });
+  if ((response.status === 401 || response.status === 403) && (token = await refreshLocalAccessToken())) {
+    response = await fetch(`${apiUrl()}/v1/me`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+  }
   if (!response.ok) {
-    sessionStorage.removeItem(tokenKey);
-    throw new Error('Your sign-in is valid, but this account is not authorized for the current workspace.');
+    if (response.status === 401 || response.status === 403) {
+      clearLocalTokens();
+      throw new Error('Your sign-in is valid, but this account is not authorized for the current workspace.');
+    }
+    throw new Error('The workspace could not verify your session. Your local sign-in has been retained; refresh to retry.');
   }
   return response.json() as Promise<Viewer>;
 }
 
-export function signOutLocal() {
+async function refreshLocalAccessToken() {
+  const refreshToken = sessionStorage.getItem(refreshTokenKey);
+  if (!refreshToken) return undefined;
+  const response = await fetch(`${issuerUrl()}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: 'orbita-web',
+      refresh_token: refreshToken,
+    }),
+  });
+  if (!response.ok) return undefined;
+  const tokens = (await response.json()) as { access_token?: string; refresh_token?: string };
+  if (!tokens.access_token) return undefined;
+  sessionStorage.setItem(tokenKey, tokens.access_token);
+  if (tokens.refresh_token) sessionStorage.setItem(refreshTokenKey, tokens.refresh_token);
+  return tokens.access_token;
+}
+
+function clearLocalTokens() {
   sessionStorage.removeItem(tokenKey);
+  sessionStorage.removeItem(refreshTokenKey);
+}
+
+export function signOutLocal() {
+  clearLocalTokens();
   sessionStorage.removeItem(verifierKey);
 }
 
