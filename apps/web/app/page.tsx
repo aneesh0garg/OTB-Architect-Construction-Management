@@ -2926,6 +2926,8 @@ function Drawings({
   }>();
   const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([]);
   const [annotationBody, setAnnotationBody] = useState('');
+  const [annotationX, setAnnotationX] = useState(50);
+  const [annotationY, setAnnotationY] = useState(50);
   const [openError, setOpenError] = useState<string>();
   const [showCurrentOnly, setShowCurrentOnly] = useState(false);
   const [drawingSort, setDrawingSort] = useState<DocumentSort>('number');
@@ -2964,8 +2966,8 @@ function Drawings({
       const annotation = await createDocumentAnnotation(record.project.id, preview.documentId, {
         body: annotationBody.trim(),
         pageNumber: 1,
-        xPercent: 50,
-        yPercent: 50,
+        xPercent: annotationX,
+        yPercent: annotationY,
       });
       setAnnotations((current) => [...current, annotation]);
       setAnnotationBody('');
@@ -3091,6 +3093,30 @@ function Drawings({
                 {annotation.body}
               </p>
             ))}
+            <div>
+              <label>
+                Horizontal pin · {annotationX}%
+                <input
+                  aria-label="Horizontal drawing pin"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={annotationX}
+                  onChange={(event) => setAnnotationX(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Vertical pin · {annotationY}%
+                <input
+                  aria-label="Vertical drawing pin"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={annotationY}
+                  onChange={(event) => setAnnotationY(Number(event.target.value))}
+                />
+              </label>
+            </div>
             <div>
               <input
                 aria-label="Drawing comment"
