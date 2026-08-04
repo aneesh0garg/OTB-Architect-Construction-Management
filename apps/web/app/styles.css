@@ -1359,6 +1359,9 @@ small {
   border: 0;
   background: white;
 }
+.mobile-pdf-open {
+  display: none;
+}
 .drawing-original-image {
   display: block;
   width: 100%;
@@ -1659,6 +1662,20 @@ small {
     align-items: flex-start;
     flex-direction: column;
     gap: 7px;
+  }
+  .drawing-viewer iframe {
+    display: none;
+  }
+  .mobile-pdf-open {
+    display: block;
+    margin: 16px;
+    padding: 13px 15px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
   }
   .field-page {
     display: block;

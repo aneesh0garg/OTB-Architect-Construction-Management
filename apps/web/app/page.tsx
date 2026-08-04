@@ -2038,7 +2038,12 @@ function DocumentPreview({
       {isImage ? (
         <img src={preview.url} alt={preview.title} />
       ) : (
-        <iframe title={preview.title} src={preview.url} />
+        <>
+          <a className="mobile-pdf-open" href={preview.url} target="_blank" rel="noreferrer">
+            Open full PDF — all pages ↗
+          </a>
+          <iframe title={preview.title} src={preview.url} />
+        </>
       )}
     </section>
   );
@@ -2825,7 +2830,12 @@ function Drawings({
           {preview.isImage ? (
             <img className="drawing-original-image" src={preview.url} alt={preview.title} />
           ) : (
-            <iframe title={preview.title} src={preview.url} />
+            <>
+              <a className="mobile-pdf-open" href={preview.url} target="_blank" rel="noreferrer">
+                Open full PDF — all pages ↗
+              </a>
+              <iframe title={preview.title} src={preview.url} />
+            </>
           )}
           <div className="drawing-annotations">
             <strong>Comments &amp; pins</strong>
