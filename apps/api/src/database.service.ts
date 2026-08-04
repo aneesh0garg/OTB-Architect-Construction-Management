@@ -36,6 +36,14 @@ const migrations: Migration[] = [
       CREATE TABLE IF NOT EXISTS integration_oauth_states (id UUID PRIMARY KEY, organization_id TEXT NOT NULL, actor_id TEXT NOT NULL, provider TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     `,
   },
+  {
+    id: '0002_prevent_duplicate_filed_messages',
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS communications_project_source_message_uniq
+      ON communications (project_id, source_message_id)
+      WHERE source_message_id IS NOT NULL;
+    `,
+  },
 ];
 
 @Injectable()

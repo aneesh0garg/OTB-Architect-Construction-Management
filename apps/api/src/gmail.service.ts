@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
+import { WorkspaceService } from './workspace.service.js';
 
 interface ConnectionRow extends QueryResultRow {
   id: string;
@@ -10,6 +11,7 @@ interface ConnectionRow extends QueryResultRow {
   scopes: string[];
   status: string;
   connected_at: Date | null;
+  encrypted_refresh_token?: string | null;
 }
 interface StateRow extends QueryResultRow {
   id: string;
@@ -26,7 +28,10 @@ const gmailScopes = [
 
 @Injectable()
 export class GmailService {
-  constructor(private readonly pool: DatabaseService) {}
+  constructor(
+    private readonly pool: DatabaseService,
+    private readonly workspace: WorkspaceService,
+  ) {}
   async list(actor: AuthenticatedActor) {
     const result = await this.pool.query<ConnectionRow>(
       'SELECT id, mailbox, scopes, status, connected_at FROM integration_connections WHERE organization_id = $1 AND provider = $2 ORDER BY created_at DESC',
@@ -112,6 +117,156 @@ export class GmailService {
     );
     return row(result.rows, 'Gmail connection is unavailable.');
   }
+  async messages(actor: AuthenticatedActor, connectionId: string, search?: string) {
+    this.requireAdmin(actor);
+    const accessToken = await this.accessToken(actor, connectionId);
+    const parameters = new URLSearchParams({ maxResults: '25' });
+    if (search?.trim()) parameters.set('q', search.trim());
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?${parameters.toString()}`,
+      { headers: { authorization: `Bearer ${accessToken}` } },
+    );
+    if (!response.ok) throw new BadRequestException('Gmail messages could not be loaded.');
+    const listing = (await response.json()) as {
+      messages?: Array<{ id: string; threadId: string }>;
+    };
+    const messages = await Promise.all(
+      (listing.messages ?? []).map(async (message) => {
+        const detail = await this.gmailMessage(accessToken, message.id, 'metadata');
+        return this.toMessageSummary(detail);
+      }),
+    );
+    return messages;
+  }
+  async fileMessage(
+    actor: AuthenticatedActor,
+    connectionId: string,
+    messageId: string,
+    projectId: string,
+  ) {
+    this.requireAdmin(actor);
+    const accessToken = await this.accessToken(actor, connectionId);
+    const message = await this.gmailMessage(accessToken, messageId, 'full');
+    const headers = this.headerMap(message.payload?.headers ?? []);
+    const sender = headers.get('from') ?? 'Unknown Gmail sender';
+    const recipients = [headers.get('to'), headers.get('cc')]
+      .filter((value): value is string => Boolean(value))
+      .flatMap((value) => value.split(','))
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const connection = await this.connection(actor, connectionId);
+    const direction =
+      connection.mailbox && sender.includes(connection.mailbox) ? 'outbound' : 'inbound';
+    return this.workspace.fileCommunication(actor, projectId, {
+      channel: 'email',
+      direction,
+      subject: headers.get('subject') ?? '(No subject)',
+      body: this.messageBody(message.payload) || message.snippet || '(No message body)',
+      sender,
+      recipients,
+      ...(message.threadId ? { threadId: message.threadId } : {}),
+      sourceMessageId: message.id,
+    });
+  }
+  async sendMessage(
+    actor: AuthenticatedActor,
+    connectionId: string,
+    input: { projectId: string; recipients: string[]; subject: string; body: string },
+  ) {
+    this.requireAdmin(actor);
+    const accessToken = await this.accessToken(actor, connectionId);
+    const connection = await this.connection(actor, connectionId);
+    const raw = Buffer.from(
+      [
+        `To: ${input.recipients.join(', ')}`,
+        `Subject: ${input.subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        input.body,
+      ].join('\r\n'),
+      'utf8',
+    ).toString('base64url');
+    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ raw }),
+    });
+    if (!response.ok) throw new BadRequestException('Gmail message could not be sent.');
+    const sent = (await response.json()) as GmailMessage;
+    if (!sent.id) throw new BadRequestException('Gmail did not return a sent message ID.');
+    return this.workspace.fileCommunication(actor, input.projectId, {
+      channel: 'email',
+      direction: 'outbound',
+      subject: input.subject,
+      body: input.body,
+      sender: connection.mailbox ?? 'Connected Gmail mailbox',
+      recipients: input.recipients,
+      sourceMessageId: sent.id,
+      ...(sent.threadId ? { threadId: sent.threadId } : {}),
+    });
+  }
+  private async accessToken(actor: AuthenticatedActor, connectionId: string) {
+    const connection = await this.connection(actor, connectionId);
+    if (connection.status !== 'connected' || !connection.encrypted_refresh_token)
+      throw new BadRequestException('Gmail connection is not active.');
+    const config = this.config();
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        refresh_token: this.decrypt(connection.encrypted_refresh_token),
+        grant_type: 'refresh_token',
+      }),
+    });
+    if (!response.ok) throw new BadRequestException('Gmail session could not be refreshed.');
+    const token = (await response.json()) as { access_token?: string };
+    if (!token.access_token) throw new BadRequestException('Gmail did not return an access token.');
+    return token.access_token;
+  }
+  private async connection(actor: AuthenticatedActor, connectionId: string) {
+    const result = await this.pool.query<ConnectionRow>(
+      'SELECT id, mailbox, scopes, status, connected_at, encrypted_refresh_token FROM integration_connections WHERE id = $1 AND organization_id = $2 AND provider = $3',
+      [connectionId, actor.organizationId, 'gmail'],
+    );
+    return row(result.rows, 'Gmail connection is unavailable.');
+  }
+  private async gmailMessage(accessToken: string, messageId: string, format: 'metadata' | 'full') {
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=${format}&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`,
+      { headers: { authorization: `Bearer ${accessToken}` } },
+    );
+    if (!response.ok) throw new BadRequestException('Gmail message is unavailable.');
+    return (await response.json()) as GmailMessage;
+  }
+  private toMessageSummary(message: GmailMessage) {
+    const headers = this.headerMap(message.payload?.headers ?? []);
+    return {
+      id: message.id,
+      threadId: message.threadId,
+      from: headers.get('from') ?? 'Unknown sender',
+      subject: headers.get('subject') ?? '(No subject)',
+      date: headers.get('date') ?? null,
+      snippet: message.snippet ?? '',
+    };
+  }
+  private headerMap(headers: Array<{ name?: string; value?: string }>) {
+    return new Map(
+      headers.flatMap((header) =>
+        header.name && header.value
+          ? [[header.name.toLocaleLowerCase(), header.value] as const]
+          : [],
+      ),
+    );
+  }
+  private messageBody(payload: GmailPayload | undefined): string {
+    if (!payload) return '';
+    if (payload.mimeType === 'text/plain' && payload.body?.data)
+      return Buffer.from(payload.body.data, 'base64url').toString('utf8');
+    return (payload.parts ?? []).map((part) => this.messageBody(part)).find(Boolean) ?? '';
+  }
   private config() {
     const clientId = process.env.GMAIL_CLIENT_ID;
     const clientSecret = process.env.GMAIL_CLIENT_SECRET;
@@ -159,6 +314,18 @@ export class GmailService {
       [actor.organizationId],
     );
   }
+}
+interface GmailPayload {
+  mimeType?: string;
+  body?: { data?: string };
+  headers?: Array<{ name?: string; value?: string }>;
+  parts?: GmailPayload[];
+}
+interface GmailMessage {
+  id: string;
+  threadId?: string;
+  snippet?: string;
+  payload?: GmailPayload;
 }
 const row = <T extends QueryResultRow>(rows: T[], message: string) => {
   const value = rows[0];

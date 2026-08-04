@@ -249,6 +249,13 @@ export class WorkspaceService {
     input: FileCommunicationInput,
   ) {
     const project = await this.projectForActor(actor, projectId);
+    if (input.sourceMessageId) {
+      const existing = await this.pool.query<CommunicationRow>(
+        'SELECT id, channel, direction, subject, body, sender, recipients, filed_at FROM communications WHERE project_id = $1 AND source_message_id = $2',
+        [project.id, input.sourceMessageId],
+      );
+      if (existing.rows[0]) return existing.rows[0];
+    }
     const communication = await this.pool.query<CommunicationRow>(
       'INSERT INTO communications (organization_id, project_id, channel, direction, subject, body, sender, recipients, thread_id, source_message_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, channel, direction, subject, body, sender, recipients, filed_at',
       [

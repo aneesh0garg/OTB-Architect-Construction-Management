@@ -217,17 +217,22 @@ INTEGRATION_TOKEN_KEY=<long random secret>
 API encrypts refresh tokens with AES-256-GCM and short-lived OAuth state expires
 after ten minutes.
 
-| Endpoint                                               | Purpose                                                                       |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `GET /v1/integrations/gmail`                           | List organization-authorized Gmail connections without returning credentials. |
-| `POST /v1/integrations/gmail/connect`                  | Create a one-time OAuth state and return the Google authorization URL.        |
-| `GET /v1/integrations/gmail/callback`                  | Exchange the authorization code and store the encrypted refresh token.        |
-| `POST /v1/integrations/gmail/:connectionId/disconnect` | Stop future synchronization without deleting already filed project records.   |
+| Endpoint                                                             | Purpose                                                                                         |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `GET /v1/integrations/gmail`                                         | List organization-authorized Gmail connections without returning credentials.                   |
+| `POST /v1/integrations/gmail/connect`                                | Create a one-time OAuth state and return the Google authorization URL.                          |
+| `GET /v1/integrations/gmail/callback`                                | Exchange the authorization code and store the encrypted refresh token.                          |
+| `POST /v1/integrations/gmail/:connectionId/disconnect`               | Stop future synchronization without deleting already filed project records.                     |
+| `GET /v1/integrations/gmail/:connectionId/messages`                  | Browse up to 25 messages on demand; an optional `q` uses Gmail search syntax.                   |
+| `POST /v1/integrations/gmail/:connectionId/messages/:messageId/file` | File one selected Gmail message into a project record using `{"projectId":"…"}`.                |
+| `POST /v1/integrations/gmail/:connectionId/messages/send`            | Send and file an outbound project email using `projectId`, `recipients`, `subject`, and `body`. |
 
 The requested scopes are read-only, compose, and send. The implementation does
 not import an entire mailbox by default. Email becomes part of the project record
 only through explicit user filing; the existing communications endpoint retains
-its project link, Gmail thread/message identifiers, and filing audit trail.
+its project link, Gmail thread/message identifiers, and filing audit trail. A
+selected Gmail message can be filed repeatedly without creating a duplicate
+project communication.
 
 ## Quality checks
 
