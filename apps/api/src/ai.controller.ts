@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import { AiService } from './ai.service.js';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
@@ -35,6 +35,9 @@ export class AiController {
   ) {
     return this.ai.setEnabled(request.actor!, body.enabled);
   }
+  @Get('ai/records/export') exportRecords(@Req() request: AuthenticatedRequest) {
+    return this.ai.exportRecords(request.actor!);
+  }
   @Get('projects/:projectId/brain/search') search(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,
@@ -62,5 +65,12 @@ export class AiController {
     @Param('draftId') draftId: string,
   ) {
     return this.ai.rejectDraft(request.actor!, projectId, draftId);
+  }
+  @Delete('projects/:projectId/brain/drafts/:draftId') deleteDraft(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.ai.deleteDraft(request.actor!, projectId, draftId);
   }
 }

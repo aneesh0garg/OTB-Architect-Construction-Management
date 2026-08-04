@@ -351,10 +351,15 @@ curl -X POST http://localhost:3001/v1/ai/settings \
 | `POST /v1/projects/:projectId/brain/drafts`                  | Create an evidence-backed, review-required RFI, site report, meeting-minutes, risk-summary, submittal-review, document-classification, or record-search draft. |
 | `POST /v1/projects/:projectId/brain/drafts/:draftId/approve` | Record explicit human approval. Approval does not itself issue a contractual project record.                                                                   |
 | `POST /v1/projects/:projectId/brain/drafts/:draftId/reject`  | Record explicit human rejection; a reviewed draft cannot be issued by this endpoint.                                                                           |
+| `GET /v1/ai/records/export`                                  | Administrator-only export of organization AI settings, drafts, and audit events in `orbita-ai-records/v1` JSON.                                                |
+| `DELETE /v1/projects/:projectId/brain/drafts/:draftId`       | Administrator-only deletion of a generated draft; deletion audit evidence is retained.                                                                         |
 
 The current local implementation produces cited review briefs without sending
 customer data to an external model provider. It records setting changes,
 policy checks, retrievals, draft creation, and approvals in the AI audit table.
+Administrators can export generated-draft data and delete an individual draft
+when retention policy permits. Deletion never erases the minimal audit evidence
+that the deletion occurred.
 Adding a model provider requires a separate provider configuration, data-
 processing review, prompt/output retention control, and evaluation gate.
 

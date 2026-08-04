@@ -450,6 +450,22 @@ const rejectedDraft = await api(
   `/v1/projects/${project.id}/brain/drafts/${classificationDraft.id}/reject`,
 );
 assert.equal(rejectedDraft.status, 'rejected');
+const disposableDraft = await api('POST', `/v1/projects/${project.id}/brain/drafts`, {
+  intent: 'risk_summary',
+  prompt: `Prepare a disposable risk summary for smoke ${runId}`,
+});
+const aiExport = await api('GET', '/v1/ai/records/export');
+assert.equal(aiExport.format, 'orbita-ai-records/v1', 'AI records export format is missing.');
+assert.equal(
+  aiExport.drafts.some((item) => item.id === disposableDraft.id),
+  true,
+  'AI records export omits the generated draft.',
+);
+const deletedDraft = await api(
+  'DELETE',
+  `/v1/projects/${project.id}/brain/drafts/${disposableDraft.id}`,
+);
+assert.equal(deletedDraft.deleted, true, 'AI draft deletion was not confirmed.');
 
 const projectRecord = await api('GET', `${projectPath}/record`);
 assert.equal(
@@ -499,6 +515,7 @@ for (const action of [
   'document.upload_attached',
   'document.download_prepared',
   'document.upload_batch_prepared',
+  'ai.draft_deleted',
 ]) {
   assert.equal(
     auditEvents.some((event) => event.action === action),

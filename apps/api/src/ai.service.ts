@@ -3,6 +3,7 @@ import type { QueryResultRow } from 'pg';
 import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
+import { AuditService } from './audit.service.js';
 
 interface EvidenceRow extends QueryResultRow {
   source_type: string;
@@ -28,6 +29,7 @@ export class AiService {
   constructor(
     private readonly pool: DatabaseService,
     private readonly projectAccess: ProjectAccessService,
+    private readonly auditTrail: AuditService,
   ) {}
   async setEnabled(actor: AuthenticatedActor, enabled: boolean) {
     if (!actor.roles.some((role) => ['organization_admin', 'principal'].includes(role)))
@@ -100,6 +102,51 @@ export class AiService {
     await this.audit(actor, projectId, 'ai.draft_rejected', { draftId });
     return draft;
   }
+  async exportRecords(actor: AuthenticatedActor) {
+    this.requireAdmin(actor);
+    const [settings, drafts, events] = await Promise.all([
+      this.pool.query<SettingRow>('SELECT enabled FROM ai_settings WHERE organization_id = $1', [
+        actor.organizationId,
+      ]),
+      this.pool.query<DraftRow>(
+        `SELECT id, intent, content, citations, status, model
+         FROM ai_drafts WHERE organization_id = $1 ORDER BY created_at`,
+        [actor.organizationId],
+      ),
+      this.pool.query<QueryResultRow>(
+        `SELECT id, project_id, actor_id, action, metadata, created_at
+         FROM ai_audit_events WHERE organization_id = $1 ORDER BY created_at`,
+        [actor.organizationId],
+      ),
+    ]);
+    await this.audit(actor, undefined, 'ai.records_exported', {
+      draftCount: drafts.rows.length,
+      eventCount: events.rows.length,
+    });
+    return {
+      format: 'orbita-ai-records/v1',
+      exportedAt: new Date().toISOString(),
+      settings: settings.rows[0] ?? { enabled: false },
+      drafts: drafts.rows,
+      events: events.rows,
+    };
+  }
+  async deleteDraft(actor: AuthenticatedActor, projectId: string, draftId: string) {
+    this.requireAdmin(actor);
+    await this.authorizeProject(actor, projectId);
+    const result = await this.pool.query<DraftRow>(
+      `DELETE FROM ai_drafts WHERE id = $1 AND project_id = $2 AND organization_id = $3
+       RETURNING id, intent, content, citations, status, model`,
+      [draftId, projectId, actor.organizationId],
+    );
+    const draft = row(result.rows, 'AI draft is unavailable.');
+    await this.audit(actor, projectId, 'ai.draft_deleted', { draftId, intent: draft.intent });
+    await this.auditTrail.record(actor, 'ai.draft_deleted', 'ai_draft', draftId, {
+      projectId,
+      intent: draft.intent,
+    });
+    return { id: draft.id, deleted: true };
+  }
   private async evidence(projectId: string, query: string) {
     const terms = query
       .toLocaleLowerCase()
@@ -127,6 +174,10 @@ export class AiService {
     if (!result.rows[0]?.enabled)
       throw new BadRequestException('Project Brain is not enabled for this organization.');
     await this.audit(actor, projectId, 'ai.policy_checked', { enabled: true });
+  }
+  private requireAdmin(actor: AuthenticatedActor) {
+    if (!actor.roles.some((role) => ['organization_admin', 'principal'].includes(role)))
+      throw new BadRequestException('Organization administrator permission is required.');
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {
     await this.projectAccess.requireAccess(actor, projectId);
