@@ -59,12 +59,19 @@ Keycloak delivers local activation messages to `mailpit:1025`; open
 `http://localhost:8025` to read an invitation and finish onboarding. No invitation
 email leaves the development machine and no hosted email-account credentials are needed.
 
-The local realm includes an `orbita-provisioner` service account. After import, obtain
-its generated secret from **Keycloak Admin → Clients → orbita-provisioner → Credentials**
-and place it only in your untracked `.env` as `KEYCLOAK_PROVISIONER_CLIENT_SECRET`.
-Never commit that secret or expose it in the web or mobile app. The imported local realm
-already targets Mailpit. Production must use an approved transactional-email SMTP/API
-provider with equivalent delivery controls.
+The local realm includes an `orbita-provisioner` service account. Automate the one-time
+local setup after `docker compose up -d` with:
+
+```bash
+npm exec --yes --package=pnpm@10.12.1 -- pnpm setup:local-invitations
+```
+
+The command retrieves the generated secret from the running Keycloak container and writes
+it only to the untracked root `.env`; it never prints the secret. It also configures the
+existing local realm to send SMTP to Mailpit, so it works even when Keycloak was started
+before this feature was added. Never commit that secret or expose it in the web or mobile
+app. Production must use an approved transactional-email SMTP/API provider with equivalent
+delivery controls.
 
 Members can upload a JPEG, PNG, or WebP profile photo (maximum 5 MB) from their profile
 page. Uploads use a short-lived storage URL, are verified by the API, and are recorded in

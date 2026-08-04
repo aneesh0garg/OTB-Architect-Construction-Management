@@ -23,6 +23,8 @@ npm exec --yes --package=pnpm@10.12.1 -- pnpm install --frozen-lockfile
 npm exec --yes --package=pnpm@10.12.1 -- pnpm dev
 ```
 
+For local invitation emails, run `npm exec --yes --package=pnpm@10.12.1 -- pnpm setup:local-invitations` once after Docker is ready.
+
 - Web: http://localhost:3000
 - API health: http://localhost:3001/health
 - Keycloak: http://localhost:8180 (local admin credentials are for development only)
