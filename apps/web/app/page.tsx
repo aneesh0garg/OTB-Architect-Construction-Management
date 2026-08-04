@@ -25,6 +25,7 @@ import {
   reviewProjectBrainDraft,
   signOutLocal,
   transitionProjectTask,
+  uploadProjectDocument,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
@@ -391,7 +392,15 @@ export default function Home() {
           )}
           {view === 'drawings' && <Drawings record={projectRecord} />}
           {view === 'field' && <FieldMobile execution={executionRegister} />}
-          {view === 'documents' && <Documents record={projectRecord} />}
+          {view === 'documents' && (
+            <Documents
+              record={projectRecord}
+              signedIn={Boolean(viewer)}
+              onChanged={() =>
+                projectRecord ? loadProjectViews(projectRecord.project.id) : Promise.resolve()
+              }
+            />
+          )}
           {view === 'tasks' && (
             <Tasks
               record={projectRecord}
@@ -1207,8 +1216,51 @@ function Overview({
   );
 }
 
-function Documents({ record }: { record: ProjectRecord | undefined }) {
+function Documents({
+  record,
+  signedIn,
+  onChanged,
+}: {
+  record: ProjectRecord | undefined;
+  signedIn: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const documents = record?.documents ?? [];
+  const [file, setFile] = useState<File>();
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [title, setTitle] = useState('');
+  const [documentType, setDocumentType] = useState<
+    'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
+  >('drawing');
+  const [revision, setRevision] = useState('A');
+  const [message, setMessage] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!record || !file) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      await uploadProjectDocument(record.project.id, file, {
+        documentNumber: documentNumber.trim(),
+        documentType,
+        title: title.trim(),
+        revision: revision.trim(),
+      });
+      setFile(undefined);
+      setDocumentNumber('');
+      setTitle('');
+      setRevision('A');
+      await onChanged();
+      setMessage('Document revision uploaded and added to the controlled record.');
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Document upload could not be completed.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="workspace-content">
       <section className="content-card">
@@ -1219,6 +1271,64 @@ function Documents({ record }: { record: ProjectRecord | undefined }) {
           </div>
           <span>{documents.length} records</span>
         </div>
+        {signedIn && record && (
+          <form className="document-form" onSubmit={submit}>
+            <label>
+              Original file
+              <input
+                accept="application/pdf,image/jpeg,image/png"
+                onChange={(event) => setFile(event.target.files?.[0])}
+                required
+                type="file"
+              />
+            </label>
+            <label>
+              Document number
+              <input
+                value={documentNumber}
+                onChange={(event) => setDocumentNumber(event.target.value)}
+                minLength={2}
+                required
+              />
+            </label>
+            <label>
+              Title
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                minLength={2}
+                required
+              />
+            </label>
+            <label>
+              Type
+              <select
+                value={documentType}
+                onChange={(event) => setDocumentType(event.target.value as typeof documentType)}
+              >
+                <option value="drawing">Drawing</option>
+                <option value="specification">Specification</option>
+                <option value="report">Report</option>
+                <option value="contract">Contract</option>
+                <option value="photo">Photo</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              Revision
+              <input
+                value={revision}
+                onChange={(event) => setRevision(event.target.value)}
+                minLength={1}
+                required
+              />
+            </label>
+            <button className="button-primary" disabled={saving} type="submit">
+              {saving ? 'Uploading…' : 'Upload revision'}
+            </button>
+          </form>
+        )}
+        {message && <p className="form-message">{message}</p>}
         <div className="simple-record-list">
           {documents.length ? (
             documents.map((document) => (

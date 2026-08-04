@@ -273,6 +273,34 @@ export const createWorkspaceProject = (input: {
   location?: string;
   stage?: string;
 }) => apiPost<{ id: string; code: string; name: string }>('/v1/workspace/projects', input);
+export async function uploadProjectDocument(
+  projectId: string,
+  file: File,
+  input: {
+    documentNumber: string;
+    documentType: 'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other';
+    title: string;
+    revision: string;
+  },
+) {
+  const prepared = await apiPost<{ uploadId: string; uploadUrl: string }>(
+    `/v1/workspace/projects/${projectId}/documents/uploads`,
+    { fileName: file.name, contentType: file.type, size: file.size },
+  );
+  const uploaded = await fetch(prepared.uploadUrl, {
+    method: 'PUT',
+    headers: { 'content-type': file.type },
+    body: file,
+  });
+  if (!uploaded.ok) throw new Error('The selected file could not be uploaded.');
+  await apiPost(
+    `/v1/workspace/projects/${projectId}/documents/uploads/${prepared.uploadId}/complete`,
+  );
+  return apiPost(`/v1/workspace/projects/${projectId}/documents`, {
+    ...input,
+    uploadId: prepared.uploadId,
+  });
+}
 export const createProjectTask = (
   projectId: string,
   input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },
