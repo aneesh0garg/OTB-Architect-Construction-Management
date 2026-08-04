@@ -397,6 +397,12 @@ that the deletion occurred.
 Adding a model provider requires a separate provider configuration, data-
 processing review, prompt/output retention control, and evaluation gate.
 
+In the web workspace, **Ask Orbita AI** opens the governed Project Brain panel.
+After sign-in and project selection, it can search only permitted retained
+records, show their citations, and create a review-required draft. An explicit
+approval or rejection changes only the draft's review status; it cannot issue
+correspondence or alter a controlled project record.
+
 ## Gmail / Google Workspace connection
 
 Gmail is opt-in by organization and is not configured in a fresh local clone.

@@ -49,4 +49,15 @@ test.describe('mobile project navigation', () => {
     await page.getByRole('button', { name: 'Close notification settings' }).click();
     await expect(dialog).toBeHidden();
   });
+
+  test('keeps the governed Project Brain panel reachable on a phone viewport', async ({ page }) => {
+    await page.getByRole('button', { name: 'Ask Orbita AI →' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Evidence before answers' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Sign in and open a connected project');
+
+    await page.getByRole('button', { name: 'Close Project Brain' }).click();
+    await expect(dialog).toBeHidden();
+  });
 });

@@ -107,6 +107,22 @@ export type NotificationPreferenceInput = {
   quietHoursEnd?: string;
   digestFrequency: NotificationPreference['digest_frequency'];
 };
+export type AiCitation = {
+  source_type: string;
+  source_id: string;
+  title: string;
+  excerpt: string;
+  created_at: string;
+};
+export type AiSearchResult = { query: string; citations: AiCitation[]; notice: string };
+export type AiDraft = {
+  id: string;
+  intent: string;
+  content: string;
+  citations: AiCitation[];
+  status: 'review_required' | 'approved' | 'rejected';
+  model: string;
+};
 
 const tokenKey = 'orbita.access-token';
 const verifierKey = 'orbita.pkce-verifier';
@@ -210,6 +226,24 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const token = sessionStorage.getItem(tokenKey);
+  if (!token) throw new Error('Sign in is required to use Project Brain.');
+  const response = await fetch(`${apiUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(body ? { 'content-type': 'application/json' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined);
+    throw new Error(payload?.message ?? 'Project Brain could not complete this request.');
+  }
+  return response.json() as Promise<T>;
+}
+
 export const loadProjectRecord = (projectId: string) =>
   apiGet<ProjectRecord>(`/v1/workspace/projects/${projectId}/record`);
 export const loadFinanceControl = (projectId: string) =>
@@ -224,3 +258,14 @@ export const loadNotificationPreferences = () =>
   apiGet<NotificationPreference[]>('/v1/workspace/notification-preferences');
 export const saveNotificationPreference = (input: NotificationPreferenceInput) =>
   apiPut<NotificationPreference>('/v1/workspace/notification-preferences', input);
+export const searchProjectBrain = (projectId: string, query: string) =>
+  apiGet<AiSearchResult>(`/v1/projects/${projectId}/brain/search?q=${encodeURIComponent(query)}`);
+export const createProjectBrainDraft = (
+  projectId: string,
+  input: { intent: AiDraft['intent']; prompt: string },
+) => apiPost<AiDraft>(`/v1/projects/${projectId}/brain/drafts`, input);
+export const reviewProjectBrainDraft = (
+  projectId: string,
+  draftId: string,
+  decision: 'approve' | 'reject',
+) => apiPost<AiDraft>(`/v1/projects/${projectId}/brain/drafts/${draftId}/${decision}`);

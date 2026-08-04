@@ -12,11 +12,16 @@ import {
   loadNotificationPreferences,
   restoreLocalLogin,
   saveNotificationPreference,
+  searchProjectBrain,
+  createProjectBrainDraft,
+  reviewProjectBrainDraft,
   signOutLocal,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
   type FinanceControl,
+  type AiCitation,
+  type AiDraft,
   type NotificationPreference,
   type ProjectRecord,
   type Viewer,
@@ -49,6 +54,7 @@ export default function Home() {
     [],
   );
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
+  const [brainOpen, setBrainOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState('Demo workspace');
   const project = workspaceData.activeProject;
 
@@ -210,7 +216,7 @@ export default function Home() {
           ))}
         </div>
         <div className="sidebar-footer">
-          <button className="upgrade-card">
+          <button className="upgrade-card" onClick={() => setBrainOpen(true)}>
             <span>✦</span>
             <strong>Ask Orbita AI</strong>
             <small>Search project evidence with citations</small>
@@ -342,7 +348,12 @@ export default function Home() {
           aria-atomic="true"
         >
           {view === 'overview' && (
-            <Overview record={projectRecord} finance={financeControl} cost={costControl} />
+            <Overview
+              record={projectRecord}
+              finance={financeControl}
+              cost={costControl}
+              onOpenBrain={() => setBrainOpen(true)}
+            />
           )}
           {view === 'drawings' && <Drawings record={projectRecord} />}
           {view === 'field' && <FieldMobile execution={executionRegister} />}
@@ -361,7 +372,188 @@ export default function Home() {
           }
         />
       )}
+      {brainOpen && (
+        <ProjectBrain
+          projectId={projectRecord?.project.id}
+          signedIn={Boolean(viewer)}
+          onClose={() => setBrainOpen(false)}
+        />
+      )}
     </main>
+  );
+}
+
+function ProjectBrain({
+  projectId,
+  signedIn,
+  onClose,
+}: {
+  projectId: string | undefined;
+  signedIn: boolean;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [intent, setIntent] = useState<AiDraft['intent']>('rfi_draft');
+  const [citations, setCitations] = useState<AiCitation[]>([]);
+  const [draft, setDraft] = useState<AiDraft>();
+  const [message, setMessage] = useState<string>();
+  const [working, setWorking] = useState(false);
+  const canUseBrain = signedIn && Boolean(projectId);
+  const search = async () => {
+    if (!projectId || !query.trim()) return;
+    setWorking(true);
+    setMessage(undefined);
+    try {
+      const result = await searchProjectBrain(projectId, query.trim());
+      setCitations(result.citations);
+      setMessage(result.notice);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Search failed.');
+    } finally {
+      setWorking(false);
+    }
+  };
+  const createDraft = async () => {
+    if (!projectId || !query.trim()) return;
+    setWorking(true);
+    setMessage(undefined);
+    try {
+      const created = await createProjectBrainDraft(projectId, { intent, prompt: query.trim() });
+      setDraft(created);
+      setCitations(created.citations);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Draft creation failed.');
+    } finally {
+      setWorking(false);
+    }
+  };
+  const review = async (decision: 'approve' | 'reject') => {
+    if (!projectId || !draft) return;
+    setWorking(true);
+    setMessage(undefined);
+    try {
+      setDraft(await reviewProjectBrainDraft(projectId, draft.id, decision));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Draft review failed.');
+    } finally {
+      setWorking(false);
+    }
+  };
+  return (
+    <div className="settings-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="notification-settings brain-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="brain-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <p className="eyebrow">GOVERNED PROJECT BRAIN</p>
+            <h2 id="brain-title">Evidence before answers</h2>
+          </div>
+          <button className="icon-button" aria-label="Close Project Brain" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        {!canUseBrain ? (
+          <p className="settings-empty">
+            Sign in and open a connected project to use Project Brain.
+          </p>
+        ) : (
+          <div className="settings-form">
+            <label>
+              What do you need to prepare?
+              <textarea
+                aria-label="Project Brain request"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g. Draft an RFI for the façade cavity depth"
+              />
+            </label>
+            <label>
+              Draft type
+              <select
+                value={intent}
+                onChange={(event) => setIntent(event.target.value as AiDraft['intent'])}
+              >
+                <option value="rfi_draft">RFI draft</option>
+                <option value="site_report">Site report</option>
+                <option value="meeting_minutes">Meeting minutes</option>
+                <option value="risk_summary">Risk summary</option>
+                <option value="submittal_review">Submittal review</option>
+                <option value="record_search">Record search</option>
+              </select>
+            </label>
+            <div className="brain-actions">
+              <button
+                className="button-secondary"
+                onClick={search}
+                disabled={!query.trim() || working}
+              >
+                Find evidence
+              </button>
+              <button
+                className="button-primary"
+                onClick={createDraft}
+                disabled={!query.trim() || working}
+                data-testid="create-brain-draft"
+              >
+                {working ? 'Working…' : 'Create review draft'}
+              </button>
+            </div>
+            {citations.length > 0 && (
+              <div className="brain-results">
+                <strong>Permitted evidence</strong>
+                {citations.map((citation, index) => (
+                  <article key={`${citation.source_id}-${index}`}>
+                    <b>[{index + 1}]</b>
+                    <span>
+                      {citation.title}
+                      <small>{citation.excerpt}</small>
+                    </span>
+                  </article>
+                ))}
+              </div>
+            )}
+            {draft && (
+              <div className="brain-draft">
+                <p className="eyebrow">{draft.status.replaceAll('_', ' ')}</p>
+                <pre>{draft.content}</pre>
+                {draft.status === 'review_required' && (
+                  <div className="brain-actions">
+                    <button
+                      className="button-secondary"
+                      onClick={() => review('reject')}
+                      disabled={working}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      className="button-primary"
+                      onClick={() => review('approve')}
+                      disabled={working}
+                    >
+                      Approve draft
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {message && (
+              <p className="settings-message" role="status">
+                {message}
+              </p>
+            )}
+            <p className="brain-safety">
+              Drafts never issue correspondence or change project data. Review and use the approved
+              content in the relevant controlled workflow.
+            </p>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -575,10 +767,12 @@ function Overview({
   record,
   finance,
   cost,
+  onOpenBrain,
 }: {
   record: ProjectRecord | undefined;
   finance: FinanceControl | undefined;
   cost: CostControl | undefined;
+  onOpenBrain: () => void;
 }) {
   const project = workspaceData.activeProject;
   return (
@@ -755,7 +949,7 @@ function Overview({
           </div>
           <footer>
             <span>Review-required draft</span>
-            <button>Ask Orbita AI →</button>
+            <button onClick={onOpenBrain}>Ask Orbita AI →</button>
           </footer>
         </section>
       </div>
