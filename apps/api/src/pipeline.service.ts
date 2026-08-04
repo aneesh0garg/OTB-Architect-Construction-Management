@@ -3,6 +3,7 @@ import type { AuthenticatedActor, PlatformRole } from '@orbita/contracts';
 import type { QueryResultRow } from 'pg';
 import { AuditService } from './audit.service.js';
 import { DatabaseService } from './database.service.js';
+import { projectStages, type ProjectStage } from './workspace.service.js';
 
 interface OpportunityRow extends QueryResultRow {
   id: string;
@@ -218,7 +219,7 @@ export class PipelineService {
           current.project_name,
           current.client_name,
           optionalText(input.location),
-          input.stage ?? 'pursuit',
+          validProjectStage(input.stage),
         ],
       );
       const project = row(created.rows, 'Project could not be created.');
@@ -314,7 +315,7 @@ export interface ConvertOpportunityInput {
   proposalId: string;
   projectCode: string;
   location?: string;
-  stage?: string;
+  stage?: ProjectStage;
 }
 
 const row = <T extends QueryResultRow>(rows: T[], message: string) => {
@@ -337,6 +338,12 @@ const probability = (value: number) => {
   if (!Number.isInteger(value) || value < 0 || value > 100)
     throw new BadRequestException('Probability must be a whole number from 0 to 100.');
   return value;
+};
+const validProjectStage = (value: ProjectStage | undefined) => {
+  const stage = value ?? 'pursuit';
+  if (!projectStages.includes(stage))
+    throw new BadRequestException('Choose a valid project stage.');
+  return stage;
 };
 const normalizeStaffing = (items: InitialStaffing[]) =>
   items.map((item) => {

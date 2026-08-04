@@ -98,7 +98,7 @@ const project = await api('POST', `/v1/pipeline/opportunities/${opportunity.id}/
   proposalId: proposal.id,
   projectCode: `SMK-${runId}`,
   location: 'Dehradun',
-  stage: 'construction_administration',
+  stage: 'pursuit',
 });
 assert.ok(project.id, 'Opportunity conversion did not return a project ID.');
 const pipeline = await api('GET', '/v1/pipeline');
@@ -165,6 +165,14 @@ const revokedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
 assert.equal(revokedRecord.ok, false, 'Removed contractor retained project access.');
 const activeProject = await api('POST', `${projectPath}/status`, { status: 'active' });
 assert.equal(activeProject.status, 'active', 'Project did not transition to active.');
+const stagedProject = await api('POST', `${projectPath}/stage`, {
+  stage: 'construction_administration',
+});
+assert.equal(
+  stagedProject.stage,
+  'construction_administration',
+  'Project stage did not transition to construction administration.',
+);
 
 const task = await api('POST', `${projectPath}/tasks`, {
   title: `Verify facade coordination ${runId}`,
@@ -407,6 +415,7 @@ for (const action of [
   'finance.payment_recorded',
   'cost.change_status_changed',
   'project.status_changed',
+  'project.stage_changed',
   'project.search_performed',
   'export.project_csv_created',
   'export.commercial_csv_created',

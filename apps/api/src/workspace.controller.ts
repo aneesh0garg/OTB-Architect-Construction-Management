@@ -11,7 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
-import { WorkspaceService } from './workspace.service.js';
+import { projectStages, WorkspaceService } from './workspace.service.js';
 import { DocumentUploadService } from './document-upload.service.js';
 class CreateOrganizationDto {
   @IsString() @MinLength(2) @MaxLength(120) name!: string;
@@ -23,10 +23,13 @@ class CreateProjectDto {
   @IsString() @MinLength(2) @MaxLength(24) code!: string;
   @IsString() @MinLength(2) @MaxLength(180) name!: string;
   @IsOptional() @IsString() @MaxLength(240) location?: string;
-  @IsOptional() @IsString() @MaxLength(80) stage?: string;
+  @IsOptional() @IsIn(projectStages) stage?: (typeof projectStages)[number];
 }
 class ProjectStatusDto {
   @IsIn(['active', 'on_hold', 'closed', 'archived']) status!: string;
+}
+class ProjectStageDto {
+  @IsIn(projectStages) stage!: (typeof projectStages)[number];
 }
 class AddCollaboratorDto {
   @IsString() @MinLength(1) @MaxLength(160) userId!: string;
@@ -110,6 +113,13 @@ export class WorkspaceController {
     @Body() body: ProjectStatusDto,
   ) {
     return this.workspace.transitionProjectStatus(request.actor!, projectId, body.status);
+  }
+  @Post('projects/:projectId/stage') transitionProjectStage(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Body() body: ProjectStageDto,
+  ) {
+    return this.workspace.transitionProjectStage(request.actor!, projectId, body.stage);
   }
   @Get('projects/:projectId/record') getProjectRecord(
     @Req() request: AuthenticatedRequest,

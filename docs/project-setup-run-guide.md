@@ -108,6 +108,7 @@ header used in the quick check. `PROJECT_ID` must be an ID returned from
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GET /v1/workspace/projects/:projectId/record`                                | Read project metadata, tasks, document revisions, and filed communications.                                                                |
 | `POST /v1/workspace/projects/:projectId/status`                               | Transition a project through planning, active, on-hold, closed, and archived states; closing sets a seven-year retention date.             |
+| `POST /v1/workspace/projects/:projectId/stage`                                | Set an auditable delivery stage: pursuit through warranty/defects, including construction administration and handover.                     |
 | `POST /v1/workspace/projects/:projectId/collaborators`                        | Grant a contractor, consultant, owner, vendor, member, or field-supervisor explicit project access.                                        |
 | `DELETE /v1/workspace/projects/:projectId/collaborators/:userId`              | Revoke an external collaborator’s project access immediately and record the removal in the audit trail.                                    |
 | `GET /v1/projects/:projectId/search?q=:query`                                 | Search permitted documents, filed communications, tasks, field observations, and workflow records within a project.                        |
@@ -127,6 +128,13 @@ Task assignments, issued construction workflows, invoice issuance, and payment
 receipts create in-app notifications for authorized project members. External
 email and push delivery remain explicitly opt-in integrations; notification
 contents never substitute for the underlying project record.
+
+Project delivery stages are distinct from record-retention status. The accepted
+stages are `pursuit`, `concept`, `schematic_design`, `design_development`,
+`construction_documents`, `tender`, `construction_administration`, `handover`,
+`warranty_defects`, and `archived`. Each change records its prior and next stage
+in the project audit trail; status still governs active/on-hold/closed/archive
+retention.
 
 Example: create an issued drawing revision.
 

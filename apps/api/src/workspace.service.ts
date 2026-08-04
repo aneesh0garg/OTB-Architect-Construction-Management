@@ -66,6 +66,19 @@ interface AuditRow extends QueryResultRow {
   metadata: Record<string, unknown>;
   created_at: Date;
 }
+export const projectStages = [
+  'pursuit',
+  'concept',
+  'schematic_design',
+  'design_development',
+  'construction_documents',
+  'tender',
+  'construction_administration',
+  'handover',
+  'warranty_defects',
+  'archived',
+] as const;
+export type ProjectStage = (typeof projectStages)[number];
 
 @Injectable()
 export class WorkspaceService {
@@ -120,7 +133,7 @@ export class WorkspaceService {
         this.requiredText(input.code, 'Project code').toUpperCase(),
         this.requiredText(input.name, 'Project name'),
         input.location?.trim() || null,
-        input.stage?.trim() || 'planning',
+        this.projectStage(input.stage),
       ],
     );
     const created = this.resultRow(project.rows, 'Project could not be created.');
@@ -171,6 +184,25 @@ export class WorkspaceService {
       retentionUntil: updated.retention_until,
     });
     return updated;
+  }
+  async transitionProjectStage(actor: AuthenticatedActor, projectId: string, stage: ProjectStage) {
+    this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
+    const project = await this.projectForActor(actor, projectId);
+    const nextStage = this.projectStage(stage);
+    if (project.stage === nextStage) return project;
+    const updated = await this.pool.query<ProjectRow>(
+      `UPDATE projects SET stage = $1
+       WHERE id = $2 AND organization_id = $3
+       RETURNING id, code, name, status, location, stage, closed_at, retention_until`,
+      [nextStage, project.id, actor.organizationId],
+    );
+    const value = this.resultRow(updated.rows, 'Project is unavailable.');
+    await this.audit(actor, 'project.stage_changed', 'project', value.id, {
+      projectId: value.id,
+      fromStage: project.stage,
+      toStage: value.stage,
+    });
+    return value;
   }
   async addCollaborator(actor: AuthenticatedActor, projectId: string, input: AddCollaboratorInput) {
     this.requireRole(actor, ['organization_admin', 'principal', 'project_manager']);
@@ -398,6 +430,12 @@ export class WorkspaceService {
     if (!text) throw new BadRequestException(`${label} is required.`);
     return text;
   }
+  private projectStage(value: string | undefined): ProjectStage {
+    const stage = value?.trim() || 'pursuit';
+    if (!projectStages.includes(stage as ProjectStage))
+      throw new BadRequestException(`Choose a valid project stage: ${projectStages.join(', ')}.`);
+    return stage as ProjectStage;
+  }
   private resultRow<T extends QueryResultRow>(rows: T[], message: string) {
     const row = rows[0];
     if (!row) throw new BadRequestException(message);
@@ -438,7 +476,7 @@ export interface CreateProjectInput {
   code: string;
   name: string;
   location?: string;
-  stage?: string;
+  stage?: ProjectStage;
 }
 export interface AddCollaboratorInput {
   userId: string;

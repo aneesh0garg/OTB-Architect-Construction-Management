@@ -19,6 +19,7 @@ import {
 import { Type } from 'class-transformer';
 import { type AuthenticatedRequest, KeycloakAuthGuard } from './keycloak-auth.guard.js';
 import { PipelineService } from './pipeline.service.js';
+import { projectStages } from './workspace.service.js';
 
 class OpportunityDto {
   @IsString() @MinLength(2) @MaxLength(180) clientName!: string;
@@ -66,7 +67,7 @@ class ConvertOpportunityDto {
   @IsString() @MinLength(1) @MaxLength(160) proposalId!: string;
   @IsString() @MinLength(2) @MaxLength(24) projectCode!: string;
   @IsOptional() @IsString() @MaxLength(240) location?: string;
-  @IsOptional() @IsString() @MaxLength(80) stage?: string;
+  @IsOptional() @IsIn(projectStages) stage?: (typeof projectStages)[number];
 }
 
 @Controller('v1/pipeline')
