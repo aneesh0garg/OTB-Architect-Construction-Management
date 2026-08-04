@@ -413,7 +413,11 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+async function apiPost<T>(
+  path: string,
+  body?: unknown,
+  failureMessage = 'Project Brain could not complete this request.',
+): Promise<T> {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) throw new Error('Sign in is required to use Project Brain.');
   const response = await fetch(`${apiUrl()}${path}`, {
@@ -426,7 +430,7 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => undefined);
-    throw new Error(payload?.message ?? 'Project Brain could not complete this request.');
+    throw new Error(payload?.message ?? failureMessage);
   }
   return response.json() as Promise<T>;
 }
@@ -497,20 +501,34 @@ export async function uploadProjectDocument(
   const prepared = await apiPost<{ uploadId: string; uploadUrl: string }>(
     `/v1/workspace/projects/${projectId}/documents/uploads`,
     { fileName: file.name, contentType: file.type, size: file.size },
+    'Document upload could not be prepared.',
   );
-  const uploaded = await fetch(prepared.uploadUrl, {
-    method: 'PUT',
-    headers: { 'content-type': file.type },
-    body: file,
-  });
+  let uploaded: Response;
+  try {
+    uploaded = await fetch(prepared.uploadUrl, {
+      method: 'PUT',
+      headers: { 'content-type': file.type },
+      body: file,
+    });
+  } catch {
+    throw new Error(
+      'Browser upload could not reach document storage. Check the local network configuration.',
+    );
+  }
   if (!uploaded.ok) throw new Error('The selected file could not be uploaded.');
   await apiPost(
     `/v1/workspace/projects/${projectId}/documents/uploads/${prepared.uploadId}/complete`,
+    undefined,
+    'Document upload verification failed.',
   );
-  return apiPost(`/v1/workspace/projects/${projectId}/documents`, {
-    ...input,
-    uploadId: prepared.uploadId,
-  });
+  return apiPost(
+    `/v1/workspace/projects/${projectId}/documents`,
+    {
+      ...input,
+      uploadId: prepared.uploadId,
+    },
+    'Document revision could not be created.',
+  );
 }
 export const issueProjectDocument = (projectId: string, documentId: string) =>
   apiPost(`/v1/workspace/projects/${projectId}/documents/${documentId}/issue`);
