@@ -112,7 +112,12 @@ header used in the quick check. `PROJECT_ID` must be an ID returned from
 | `POST /v1/workspace/projects/:projectId/communications` | File an immutable inbound, outbound, or internal project message.                                                                          |
 | `GET /v1/workspace/notifications`                       | Read the current user’s in-app notification feed.                                                                                          |
 | `POST /v1/workspace/notifications/:notificationId/read` | Mark a notification as read.                                                                                                               |
-| `GET /v1/workspace/audit?projectId=:projectId`          | Read up to 200 tenant audit events, optionally narrowed to a project; organization administrators and principals only.                     |
+
+Task assignments, issued construction workflows, invoice issuance, and payment
+receipts create in-app notifications for authorized project members. External
+email and push delivery remain explicitly opt-in integrations; notification
+contents never substitute for the underlying project record.
+| `GET /v1/workspace/audit?projectId=:projectId` | Read up to 200 tenant audit events, optionally narrowed to a project; organization administrators and principals only. |
 
 Example: create an issued drawing revision.
 

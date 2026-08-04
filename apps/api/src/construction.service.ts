@@ -4,6 +4,7 @@ import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
 import { AuditService } from './audit.service.js';
+import { NotificationService } from './notification.service.js';
 
 type WorkflowType = 'rfi' | 'submittal' | 'site_instruction' | 'meeting_minutes' | 'decision';
 interface FieldVisitRow extends QueryResultRow {
@@ -36,6 +37,7 @@ export class ConstructionService {
     private readonly pool: DatabaseService,
     private readonly projectAccess: ProjectAccessService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async getRegister(actor: AuthenticatedActor, projectId: string) {
@@ -183,6 +185,15 @@ export class ConstructionService {
       fromStatus: current.status,
       toStatus: next.status,
     });
+    if (next.status === issuedStatus(next.record_type)) {
+      await this.notifications.notifyProject(
+        actor,
+        projectId,
+        'workflow.issued',
+        `${next.record_type.replaceAll('_', ' ')} #${next.record_number} issued`,
+        next.title,
+      );
+    }
     return next;
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {

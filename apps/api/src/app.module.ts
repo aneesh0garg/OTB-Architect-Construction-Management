@@ -21,6 +21,7 @@ import { ResourceController } from './resource.controller.js';
 import { ResourceService } from './resource.service.js';
 import { ProjectExportController } from './project-export.controller.js';
 import { ProjectExportService } from './project-export.service.js';
+import { NotificationService } from './notification.service.js';
 
 @Module({
   controllers: [
@@ -42,6 +43,7 @@ import { ProjectExportService } from './project-export.service.js';
     ProjectSearchService,
     ResourceService,
     ProjectExportService,
+    NotificationService,
     KeycloakAuthGuard,
     WorkspaceService,
     ConstructionService,

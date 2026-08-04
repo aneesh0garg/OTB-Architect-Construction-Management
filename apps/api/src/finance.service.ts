@@ -4,6 +4,7 @@ import type { AuthenticatedActor } from '@orbita/contracts';
 import { DatabaseService } from './database.service.js';
 import { ProjectAccessService } from './project-access.service.js';
 import { AuditService } from './audit.service.js';
+import { NotificationService } from './notification.service.js';
 
 interface PhaseRow extends QueryResultRow {
   id: string;
@@ -69,6 +70,7 @@ export class FinanceService {
     private readonly pool: DatabaseService,
     private readonly projectAccess: ProjectAccessService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async getControl(actor: AuthenticatedActor, projectId: string) {
@@ -415,6 +417,15 @@ export class FinanceService {
       invoiceNumber: invoice.invoice_number,
       status: invoice.status,
     });
+    if (invoice.status === 'issued') {
+      await this.notifications.notifyProject(
+        actor,
+        projectId,
+        'invoice.issued',
+        `Invoice #${invoice.invoice_number} issued`,
+        `Invoice total: ₹${invoice.total}`,
+      );
+    }
     return invoice;
   }
   async recordPayment(
@@ -455,6 +466,13 @@ export class FinanceService {
       amount: recorded.amount,
       resultingInvoiceStatus: status,
     });
+    await this.notifications.notifyProject(
+      actor,
+      projectId,
+      'payment.recorded',
+      `Payment received for invoice #${found.invoice_number}`,
+      `₹${recorded.amount} recorded; invoice is ${status.replaceAll('_', ' ')}.`,
+    );
     return recorded;
   }
   private async authorizeProject(actor: AuthenticatedActor, projectId: string) {

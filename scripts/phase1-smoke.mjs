@@ -220,6 +220,14 @@ await api('POST', `/v1/projects/${project.id}/finance/invoices/${invoice.id}/pay
   paidDate: '2026-08-05',
   reference: `SMOKE-${runId}`,
 });
+const notifications = await api('GET', '/v1/workspace/notifications');
+for (const eventType of ['workflow.issued', 'invoice.issued', 'payment.recorded']) {
+  assert.equal(
+    notifications.some((notification) => notification.event_type === eventType),
+    true,
+    `Notification ${eventType} was not created.`,
+  );
+}
 const finance = await api('GET', `/v1/projects/${project.id}/finance`);
 assert.equal(
   finance.health.paid,
