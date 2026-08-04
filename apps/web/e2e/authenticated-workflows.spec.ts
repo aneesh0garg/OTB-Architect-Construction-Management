@@ -27,27 +27,22 @@ test.describe('authenticated workspace workflows', () => {
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   });
 
-  test('creates a workspace team and project', async ({ page }) => {
+  test('creates a project with one delivery team', async ({ page }) => {
     const suffix = Date.now();
-    const teamName = `UI team ${suffix}`;
-    await page.getByLabel('Create team').click();
-    await page.getByLabel('Team name').fill(teamName);
-    await page.getByRole('button', { name: 'Create team' }).click();
-    await expect(page.getByText(`# ${teamName}`, { exact: true })).toBeVisible();
-
     const projectName = `UI project ${suffix}`;
     await page.getByLabel('Create project').click();
     await page.getByLabel('Project name').fill(projectName);
     await page.getByLabel('Project code').fill(`UI${suffix}`.slice(0, 24));
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.getByRole('heading', { name: projectName })).toBeVisible();
+    await expect(page.getByText(`UI${suffix}`.slice(0, 24) + ' delivery team')).toBeVisible();
   });
 
   test('assigns a named person a project role', async ({ page }) => {
     const suffix = Date.now();
     const userId = `ui-role-${suffix}`;
     const name = `UI Role Person ${suffix}`;
-    await page.getByRole('link', { name: '◉ My teams' }).click();
+    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
     await page.getByLabel('User ID').fill(userId);
     await page.getByLabel('Name').fill(name);
     await page.getByRole('button', { name: 'Save person' }).click();

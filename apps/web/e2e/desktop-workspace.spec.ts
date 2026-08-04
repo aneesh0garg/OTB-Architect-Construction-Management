@@ -1,17 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('desktop workspace controls', () => {
-  test('opens project and team creation dialogs from the workspace sidebar', async ({ page }) => {
+  test('opens project creation from the workspace sidebar', async ({ page }) => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Create project' }).click();
     const projectDialog = page.getByRole('dialog', { name: 'Create project' });
-    await expect(projectDialog).toContainText('Sign in to create projects and teams');
+    await expect(projectDialog).toContainText('Sign in to create a project and its delivery team');
     await page.getByRole('button', { name: 'Close create project' }).click();
-
-    await page.getByRole('button', { name: 'Create team' }).click();
-    const teamDialog = page.getByRole('dialog', { name: 'Create team' });
-    await expect(teamDialog).toContainText('Sign in to create projects and teams');
   });
 
   test('opens Pipeline, Staffing, and AI workspace controls', async ({ page }) => {
@@ -23,9 +19,9 @@ test.describe('desktop workspace controls', () => {
     );
     await page.getByRole('button', { name: 'Close pipeline and proposals' }).click();
 
-    await page.getByRole('link', { name: '◉ My teams' }).click();
+    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
     await expect(page.getByRole('dialog', { name: 'Staffing and capacity' })).toContainText(
-      'Sign in to manage people, teams, and capacity',
+      'Sign in to manage people, capacity groups, and staffing',
     );
     await page.getByRole('button', { name: 'Close staffing and capacity' }).click();
 

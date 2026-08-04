@@ -32,7 +32,6 @@ import {
   assignResourceTeamMember,
   addProjectCollaborator,
   createWorkspaceProject,
-  createWorkspaceTeam,
   fileProjectCommunication,
   reviewProjectBrainDraft,
   signOutLocal,
@@ -92,7 +91,7 @@ export default function Home() {
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
   const [notificationFeedOpen, setNotificationFeedOpen] = useState(false);
-  const [workspaceDialog, setWorkspaceDialog] = useState<'project' | 'team'>();
+  const [workspaceDialog, setWorkspaceDialog] = useState<'project'>();
   const [mobileWorkspaceOpen, setMobileWorkspaceOpen] = useState<'projects' | 'teams'>();
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [staffingOpen, setStaffingOpen] = useState(false);
@@ -166,9 +165,6 @@ export default function Home() {
   const projects = connectedWorkspace
     ? connectedWorkspace.projects.map((item) => ({ ...item, progress: 0 }))
     : workspaceData.projects;
-  const teams = connectedWorkspace
-    ? connectedWorkspace.teams.map((team) => team.name)
-    : workspaceData.organization.teams;
   const projectMembers =
     projectRecord?.members ??
     workspaceData.activeProject.members.map((member) => ({
@@ -262,7 +258,7 @@ export default function Home() {
               setStaffingOpen(true);
             }}
           >
-            <span>◉</span> My teams
+            <span>◉</span> Resource capacity
           </a>
         </nav>
         <div className="sidebar-heading">
@@ -305,17 +301,13 @@ export default function Home() {
           </div>
         )}
         <div className="sidebar-heading sidebar-heading-team">
-          <span>TEAMS</span>
-          <button aria-label="Create team" onClick={() => setWorkspaceDialog('team')}>
-            +
-          </button>
+          <span>PROJECT TEAM</span>
         </div>
         <div className="team-list">
-          {teams.map((team) => (
-            <button key={team} onClick={() => setStaffingOpen(true)}>
-              # {team}
-            </button>
-          ))}
+          <button onClick={() => setProjectPeopleOpen(true)}>
+            # {project.code} delivery team
+            <small>{projectMembers.length} associated members</small>
+          </button>
         </div>
         <div className="sidebar-footer">
           <button className="upgrade-card" onClick={() => setBrainOpen(true)}>
@@ -602,7 +594,6 @@ export default function Home() {
       )}
       {workspaceDialog && (
         <WorkspaceCreationDialog
-          kind={workspaceDialog}
           signedIn={Boolean(viewer)}
           onClose={() => setWorkspaceDialog(undefined)}
           onCreated={async (createdProjectId) => {
@@ -616,12 +607,13 @@ export default function Home() {
           kind={mobileWorkspaceOpen}
           projects={projects}
           activeProjectCode={project.code}
-          teams={teams}
+          projectCode={project.code}
+          projectMembers={projectMembers}
           signedIn={Boolean(viewer)}
           onClose={() => setMobileWorkspaceOpen(undefined)}
           onCreate={() => {
             setMobileWorkspaceOpen(undefined);
-            setWorkspaceDialog(mobileWorkspaceOpen === 'projects' ? 'project' : 'team');
+            setWorkspaceDialog('project');
           }}
           onOpenProject={(projectId) => {
             setMobileWorkspaceOpen(undefined);
@@ -679,7 +671,7 @@ function MobileWorkspaceNavigation({
         <span>◫</span>Projects
       </button>
       <button onClick={onOpenTeams} type="button">
-        <span>◉</span>Teams
+        <span>◉</span>Team
       </button>
       <button className="mobile-create-button" onClick={onCreateProject} type="button">
         <span>＋</span>Create
@@ -692,7 +684,8 @@ function MobileWorkspaceDirectory({
   kind,
   projects,
   activeProjectCode,
-  teams,
+  projectCode,
+  projectMembers,
   signedIn,
   onClose,
   onCreate,
@@ -702,7 +695,8 @@ function MobileWorkspaceDirectory({
   kind: 'projects' | 'teams';
   projects: ReadonlyArray<{ id?: string; code: string; name: string; status: string }>;
   activeProjectCode: string;
-  teams: ReadonlyArray<string>;
+  projectCode: string;
+  projectMembers: ReadonlyArray<{ user_id: string; display_name: string | null; role: string }>;
   signedIn: boolean;
   onClose: () => void;
   onCreate: () => void;
@@ -714,14 +708,14 @@ function MobileWorkspaceDirectory({
     <div className="mobile-directory-backdrop" role="presentation">
       <section
         className="mobile-directory-sheet"
-        aria-label={isProjects ? 'Projects' : 'Teams'}
+        aria-label={isProjects ? 'Projects' : 'Project team'}
         aria-modal="true"
         role="dialog"
       >
         <div className="card-header">
           <div>
             <p className="eyebrow">WORKSPACE</p>
-            <h2>{isProjects ? 'Projects' : 'Teams'}</h2>
+            <h2>{isProjects ? 'Projects' : 'Project team'}</h2>
           </div>
           <button aria-label={`Close ${kind}`} className="icon-button" onClick={onClose}>
             ×
@@ -755,19 +749,16 @@ function MobileWorkspaceDirectory({
           </>
         ) : (
           <>
-            <p className="mobile-directory-copy">
-              Organization teams are reusable staffing groups. Project membership and roles are managed within each project.
-            </p>
+            <p className="mobile-directory-copy">One delivery team is associated with each project. Its members have project-specific roles and access.</p>
             <div className="mobile-directory-list">
-              {teams.map((team) => <button key={team} onClick={onOpenTeams} type="button"><span>#</span><strong>{team}</strong><span>Open</span></button>)}
-              {!teams.length && <p className="settings-empty">No teams yet.</p>}
+              <button onClick={onOpenTeams} type="button"><span>#</span><strong>{projectCode} delivery team</strong><span>{projectMembers.length} members</span></button>
+              {projectMembers.map((member) => <button key={member.user_id} onClick={onOpenTeams} type="button"><span>◉</span><strong>{member.display_name ?? member.user_id}</strong><span>{member.role.replaceAll('_', ' ')}</span></button>)}
+              {!projectMembers.length && <p className="settings-empty">No members have been associated with this project yet.</p>}
             </div>
-            <button className="button-secondary mobile-directory-action" onClick={onOpenTeams} type="button">Manage people &amp; capacity</button>
+            <button className="button-secondary mobile-directory-action" onClick={onOpenTeams} type="button">Manage project team</button>
           </>
         )}
-        <button className="button-primary mobile-directory-action" onClick={onCreate} type="button">
-          + New {isProjects ? 'project' : 'team'}
-        </button>
+        {isProjects && <button className="button-primary mobile-directory-action" onClick={onCreate} type="button">+ New project</button>}
       </section>
     </div>
   );
@@ -887,12 +878,10 @@ function ProjectPeopleDialog({
 }
 
 function WorkspaceCreationDialog({
-  kind,
   signedIn,
   onClose,
   onCreated,
 }: {
-  kind: 'project' | 'team';
   signedIn: boolean;
   onClose: () => void;
   onCreated: (projectId?: string) => Promise<void>;
@@ -902,49 +891,43 @@ function WorkspaceCreationDialog({
   const [location, setLocation] = useState('');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
-  const isProject = kind === 'project';
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!signedIn) return;
     setSaving(true);
     setMessage(undefined);
     try {
-      if (isProject) {
-        const project = await createWorkspaceProject({
-          name: name.trim(),
-          code: code.trim(),
-          ...(location.trim() ? { location: location.trim() } : {}),
-        });
-        await onCreated(project.id);
-      } else {
-        await createWorkspaceTeam(name.trim());
-        await onCreated();
-      }
+      const project = await createWorkspaceProject({
+        name: name.trim(),
+        code: code.trim(),
+        ...(location.trim() ? { location: location.trim() } : {}),
+      });
+      await onCreated(project.id);
       onClose();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : `The ${kind} could not be created.`);
+      setMessage(error instanceof Error ? error.message : 'The project could not be created.');
     } finally {
       setSaving(false);
     }
   };
   return (
     <div className="dialog-backdrop" role="presentation">
-      <section className="modal-card" aria-label={`Create ${kind}`} role="dialog" aria-modal="true">
+      <section className="modal-card" aria-label="Create project" role="dialog" aria-modal="true">
         <div className="card-header">
           <div>
             <p className="eyebrow">WORKSPACE SETUP</p>
-            <h2>Create {isProject ? 'project' : 'team'}</h2>
+            <h2>Create project</h2>
           </div>
-          <button className="icon-button" aria-label={`Close create ${kind}`} onClick={onClose}>
+          <button className="icon-button" aria-label="Close create project" onClick={onClose}>
             ×
           </button>
         </div>
         {!signedIn ? (
-          <p className="settings-empty">Sign in to create projects and teams in your workspace.</p>
+          <p className="settings-empty">Sign in to create a project and its delivery team.</p>
         ) : (
           <form className="modal-form" onSubmit={submit}>
             <label>
-              {isProject ? 'Project name' : 'Team name'}
+              Project name
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -952,27 +935,23 @@ function WorkspaceCreationDialog({
                 required
               />
             </label>
-            {isProject && (
-              <>
-                <label>
-                  Project code
-                  <input
-                    value={code}
-                    onChange={(event) => setCode(event.target.value.toUpperCase())}
-                    minLength={2}
-                    maxLength={24}
-                    required
-                  />
-                </label>
-                <label>
-                  Location <small>(optional)</small>
-                  <input value={location} onChange={(event) => setLocation(event.target.value)} />
-                </label>
-              </>
-            )}
+            <label>
+              Project code
+              <input
+                value={code}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                minLength={2}
+                maxLength={24}
+                required
+              />
+            </label>
+            <label>
+              Location <small>(optional)</small>
+              <input value={location} onChange={(event) => setLocation(event.target.value)} />
+            </label>
             {message && <p className="form-message">{message}</p>}
             <button className="button-primary" disabled={saving} type="submit">
-              {saving ? 'Creating…' : `Create ${kind}`}
+              {saving ? 'Creating…' : 'Create project'}
             </button>
           </form>
         )}
@@ -1057,7 +1036,7 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
       >
         <div className="card-header">
           <div>
-            <p className="eyebrow">RESOURCE MANAGEMENT</p>
+            <p className="eyebrow">RESOURCE CAPACITY</p>
             <h2>Staffing &amp; capacity</h2>
           </div>
           <button
@@ -1069,7 +1048,7 @@ function StaffingDialog({ signedIn, onClose }: { signedIn: boolean; onClose: () 
           </button>
         </div>
         {!signedIn ? (
-          <p className="settings-empty">Sign in to manage people, teams, and capacity.</p>
+          <p className="settings-empty">Sign in to manage people, capacity groups, and staffing.</p>
         ) : (
           <>
             <form className="inline-form staffing-form" onSubmit={savePerson}>
