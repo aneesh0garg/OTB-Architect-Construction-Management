@@ -2686,6 +2686,7 @@ function Drawings({
     url: string;
     expiresAt: string;
     documentId: string;
+    isImage: boolean;
   }>();
   const [annotations, setAnnotations] = useState<DocumentAnnotation[]>([]);
   const [annotationBody, setAnnotationBody] = useState('');
@@ -2713,6 +2714,7 @@ function Drawings({
         url: download.downloadUrl,
         expiresAt: download.expiresAt,
         documentId: drawing.id,
+        isImage: /\.(jpe?g|png)$/i.test(new URL(download.downloadUrl).pathname),
       });
       setAnnotations(await loadDocumentAnnotations(record.project.id, drawing.id));
     } catch {
@@ -2820,7 +2822,11 @@ function Drawings({
               </button>
             </div>
           </header>
-          <iframe title={preview.title} src={preview.url} />
+          {preview.isImage ? (
+            <img className="drawing-original-image" src={preview.url} alt={preview.title} />
+          ) : (
+            <iframe title={preview.title} src={preview.url} />
+          )}
           <div className="drawing-annotations">
             <strong>Comments &amp; pins</strong>
             {annotations.map((annotation) => (
