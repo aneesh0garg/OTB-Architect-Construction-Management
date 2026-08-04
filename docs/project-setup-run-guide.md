@@ -7,8 +7,8 @@ PostgreSQL, Redis, MinIO, and Keycloak.
 
 - Node.js 22 or later
 - Docker Desktop with Docker Compose
-- pnpm 10.12.1. If Corepack is unavailable, use `npm exec pnpm@10.12.1 --` in
-  place of `pnpm`.
+- pnpm 10.12.1. If Corepack is unavailable, invoke it explicitly with
+  `npm exec --yes --package=pnpm@10.12.1 -- pnpm` in place of `pnpm`.
 
 ## First run
 
@@ -17,6 +17,13 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 pnpm dev
+```
+
+Without Corepack, the equivalent commands are:
+
+```bash
+npm exec --yes --package=pnpm@10.12.1 -- pnpm install --frozen-lockfile
+npm exec --yes --package=pnpm@10.12.1 -- pnpm dev
 ```
 
 The long-running development processes can also be started separately:

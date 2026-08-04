@@ -5,7 +5,8 @@ India-first architecture, construction, and project-delivery workspace.
 ## Local foundation
 
 Prerequisites: Node 22+, pnpm 10+, and Docker Compose. If `corepack` is not
-available on your machine, replace `pnpm` below with `npm exec pnpm@10.12.1 --`.
+available on your machine, run pnpm explicitly through npm:
+`npm exec --yes --package=pnpm@10.12.1 -- pnpm`.
 
 ```bash
 corepack enable
@@ -13,6 +14,13 @@ pnpm install
 cp .env.example .env
 docker compose up -d
 pnpm dev
+```
+
+For example, without Corepack:
+
+```bash
+npm exec --yes --package=pnpm@10.12.1 -- pnpm install --frozen-lockfile
+npm exec --yes --package=pnpm@10.12.1 -- pnpm dev
 ```
 
 - Web: http://localhost:3000
