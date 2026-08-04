@@ -1794,6 +1794,20 @@ const sortControlledDocuments = (documents: ProjectRecord['documents']) =>
     if (statusComparison !== 0) return statusComparison;
     return documentNumberCollator.compare(right.revision, left.revision);
   });
+const nextRevision = (revision: string) => {
+  if (/^\d+$/.test(revision)) return String(Number(revision) + 1);
+  const letters = revision.toUpperCase();
+  if (!/^[A-Z]+$/.test(letters)) return 'A';
+  const characters = letters.split('');
+  for (let index = characters.length - 1; index >= 0; index -= 1) {
+    if (characters[index] !== 'Z') {
+      characters[index] = String.fromCharCode(characters[index]!.charCodeAt(0) + 1);
+      return characters.join('');
+    }
+    characters[index] = 'A';
+  }
+  return `A${characters.join('')}`;
+};
 
 function Documents({
   record,
@@ -1825,7 +1839,6 @@ function Documents({
   const [documentType, setDocumentType] = useState<
     'drawing' | 'specification' | 'report' | 'contract' | 'photo' | 'other'
   >('drawing');
-  const [revision, setRevision] = useState('A');
   const [supersedesDocumentId, setSupersedesDocumentId] = useState('');
   const selectedPrior = documents.find((document) => document.id === supersedesDocumentId);
   const prefix = {
@@ -1839,6 +1852,7 @@ function Documents({
   const documentNumber =
     selectedPrior?.document_number ??
     `${prefix}-${String(documents.filter((document) => document.document_type === documentType).length + 1).padStart(4, '0')}`;
+  const revision = selectedPrior ? nextRevision(selectedPrior.revision) : 'A';
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [issuingId, setIssuingId] = useState<string>();
@@ -1867,7 +1881,6 @@ function Documents({
       });
       setFile(undefined);
       setTitle('');
-      setRevision('A');
       setSupersedesDocumentId('');
       await onChanged();
       setMessage('Document revision uploaded and added to the controlled record.');
@@ -1982,12 +1995,7 @@ function Documents({
             </label>
             <label>
               Revision
-              <input
-                value={revision}
-                onChange={(event) => setRevision(event.target.value)}
-                minLength={1}
-                required
-              />
+              <input value={revision} readOnly aria-label="Generated document revision" />
             </label>
             <label>
               Supersede existing revision (optional)
