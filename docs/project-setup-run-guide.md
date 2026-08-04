@@ -143,9 +143,17 @@ Start the mobile field app with `pnpm --filter @orbita/mobile dev`, then use
 Expo Go or an iOS/Android simulator. “Capture observation” saves a device-local
 SQLite record first, so a capture survives an app restart; the sync indicator
 makes local, syncing, synced, failed, and conflict states explicit. The current
-mobile shell deliberately does not claim a successful network sync until its
-authenticated project-session adapter is enabled. The API’s `clientCaptureId`
-deduplicates retries when that adapter submits the draft.
+mobile app uses Keycloak Authorization Code + PKCE, stores its short-lived
+access token in the device secure store, and submits its queue only after an
+authenticated project session is available. The API’s `clientCaptureId`
+deduplicates retries when the app submits the draft.
+
+For a physical device, copy `apps/mobile/.env.example` to
+`apps/mobile/.env` and replace the example LAN address with the computer’s
+LAN-reachable address. `localhost` only works for a simulator that maps it to
+the development machine. Tap the `IN` avatar in Field work to sign in; after a
+successful sign-in it shows the selected project and a pending capture can be
+synced with **Sync now**.
 
 ## P1.3 commercial control API
 

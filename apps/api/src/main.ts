@@ -1,7 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { AppModule } from './app.module.js';
+
+for (const envFile of [resolve(process.cwd(), '.env'), resolve(process.cwd(), '../../.env')]) {
+  if (existsSync(envFile)) process.loadEnvFile(envFile);
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new FastifyAdapter());

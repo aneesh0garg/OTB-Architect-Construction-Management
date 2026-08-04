@@ -2,6 +2,13 @@ import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  type MobileSession,
+  restoreSession,
+  signIn,
+  signOut,
+  submitObservation,
+} from './mobile-session';
+import {
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -99,6 +106,8 @@ export default function HomeScreen() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('synced');
+  const [session, setSession] = useState<MobileSession>();
+  const [accountError, setAccountError] = useState<string>();
   const openCount = useMemo(
     () => observations.filter((item) => item.state !== 'Closed').length,
     [observations],
@@ -121,6 +130,27 @@ export default function HomeScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    restoreSession()
+      .then(setSession)
+      .catch(() => setAccountError('Could not restore your session.'));
+  }, []);
+
+  const connectAccount = async () => {
+    setAccountError(undefined);
+    try {
+      const next = await signIn();
+      if (next) setSession(next);
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : 'Could not sign in.');
+    }
+  };
+
+  const disconnectAccount = async () => {
+    await signOut();
+    setSession(undefined);
+  };
+
   const captureObservation = async () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
@@ -139,17 +169,30 @@ export default function HomeScreen() {
     setCaptureOpen(false);
   };
   const retrySync = async () => {
+    if (!session) {
+      setAccountError('Sign in before syncing field captures.');
+      setSyncState('failed');
+      return;
+    }
     setSyncState('syncing');
-    // The transport is intentionally not faked: a capture remains local until an
-    // authenticated project session submits its client capture ID to the API.
     const queued = observations.filter((item) => item.sync !== 'synced');
-    await Promise.all(queued.map((item) => persistObservation({ ...item, sync: 'failed' })));
-    setObservations((current) =>
-      current.map((item) =>
-        item.sync === 'local' || item.sync === 'failed' ? { ...item, sync: 'failed' } : item,
-      ),
-    );
-    setSyncState(queued.length ? 'failed' : 'synced');
+    try {
+      await Promise.all(queued.map((item) => submitObservation(session, item)));
+      const synced = queued.map((item) => ({ ...item, sync: 'synced' as const }));
+      await Promise.all(synced.map(persistObservation));
+      setObservations((current) =>
+        current.map((item) => synced.find((saved) => saved.id === item.id) ?? item),
+      );
+      setSyncState('synced');
+    } catch (error) {
+      const failed = queued.map((item) => ({ ...item, sync: 'failed' as const }));
+      await Promise.all(failed.map(persistObservation));
+      setObservations((current) =>
+        current.map((item) => failed.find((saved) => saved.id === item.id) ?? item),
+      );
+      setSyncState('failed');
+      setAccountError(error instanceof Error ? error.message : 'Sync failed.');
+    }
   };
 
   return (
@@ -157,13 +200,14 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>RIVERSIDE RESIDENCES</Text>
+          <Text style={styles.eyebrow}>{session?.projectName ?? 'RIVERSIDE RESIDENCES'}</Text>
           <Text style={styles.title}>Field work</Text>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>AM</Text>
-        </View>
+        <Pressable style={styles.avatar} onPress={session ? disconnectAccount : connectAccount}>
+          <Text style={styles.avatarText}>{session ? 'AM' : 'IN'}</Text>
+        </Pressable>
       </View>
+      {accountError && <Text style={styles.accountError}>{accountError}</Text>}
       <View
         style={[styles.syncBanner, syncState === 'synced' ? styles.syncOk : styles.syncPending]}
       >
@@ -310,6 +354,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#d9ac73',
   },
   avatarText: { fontSize: 10, fontWeight: '700', color: '#39240a' },
+  accountError: {
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+    fontSize: 11,
+    color: '#8b3428',
+    backgroundColor: '#fff0ed',
+  },
   syncBanner: {
     minHeight: 36,
     paddingHorizontal: 20,
