@@ -10,19 +10,29 @@ PostgreSQL, Redis, MinIO, and Keycloak.
 - pnpm 10.12.1. If Corepack is unavailable, invoke it explicitly with
   `npm exec --yes --package=pnpm@10.12.1 -- pnpm` in place of `pnpm`.
 
-## First run
+## New contributor quick start
+
+Follow this sequence on a new machine. It configures the full local stack,
+including secure invitation email delivery, without committing any secrets.
 
 ```bash
 cp .env.example .env
-docker compose up -d
 pnpm install
+docker compose up -d
+npm exec --yes --package=pnpm@10.12.1 -- pnpm setup:local-invitations
 pnpm dev
 ```
+
+The invitation setup command is safe to repeat. It creates the local-only Keycloak
+provisioner client when necessary, grants only the required local user-management
+roles, retrieves its generated secret into the ignored `.env`, and configures
+Keycloak SMTP to use Mailpit. It never prints or stores that secret in Git.
 
 Without Corepack, the equivalent commands are:
 
 ```bash
 npm exec --yes --package=pnpm@10.12.1 -- pnpm install --frozen-lockfile
+npm exec --yes --package=pnpm@10.12.1 -- pnpm setup:local-invitations
 npm exec --yes --package=pnpm@10.12.1 -- pnpm dev
 ```
 
@@ -45,6 +55,19 @@ pnpm --filter @orbita/mobile start
 | MinIO console | `http://localhost:9001`        | Local S3-compatible document storage  |
 | PostgreSQL    | `localhost:5432`               | Tenant and project data               |
 | Redis         | `localhost:6379`               | Queue/cache foundation                |
+
+## Verify your installation
+
+1. Open `http://localhost:3000` and confirm the workspace loads.
+2. Open `http://localhost:3001/health` and confirm the API reports healthy.
+3. Open `http://localhost:8025` and confirm the Mailpit inbox loads.
+4. Sign in at the workspace using `pilot-admin` / `pilot_local`.
+5. In the mobile navigation, select **Team** → **Manage project team**. The
+   Staffing & capacity dialog should display **Invite organization member**.
+
+If Mailpit is unavailable, run `docker compose up -d mailpit` and refresh the
+inbox. If Keycloak was already running, repeat `pnpm setup:local-invitations`;
+it updates the existing realm in place.
 
 ## Organization member invitations and profile photos
 
@@ -73,10 +96,31 @@ before this feature was added. Never commit that secret or expose it in the web 
 app. Production must use an approved transactional-email SMTP/API provider with equivalent
 delivery controls.
 
+### Test an invitation end to end
+
+1. Sign in as `pilot-admin`.
+2. Go to **Team** → **Manage project team** → **Invite organization member**.
+3. Enter a unique local email address (for example `new.member@local.orbita`),
+   name, role, and weekly capacity, then select **Send invitation**.
+4. Open Mailpit at `http://localhost:8025`, open the newest Orbita message, and
+   use the activation link.
+5. Complete email verification and choose a password in Keycloak.
+6. Sign out and sign in as the invited member. Then assign the active directory
+   member to a project from **Resource capacity**.
+
+Mailpit does not deliver externally; any syntactically valid test address is safe.
+
 Members can upload a JPEG, PNG, or WebP profile photo (maximum 5 MB) from their profile
 page. Uploads use a short-lived storage URL, are verified by the API, and are recorded in
 the audit trail. A member may update their own photo; organization managers may update a
 directory member’s photo.
+
+### Test a profile photo
+
+1. Open a member from the organization directory.
+2. Select **Upload profile photo** and choose a JPEG, PNG, or WebP under 5 MB.
+3. Confirm the photo replaces the initials avatar after the upload completes.
+4. Refresh the page to confirm the persisted photo is loaded through a short-lived URL.
 
 ## Pilot account
 

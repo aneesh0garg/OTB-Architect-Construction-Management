@@ -44,8 +44,9 @@ pnpm typecheck
 pnpm test
 ```
 
-For the complete local service map, pilot account, workspace API check, and
-separate web/API/mobile commands, see [the project setup and run guide](docs/project-setup-run-guide.md).
+For a new-machine setup, verification checks, local Mailpit/Keycloak invitation
+configuration, end-to-end invitation test, profile-photo test, workspace API check,
+and separate web/API/mobile commands, see [the project setup and run guide](docs/project-setup-run-guide.md).
 
 ## Local Phase 1 smoke test
 
