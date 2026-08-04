@@ -60,7 +60,10 @@ export function configureLocalInvitations() {
 
   const envPath = resolve(root, '.env');
   if (!existsSync(envPath)) copyFileSync(resolve(root, '.env.example'), envPath);
-  writeFileSync(envPath, upsertEnvValue(readFileSync(envPath, 'utf8'), 'KEYCLOAK_PROVISIONER_CLIENT_SECRET', secret));
+  let env = readFileSync(envPath, 'utf8');
+  env = upsertEnvValue(env, 'KEYCLOAK_REALM', 'orbita');
+  env = upsertEnvValue(env, 'KEYCLOAK_PROVISIONER_CLIENT_ID', 'orbita-provisioner');
+  writeFileSync(envPath, upsertEnvValue(env, 'KEYCLOAK_PROVISIONER_CLIENT_SECRET', secret));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

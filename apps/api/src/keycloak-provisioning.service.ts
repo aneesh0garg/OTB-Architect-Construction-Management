@@ -48,9 +48,9 @@ export class KeycloakProvisioningService {
   }
 
   private async accessToken() {
-    const clientId = process.env.KEYCLOAK_PROVISIONER_CLIENT_ID;
+    const clientId = process.env.KEYCLOAK_PROVISIONER_CLIENT_ID ?? 'orbita-provisioner';
     const clientSecret = process.env.KEYCLOAK_PROVISIONER_CLIENT_SECRET;
-    if (!clientId || !clientSecret)
+    if (!clientSecret)
       throw new ServiceUnavailableException('Member invitations are not configured. Set the Keycloak provisioner credentials.');
     const response = await fetch(`${this.realmIssuer()}/protocol/openid-connect/token`, {
       method: 'POST',

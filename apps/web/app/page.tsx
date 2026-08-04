@@ -973,6 +973,7 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
       setWeeklyHours('40');
       setOrganizationRole('project_member');
       await refresh();
+      setMessage(`Invitation sent to ${email.trim()}. Check Mailpit to complete activation.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Person could not be saved.');
     } finally {
