@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { type FormEvent, type MouseEvent, useEffect, useState } from 'react';
 import {
+  beginLocalLogin,
   createDocumentAnnotation,
   issueProjectDocument,
   loadDocumentAnnotations,
@@ -48,6 +49,7 @@ export function DocumentRecordWorkspace({ projectId, documentId }: DocumentRecor
   const [pinY, setPinY] = useState(50);
   const [originalUrl, setOriginalUrl] = useState<string>();
   const [message, setMessage] = useState<string>();
+  const [signInRequired, setSignInRequired] = useState(false);
   const [working, setWorking] = useState(false);
 
   const refresh = async () => {
@@ -68,7 +70,11 @@ export function DocumentRecordWorkspace({ projectId, documentId }: DocumentRecor
   useEffect(() => {
     void (async () => {
       try {
-        await restoreLocalLogin();
+        const viewer = await restoreLocalLogin();
+        if (!viewer) {
+          setSignInRequired(true);
+          return;
+        }
         await refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'Document record could not be loaded.');
@@ -136,6 +142,9 @@ export function DocumentRecordWorkspace({ projectId, documentId }: DocumentRecor
     }
   };
 
+  if (signInRequired) {
+    return <main className="record-page"><section className="content-card record-page-card auth-required"><p className="eyebrow">PRIVATE PROJECT RECORD</p><h1>Sign in to view this document</h1><p>Your access is checked before Orbita loads controlled project records.</p><button className="button-primary" onClick={() => void beginLocalLogin()}>Sign in</button></section></main>;
+  }
   if (!document) {
     return <main className="record-page"><p className="settings-empty">{message ?? 'Loading controlled record…'}</p></main>;
   }

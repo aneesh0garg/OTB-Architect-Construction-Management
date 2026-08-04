@@ -796,6 +796,16 @@ small {
   margin-top: 16px;
   padding: 20px;
 }
+.auth-required {
+  display: grid;
+  gap: 10px;
+  max-width: 540px;
+  margin: 10vh auto;
+  text-align: center;
+}
+.auth-required .button-primary {
+  justify-self: center;
+}
 .original-workspace {
   margin-top: 16px;
   overflow: hidden;

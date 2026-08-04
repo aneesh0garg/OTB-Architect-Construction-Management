@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { type FormEvent, useEffect, useState } from 'react';
 import {
+  beginLocalLogin,
   createTaskComment,
   loadProjectRecord,
   loadTaskComments,
@@ -20,6 +21,7 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [commentBody, setCommentBody] = useState('');
   const [message, setMessage] = useState<string>();
+  const [signInRequired, setSignInRequired] = useState(false);
   const [working, setWorking] = useState(false);
   const [editingField, setEditingField] = useState<'title' | 'priority' | 'dueDate' | 'assignee'>();
   const [fieldValue, setFieldValue] = useState('');
@@ -34,7 +36,11 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
   useEffect(() => {
     void (async () => {
       try {
-        await restoreLocalLogin();
+        const viewer = await restoreLocalLogin();
+        if (!viewer) {
+          setSignInRequired(true);
+          return;
+        }
         await refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'Task record could not be loaded.');
@@ -95,6 +101,7 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
     }
   };
 
+  if (signInRequired) return <main className="record-page"><section className="content-card record-page-card auth-required"><p className="eyebrow">PRIVATE PROJECT RECORD</p><h1>Sign in to view this task</h1><p>Your access is checked before Orbita loads project work.</p><button className="button-primary" onClick={() => void beginLocalLogin()}>Sign in</button></section></main>;
   if (!task) return <main className="record-page"><p className="settings-empty">{message ?? 'Loading task…'}</p></main>;
   const canTransition = !['completed', 'cancelled'].includes(task.status);
   return (
