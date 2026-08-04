@@ -19,7 +19,7 @@ test.describe('desktop workspace controls', () => {
     );
     await page.getByRole('button', { name: 'Close pipeline and proposals' }).click();
 
-    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
+    await page.getByRole('link', { name: '◉ Team & resources' }).click();
     await expect(page.getByRole('dialog', { name: 'Staffing and capacity' })).toContainText(
       'Sign in to manage people, capacity groups, and staffing',
     );

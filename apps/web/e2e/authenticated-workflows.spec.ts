@@ -42,13 +42,15 @@ test.describe('authenticated workspace workflows', () => {
     const suffix = Date.now();
     const userId = `ui-role-${suffix}`;
     const name = `UI Role Person ${suffix}`;
-    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
+    await page.getByRole('link', { name: '◉ Team & resources' }).click();
     await page.getByLabel('User ID').fill(userId);
     await page.getByLabel('Name').fill(name);
     await page.getByRole('button', { name: 'Save person' }).click();
     await page.getByLabel('Close staffing and capacity').click();
 
-    await page.getByRole('link', { name: '◉ Resource capacity' }).click();
+    await page.getByRole('link', { name: '◉ Team & resources' }).click();
+    await expect(page.getByRole('heading', { name: 'Assign member to project' })).toBeVisible();
+    await expect(page.getByLabel('Team')).toHaveCount(0);
     await page.getByLabel('Organization member').selectOption({ label: `${name} · project member` });
     await page.getByLabel('Project responsibility').selectOption('owner');
     await page.getByRole('button', { name: 'Assign to project team' }).click();

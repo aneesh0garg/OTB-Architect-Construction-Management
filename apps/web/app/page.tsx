@@ -11,7 +11,6 @@ import {
   loadPipeline,
   loadResourceCapacity,
   loadResourcePeople,
-  loadResourceTeams,
   loadNotificationPreferences,
   loadNotifications,
   markNotificationRead,
@@ -29,7 +28,6 @@ import {
   createPipelineOpportunity,
   createPipelineProposal,
   convertPipelineOpportunity,
-  assignResourceTeamMember,
   addProjectCollaborator,
   createWorkspaceProject,
   fileProjectCommunication,
@@ -59,7 +57,6 @@ import {
   type PipelineRegister,
   type CapacityRegister,
   type ResourcePerson,
-  type ResourceTeam,
   type Viewer,
 } from './local-auth';
 import { type WorkspaceView, workspaceData } from './workspace-data';
@@ -976,7 +973,6 @@ function WorkspaceCreationDialog({
 
 function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { record: ProjectRecord | undefined; signedIn: boolean; onClose: () => void; onProjectChanged: () => Promise<void> }) {
   const [people, setPeople] = useState<ResourcePerson[]>([]);
-  const [teams, setTeams] = useState<ResourceTeam[]>([]);
   const [capacity, setCapacity] = useState<CapacityRegister>();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -984,24 +980,20 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
   const [organizationRole, setOrganizationRole] = useState('project_member');
   const [projectMemberId, setProjectMemberId] = useState('');
   const [projectRole, setProjectRole] = useState<ProjectCollaboratorRole>('project_member');
-  const [teamId, setTeamId] = useState('');
-  const [memberId, setMemberId] = useState('');
   const [message, setMessage] = useState<string>();
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; text: string }>();
   const [saving, setSaving] = useState(false);
   const refresh = async () => {
     if (!signedIn) return;
     try {
-      const [nextPeople, nextTeams, nextCapacity] = await Promise.all([
+      const [nextPeople, nextCapacity] = await Promise.all([
         loadResourcePeople(),
-        loadResourceTeams(),
         loadResourceCapacity(
           new Date().toISOString().slice(0, 10),
           new Date(Date.now() + 27 * 86400000).toISOString().slice(0, 10),
         ),
       ]);
       setPeople(nextPeople);
-      setTeams(nextTeams);
       setCapacity(nextCapacity);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Staffing records could not be loaded.');
@@ -1030,20 +1022,6 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
       setInviteFeedback({ kind: 'success', text: `Invitation sent to ${email.trim()}. Check Mailpit to complete activation.` });
     } catch (error) {
       setInviteFeedback({ kind: 'error', text: error instanceof Error ? error.message : 'The invitation could not be sent. Please try again.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-  const assign = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
-    setMessage(undefined);
-    try {
-      await assignResourceTeamMember({ teamId, userId: memberId });
-      setMemberId('');
-      await refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Team assignment could not be saved.');
     } finally {
       setSaving(false);
     }
@@ -1153,43 +1131,6 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
               </label>
               <button className="button-primary" disabled={saving} type="submit">Assign to project team</button>
             </form></section>}
-            {teams.length > 0 && people.length > 0 && (
-              <form className="inline-form staffing-form" onSubmit={assign}>
-                <label>
-                  Team
-                  <select
-                    value={teamId}
-                    onChange={(event) => setTeamId(event.target.value)}
-                    required
-                  >
-                    <option value="">Choose team</option>
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Person
-                  <select
-                    value={memberId}
-                    onChange={(event) => setMemberId(event.target.value)}
-                    required
-                  >
-                    <option value="">Choose person</option>
-                    {people.map((person) => (
-                      <option key={person.user_id} value={person.user_id}>
-                        {person.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="button-primary" disabled={saving} type="submit">
-                  Assign team
-                </button>
-              </form>
-            )}
             {message && <p className="form-message">{message}</p>}
             <div className="simple-record-list">
               {(capacity?.people ?? []).map((person) => (
@@ -1204,18 +1145,6 @@ function StaffingDialog({ record, signedIn, onClose, onProjectChanged }: { recor
                 </article>
               ))}
               {capacity && !capacity.people.length && <p>No people have been added.</p>}
-            </div>
-            <div className="simple-record-list">
-              {teams.map((team) => (
-                <article key={team.id}>
-                  <strong>{team.name}</strong>
-                  <span>
-                    {team.members.length
-                      ? team.members.map((member) => member.display_name).join(', ')
-                      : 'No members assigned'}
-                  </span>
-                </article>
-              ))}
             </div>
           </>
         )}

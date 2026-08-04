@@ -72,7 +72,7 @@ it updates the existing realm in place.
 
 ## Organization member invitations and profile photos
 
-From **Resource capacity**, an organization administrator invites a member using their
+From **Team & resources**, an organization administrator invites a member using their
 work email, name, role, and weekly capacity. Orbita creates or reuses the Keycloak
 identity server-side, records a pending organization directory membership, and asks
 Keycloak to send a seven-day activation email. The recipient verifies their email and
@@ -134,7 +134,8 @@ and restart the API.
    the invitation confirmation before opening the link.
 5. Complete email verification and choose a password in Keycloak.
 6. Sign out and sign in as the invited member. Then assign the active directory
-   member to a project from **Resource capacity**.
+   member to the current project's delivery team from **Team & resources**. No separate
+   team selection is required: each project has exactly one delivery team.
 
 Mailpit does not deliver externally; any syntactically valid test address is safe.
 Keycloak intentionally rejects an activation link when that browser has an SSO session
