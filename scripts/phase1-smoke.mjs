@@ -176,11 +176,6 @@ assert.equal(
   true,
   'Project roster does not include the shared contractor.',
 );
-await api('DELETE', `${projectPath}/collaborators/${contractorId}`);
-const revokedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
-  headers: { authorization: `Bearer ${contractorToken.access_token}` },
-});
-assert.equal(revokedRecord.ok, false, 'Removed contractor retained project access.');
 const activeProject = await api('POST', `${projectPath}/status`, { status: 'active' });
 assert.equal(activeProject.status, 'active', 'Project did not transition to active.');
 const stagedProject = await api('POST', `${projectPath}/stage`, {
@@ -202,6 +197,24 @@ const startedTask = await api('POST', `${projectPath}/tasks/${task.id}/status`, 
   status: 'in_progress',
 });
 assert.equal(startedTask.status, 'in_progress', 'Task did not transition to in progress.');
+const contractorTaskTransition = await fetch(`${apiUrl}${projectPath}/tasks/${task.id}/status`, {
+  method: 'POST',
+  headers: {
+    authorization: `Bearer ${contractorToken.access_token}`,
+    'content-type': 'application/json',
+  },
+  body: JSON.stringify({ status: 'blocked' }),
+});
+assert.equal(
+  contractorTaskTransition.status,
+  400,
+  'Contractor could transition an unrelated task.',
+);
+await api('DELETE', `${projectPath}/collaborators/${contractorId}`);
+const revokedRecord = await fetch(`${apiUrl}${projectPath}/record`, {
+  headers: { authorization: `Bearer ${contractorToken.access_token}` },
+});
+assert.equal(revokedRecord.ok, false, 'Removed contractor retained project access.');
 const documentBytes = Buffer.from(`Orbita controlled document ${runId}`, 'utf8');
 const preparedUpload = await api('POST', `${projectPath}/documents/uploads`, {
   fileName: `smoke-${runId}.pdf`,

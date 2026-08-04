@@ -329,6 +329,17 @@ export class WorkspaceService {
       [taskId, project.id, actor.organizationId],
     );
     const current = this.resultRow(task.rows, 'Task is unavailable.');
+    const canManageTasks = actor.roles.some((role) =>
+      ['organization_admin', 'principal', 'project_manager'].includes(role),
+    );
+    if (
+      !canManageTasks &&
+      current.assignee_id !== actor.userId &&
+      current.created_by !== actor.userId
+    )
+      throw new BadRequestException(
+        'Only the task assignee, task creator, or a project manager can change this task.',
+      );
     const allowed: Record<string, string[]> = {
       open: ['in_progress', 'blocked', 'completed', 'cancelled'],
       in_progress: ['blocked', 'completed', 'cancelled'],
