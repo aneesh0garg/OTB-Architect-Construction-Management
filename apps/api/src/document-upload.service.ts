@@ -30,10 +30,9 @@ interface DocumentStorageRow extends QueryResultRow {
   storage_key: string | null;
 }
 
-@Injectable()
-export class DocumentUploadService {
-  private readonly client = new S3Client({
-    endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
+const createStorageClient = (endpoint: string) =>
+  new S3Client({
+    endpoint,
     region: process.env.S3_REGION ?? 'ap-south-1',
     forcePathStyle: true,
     credentials: {
@@ -41,6 +40,16 @@ export class DocumentUploadService {
       secretAccessKey: process.env.S3_SECRET_KEY ?? 'orbita_local_storage',
     },
   });
+
+@Injectable()
+export class DocumentUploadService {
+  private readonly endpoint = process.env.S3_ENDPOINT ?? 'http://localhost:9000';
+  private readonly client = createStorageClient(this.endpoint);
+  // The API can retain a loopback storage connection, while browsers on a LAN
+  // device need a URL that resolves to the development machine.
+  private readonly browserClient = createStorageClient(
+    process.env.S3_PUBLIC_ENDPOINT ?? this.endpoint,
+  );
   private bucketReady: Promise<void> | undefined;
 
   constructor(
@@ -83,7 +92,7 @@ export class DocumentUploadService {
     );
     const upload = row(result.rows, 'Upload could not be prepared.');
     const uploadUrl = await getSignedUrl(
-      this.client,
+      this.browserClient,
       new PutObjectCommand({ Bucket: this.bucket(), Key: key, ContentType: contentType }),
       { expiresIn: 900 },
     );
@@ -159,7 +168,7 @@ export class DocumentUploadService {
     if (!document.storage_key)
       throw new BadRequestException('This document revision has no uploaded original.');
     const downloadUrl = await getSignedUrl(
-      this.client,
+      this.browserClient,
       new GetObjectCommand({ Bucket: this.bucket(), Key: document.storage_key }),
       { expiresIn: 300 },
     );

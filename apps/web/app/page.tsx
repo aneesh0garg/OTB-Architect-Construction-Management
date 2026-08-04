@@ -44,6 +44,7 @@ import {
   transitionWorkspaceProjectStatus,
   recordProjectPayment,
   uploadProjectDocument,
+  issueProjectDocument,
   type ConnectedWorkspace,
   type CostControl,
   type ExecutionRegister,
@@ -1799,6 +1800,7 @@ function Documents({
   const [revision, setRevision] = useState('A');
   const [message, setMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [issuingId, setIssuingId] = useState<string>();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!record || !file) return;
@@ -1823,6 +1825,22 @@ function Documents({
       );
     } finally {
       setSaving(false);
+    }
+  };
+  const issue = async (document: ProjectRecord['documents'][number]) => {
+    if (!record) return;
+    setIssuingId(document.id);
+    setMessage(undefined);
+    try {
+      await issueProjectDocument(record.project.id, document.id);
+      await onChanged();
+      setMessage(
+        `${document.document_number} · Rev ${document.revision} is now issued. Any earlier issued revision with this number is superseded.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Document revision could not be issued.');
+    } finally {
+      setIssuingId(undefined);
     }
   };
   return (
@@ -1904,6 +1922,15 @@ function Documents({
                 <small>
                   {document.document_type} · {document.status} · {document.issue_date ?? 'Unissued'}
                 </small>
+                {signedIn && document.status === 'draft' && (
+                  <button
+                    className="button-secondary record-action"
+                    disabled={issuingId === document.id}
+                    onClick={() => void issue(document)}
+                  >
+                    {issuingId === document.id ? 'Issuing…' : 'Issue revision'}
+                  </button>
+                )}
                 {document.document_type === 'drawing' && (
                   <button
                     className="button-secondary record-action"

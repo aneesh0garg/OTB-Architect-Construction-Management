@@ -478,6 +478,45 @@ export class WorkspaceService {
     });
     return created;
   }
+  async issueDocumentRevision(actor: AuthenticatedActor, projectId: string, documentId: string) {
+    this.requireRole(actor, [
+      'organization_admin',
+      'principal',
+      'project_manager',
+      'project_member',
+    ]);
+    const project = await this.projectForActor(actor, projectId);
+    const existing = await this.pool.query<DocumentRow>(
+      `SELECT id, document_number, document_type, title, revision, status, issue_date,
+        discipline, building, floor, zone
+       FROM document_revisions
+       WHERE id = $1 AND project_id = $2 AND organization_id = $3`,
+      [documentId, project.id, actor.organizationId],
+    );
+    const draft = this.resultRow(existing.rows, 'Document revision is unavailable.');
+    if (draft.status !== 'draft')
+      throw new BadRequestException('Only a draft document revision can be issued.');
+    await this.pool.query(
+      `UPDATE document_revisions SET status = 'superseded'
+       WHERE project_id = $1 AND organization_id = $2 AND document_number = $3 AND status = 'issued'`,
+      [project.id, actor.organizationId, draft.document_number],
+    );
+    const issued = await this.pool.query<DocumentRow>(
+      `UPDATE document_revisions
+       SET status = 'issued', issue_date = COALESCE(issue_date, CURRENT_DATE)
+       WHERE id = $1 AND project_id = $2 AND organization_id = $3
+       RETURNING id, document_number, document_type, title, revision, status, issue_date,
+         discipline, building, floor, zone`,
+      [draft.id, project.id, actor.organizationId],
+    );
+    const document = this.resultRow(issued.rows, 'Document revision could not be issued.');
+    await this.audit(actor, 'document.revision_issued', 'document_revision', document.id, {
+      projectId: project.id,
+      documentNumber: document.document_number,
+      revision: document.revision,
+    });
+    return document;
+  }
   async createTransmittal(
     actor: AuthenticatedActor,
     projectId: string,

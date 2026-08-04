@@ -511,6 +511,8 @@ export async function uploadProjectDocument(
     uploadId: prepared.uploadId,
   });
 }
+export const issueProjectDocument = (projectId: string, documentId: string) =>
+  apiPost(`/v1/workspace/projects/${projectId}/documents/${documentId}/issue`);
 export const createProjectTask = (
   projectId: string,
   input: { title: string; priority?: string; dueDate?: string; assigneeId?: string },

@@ -207,6 +207,13 @@ export class WorkspaceController {
   ) {
     return this.workspace.addDocumentRevision(request.actor!, projectId, body);
   }
+  @Post('projects/:projectId/documents/:documentId/issue') issueDocumentRevision(
+    @Req() request: AuthenticatedRequest,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.workspace.issueDocumentRevision(request.actor!, projectId, documentId);
+  }
   @Post('projects/:projectId/transmittals') createTransmittal(
     @Req() request: AuthenticatedRequest,
     @Param('projectId') projectId: string,
