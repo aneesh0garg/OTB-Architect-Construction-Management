@@ -1192,7 +1192,9 @@ function Drawings({ record }: { record: ProjectRecord | undefined }) {
               <p key={annotation.id}>
                 <b>
                   Page {annotation.page_number}
-                  {annotation.x_percent !== null ? ' · Pin 50%, 50%' : ''}
+                  {annotation.x_percent !== null && annotation.y_percent !== null
+                    ? ` · Pin ${annotation.x_percent}%, ${annotation.y_percent}%`
+                    : ''}
                 </b>
                 {annotation.body}
               </p>
