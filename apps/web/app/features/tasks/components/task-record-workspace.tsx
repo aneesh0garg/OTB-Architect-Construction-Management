@@ -111,6 +111,7 @@ export function TaskRecordWorkspace({ projectId, taskId }: TaskRecordWorkspacePr
           <Link href="/" className="back-link">← Back to workspace</Link>
           <p className="eyebrow">PROJECT TASK</p>
           <h1>{task.title}</h1>
+          <p>{task.task_number}</p>
           <p>Keep the decision trail and the next action together.</p>
         </div>
         <span className="status-pill current">{task.status.replaceAll('_', ' ')}</span>

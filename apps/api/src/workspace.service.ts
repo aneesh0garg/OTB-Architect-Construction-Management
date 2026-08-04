@@ -29,6 +29,7 @@ interface ProjectMemberRow extends MemberRow {
 }
 interface TaskRow extends QueryResultRow {
   id: string;
+  task_number: string;
   title: string;
   status: string;
   priority: string;
@@ -327,7 +328,7 @@ export class WorkspaceService {
     const project = await this.projectForActor(actor, projectId);
     const [tasks, documents, communications, transmittals, members] = await Promise.all([
       this.pool.query<TaskRow>(
-        'SELECT id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
+        'SELECT id, task_number, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id FROM tasks WHERE project_id = $1 ORDER BY due_date NULLS LAST, created_at DESC',
         [project.id],
       ),
       this.pool.query<DocumentRow>(
@@ -368,10 +369,11 @@ export class WorkspaceService {
       this.resultRow(document.rows, 'The linked document is unavailable for this project.');
     }
     const task = await this.pool.query<TaskRow>(
-      'INSERT INTO tasks (organization_id, project_id, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id',
+      'INSERT INTO tasks (organization_id, project_id, task_number, title, priority, due_date, assignee_id, source_record_type, source_record_id, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, task_number, title, status, priority, due_date::text AS due_date, assignee_id, created_by, source_record_type, source_record_id',
       [
         actor.organizationId,
         project.id,
+        await this.nextTaskNumber(project),
         this.requiredText(input.title, 'Task title'),
         input.priority ?? 'normal',
         input.dueDate ?? null,
@@ -396,9 +398,18 @@ export class WorkspaceService {
     });
     return created;
   }
+  private async nextTaskNumber(project: ProjectRow) {
+    const result = await this.pool.query<{ number: number }>(
+      `INSERT INTO project_task_counters (project_id, next_number) VALUES ($1, 2)
+       ON CONFLICT (project_id) DO UPDATE SET next_number = project_task_counters.next_number + 1
+       RETURNING next_number - 1 AS number`,
+      [project.id],
+    );
+    return `${project.code}-T-${String(result.rows[0]?.number ?? 1).padStart(4, '0')}`;
+  }
   async getMyTasks(actor: AuthenticatedActor) {
     const tasks = await this.pool.query<PersonalTaskRow>(
-      `SELECT t.id, t.title, t.status, t.priority, t.due_date::text AS due_date, t.assignee_id, t.created_by, t.source_record_type, t.source_record_id,
+      `SELECT t.id, t.task_number, t.title, t.status, t.priority, t.due_date::text AS due_date, t.assignee_id, t.created_by, t.source_record_type, t.source_record_id,
           t.project_id, p.code AS project_code, p.name AS project_name
        FROM tasks t
        JOIN projects p ON p.id = t.project_id AND p.organization_id = t.organization_id
@@ -571,7 +582,7 @@ export class WorkspaceService {
       throw new BadRequestException('A superseding revision must use the same document type.');
     const number =
       superseded?.document_number ??
-      (await this.nextDocumentNumber(project.id, input.documentType));
+      (await this.nextDocumentNumber(project, input.documentType));
     const revision = superseded ? this.nextDocumentRevision(superseded.revision) : 'A';
     const upload = input.uploadId
       ? await this.uploads.consume(actor, projectId, input.uploadId)
@@ -614,12 +625,12 @@ export class WorkspaceService {
     });
     return created;
   }
-  private async nextDocumentNumber(projectId: string, documentType: string) {
+  private async nextDocumentNumber(project: ProjectRow, documentType: string) {
     const result = await this.pool.query<{ number: number }>(
       `INSERT INTO project_document_counters (project_id, document_type, next_number) VALUES ($1, $2, 2)
        ON CONFLICT (project_id, document_type) DO UPDATE SET next_number = project_document_counters.next_number + 1
        RETURNING next_number - 1 AS number`,
-      [projectId, documentType],
+      [project.id, documentType],
     );
     const prefix =
       {
@@ -630,7 +641,7 @@ export class WorkspaceService {
         photo: 'PHO',
         other: 'DOC',
       }[documentType] ?? 'DOC';
-    return `${prefix}-${String(result.rows[0]?.number ?? 1).padStart(4, '0')}`;
+    return `${project.code}-${prefix}-${String(result.rows[0]?.number ?? 1).padStart(4, '0')}`;
   }
   private nextDocumentRevision(revision: string) {
     if (/^\d+$/.test(revision)) return String(Number(revision) + 1);

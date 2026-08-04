@@ -252,6 +252,16 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS people_organization_role_idx ON people (organization_id, organization_role);
     `,
   },
+  {
+    id: '0022_public_record_identifiers',
+    sql: `
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_number TEXT;
+      UPDATE tasks SET task_number = CONCAT('LEGACY-T-', LEFT(id::text, 8)) WHERE task_number IS NULL;
+      ALTER TABLE tasks ALTER COLUMN task_number SET NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS tasks_organization_task_number_uniq ON tasks (organization_id, task_number);
+      CREATE TABLE IF NOT EXISTS project_task_counters (project_id UUID PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE, next_number INTEGER NOT NULL DEFAULT 1);
+    `,
+  },
 ];
 
 @Injectable()

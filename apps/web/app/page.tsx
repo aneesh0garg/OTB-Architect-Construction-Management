@@ -2494,7 +2494,7 @@ function Tasks({
                   <strong>{task.title}</strong>
                 </div>
                 <span>
-                  {task.status.replaceAll('_', ' ')} · {task.priority}
+                  {task.task_number} · {task.status.replaceAll('_', ' ')} · {task.priority}
                 </span>
                 <small>
                   {task.due_date ? `Due ${task.due_date}` : 'No due date'} ·{' '}

@@ -57,6 +57,7 @@ export type ProjectRecord = {
   };
   tasks: {
     id: string;
+    task_number: string;
     title: string;
     status: string;
     priority: string;
